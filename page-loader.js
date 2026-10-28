@@ -39,10 +39,6 @@
         await loadScript('sensitivity-engine.js');
     }
 
-    async function ensureEdpiProGraphScript() {
-        await loadScript('edpi-pro-graph.js');
-    }
-
     async function fetchPageHtml(pageKey) {
         if (htmlCache.has(pageKey)) return htmlCache.get(pageKey);
         const path = mainPagePaths[pageKey];
@@ -57,9 +53,6 @@
     async function preparePageDependencies(pageKey) {
         if (pageKey === 'sensitivity' || pageKey === 'edpi') {
             await ensureSensitivityScripts();
-        }
-        if (pageKey === 'edpi') {
-            await ensureEdpiProGraphScript();
         }
     }
 

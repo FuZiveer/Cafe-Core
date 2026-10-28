@@ -1653,70 +1653,6 @@ html.reduce-motion .home-feature-card:hover .home-feature-card-body::before {
 .bottleneck-chart {
     border: 1px solid #1a1a1e;
 }
-#edpi-pro-graph {
-    overflow: visible;
-}
-.edpi-pro-graph-chart {
-    position: relative;
-    overflow: visible;
-}
-.edpi-pro-graph-tooltip {
-    position: fixed;
-    z-index: 100;
-    transform: translate(-50%, calc(-100% - 8px));
-    padding: 0.35rem 0.625rem;
-    border-radius: var(--radius-ui);
-    background-color: #1a1a1e;
-    border: 1px solid #26262b;
-    color: #ff1e43;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.04em;
-    pointer-events: none;
-    white-space: nowrap;
-}
-.edpi-pro-graph-tooltip.hidden {
-    display: none;
-}
-.edpi-pro-graph-point-target {
-    fill: transparent;
-    pointer-events: all;
-}
-.edpi-pro-graph-svg {
-    display: block;
-    width: 100%;
-    min-width: 20rem;
-    height: auto;
-}
-.edpi-pro-graph-line {
-    stroke: #64748b;
-    stroke-width: 2;
-    vector-effect: non-scaling-stroke;
-    stroke-linejoin: round;
-    stroke-linecap: round;
-}
-.edpi-pro-graph-point {
-    fill: #121215;
-    stroke: #64748b;
-    stroke-width: 2;
-    transition: fill var(--motion-duration) var(--motion-ease),
-        stroke var(--motion-duration) var(--motion-ease);
-}
-.edpi-pro-graph-point-hit:hover .edpi-pro-graph-point {
-    fill: #ff1e43;
-    stroke: #ff1e43;
-}
-.edpi-pro-graph-grid {
-    stroke: #1a1a1e;
-    stroke-width: 1;
-}
-.edpi-pro-graph-axis {
-    fill: #64748b;
-    font-size: 10px;
-    font-family: Rajdhani, sans-serif;
-    font-weight: 600;
-}
 .bottleneck-bar-fill {
     transition: width var(--motion-duration) var(--motion-ease);
 }
@@ -2042,13 +1978,6 @@ body.mobile-nav-open .mobile-nav-backdrop {
     .tool-result-copy-btn {
         padding-left: 0.75rem;
         padding-right: 0.75rem;
-    }
-
-    .edpi-pro-graph-svg {
-        min-width: 0;
-    }
-    #edpi-pro-graph {
-        padding: 1rem;
     }
 
     .page-intro h2.flex {
