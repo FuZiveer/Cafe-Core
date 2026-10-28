@@ -294,7 +294,6 @@ aside, #flyout-panel {
     z-index: 1;
     isolation: isolate;
 }
-/* Collapsed: hide labels only; keep sidebar + button padding unchanged */
 body.sidebar-collapsed aside {
     width: 5.25rem !important;
 }
@@ -1905,7 +1904,6 @@ body.mobile-nav-open .mobile-nav-backdrop {
         visibility 0s linear 0s;
 }
 
-/* --- Responsive (mobile & small tablets) --- */
 @media (min-width: 768px) {
     .mobile-nav-backdrop {
         display: none !important;
