@@ -14,7 +14,7 @@ const replacement = `        <div id="main-content" class="flex-1 overflow-auto"
 html = html.slice(0, start) + replacement + html.slice(end);
 
 html = html.replace(
-    '<script src="data/sensitivity-games.js" defer></script>\n    <script src="sensitivity-engine.js" defer></script>\n    <script src="edpi-pro-graph.js" defer></script>\n    <script src="script.js" defer></script>',
+    '<script src="data/sensitivity-games.js" defer></script>\n    <script src="sensitivity-engine.js" defer></script>\n    <script src="script.js" defer></script>',
     '<script src="page-loader.js" defer></script>\n    <script src="script.js" defer></script>',
 );
 

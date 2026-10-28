@@ -1,4 +1,4 @@
-﻿const { Motion: CoreMotion, Storage: CoreStorage, freeze: coreFreeze } = window.CafeCore;
+const { Motion: CoreMotion, Storage: CoreStorage, freeze: coreFreeze } = window.CafeCore;
 const MOTION_MS = CoreMotion.MS;
 const MOTION_DURATION = CoreMotion.duration;
 const MOTION_EASE = CoreMotion.EASE;
@@ -65,7 +65,7 @@ const brandColors = [
 ];
 
 const BRAND_LOGO_SRC = 'images/Caf%C3%A9%20Core.png';
-const BRAND_LOGO_FALLBACK = 'https://placehold.co/80x80/121215/ff1e43?text=CC';
+const BRAND_LOGO_FALLBACK = '';
 
 const brandLogoBackgrounds = [
     { name: 'Raven', hex: '#0a0a0c' },
@@ -3203,11 +3203,6 @@ function updateEdpiCalculation() {
                 ? 'Enter a valid DPI (positive number).'
                 : 'Enter DPI and sensitivity to calculate eDPI.',
         );
-        const gamePickDpi = document.getElementById('edpi-game-pick');
-        const gameDpi = gamePickDpi ? getSensGameFromPick(gamePickDpi) : null;
-        if (typeof window.updateEdpiProGraph === 'function') {
-            window.updateEdpiProGraph(gameDpi, null);
-        }
         return;
     }
 
@@ -3217,11 +3212,6 @@ function updateEdpiCalculation() {
                 ? 'Enter a valid sensitivity (positive number).'
                 : 'Enter DPI and sensitivity to calculate eDPI.',
         );
-        const gamePickEarly = document.getElementById('edpi-game-pick');
-        const gameEarly = gamePickEarly ? getSensGameFromPick(gamePickEarly) : null;
-        if (typeof window.updateEdpiProGraph === 'function') {
-            window.updateEdpiProGraph(gameEarly, null);
-        }
         return;
     }
 
@@ -3241,9 +3231,6 @@ function updateEdpiCalculation() {
             : `${formatCm360Number(cm360)} cm per 360° · ${feel}`;
     }
 
-    if (typeof window.updateEdpiProGraph === 'function') {
-        window.updateEdpiProGraph(game, edpi);
-    }
     syncToolResultCopyButton('edpi-result-value', 'edpi-result-copy-btn');
 }
 
@@ -3413,6 +3400,11 @@ function loadBrandLogoImage() {
             resolve(img);
         };
         img.onerror = () => {
+            if (!BRAND_LOGO_FALLBACK) {
+                brandLogoImageLoading = null;
+                reject(new Error('Logo failed to load'));
+                return;
+            }
             const fallback = new Image();
             fallback.crossOrigin = 'anonymous';
             fallback.onload = () => {
@@ -3448,7 +3440,8 @@ function openBrandLogoPreview(index) {
     img.alt = `Café Core logo on ${surface.name}`;
     img.onerror = () => {
         img.onerror = null;
-        img.src = BRAND_LOGO_FALLBACK;
+        if (BRAND_LOGO_FALLBACK) img.src = BRAND_LOGO_FALLBACK;
+        else img.hidden = true;
     };
 
     setBrandLogoModalOpen(true);
