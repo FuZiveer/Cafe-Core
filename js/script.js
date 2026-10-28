@@ -598,7 +598,7 @@ function ensureVanillaTiltScript() {
     if (vanillaTiltLoadPromise) return vanillaTiltLoadPromise;
     vanillaTiltLoadPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = 'vanilla-tilt.js';
+        script.src = 'js/vanilla-tilt.js';
         script.onload = () => resolve();
         script.onerror = () => {
             vanillaTiltLoadPromise = null;
