@@ -2072,9 +2072,7 @@ function initLineupsVideoModal() {
         beginLineupsProgressScrub();
         try {
             progress.setPointerCapture(event.pointerId);
-        } catch {
-            /* ignore */
-        }
+        } catch {}
         updateLineupsScrubPreviewUi(lineupsProgressRatioFromPointer(progress, event.clientX));
     });
     progress?.addEventListener('pointermove', (event) => {
@@ -2089,9 +2087,7 @@ function initLineupsVideoModal() {
         if (progress.hasPointerCapture?.(event.pointerId)) {
             try {
                 progress.releasePointerCapture(event.pointerId);
-            } catch {
-                /* ignore */
-            }
+            } catch {}
         }
         endLineupsProgressScrub(true);
     });
@@ -2099,9 +2095,7 @@ function initLineupsVideoModal() {
         if (progress.hasPointerCapture?.(event.pointerId)) {
             try {
                 progress.releasePointerCapture(event.pointerId);
-            } catch {
-                /* ignore */
-            }
+            } catch {}
         }
         endLineupsProgressScrub(true);
     });
@@ -2110,9 +2104,7 @@ function initLineupsVideoModal() {
         beginLineupsVolumeAdjust(volume);
         try {
             volume.setPointerCapture(event.pointerId);
-        } catch {
-            /* ignore */
-        }
+        } catch {}
         updateLineupsVolumeTooltipUi(volume);
         requestAnimationFrame(() => updateLineupsVolumeTooltipUi(volume));
     });
@@ -2129,9 +2121,7 @@ function initLineupsVideoModal() {
         if (volume.hasPointerCapture?.(event.pointerId)) {
             try {
                 volume.releasePointerCapture(event.pointerId);
-            } catch {
-                /* ignore */
-            }
+            } catch {}
         }
         endLineupsVolumeAdjust();
     });
@@ -2139,9 +2129,7 @@ function initLineupsVideoModal() {
         if (volume.hasPointerCapture?.(event.pointerId)) {
             try {
                 volume.releasePointerCapture(event.pointerId);
-            } catch {
-                /* ignore */
-            }
+            } catch {}
         }
         endLineupsVolumeAdjust();
     });
@@ -3004,9 +2992,7 @@ function bindNumericToolFieldLiveUpdate(input, handler, options = {}) {
             const newPos = Math.max(0, Math.min(typeof pos === 'number' ? pos : next.length, next.length));
             try {
                 input.setSelectionRange(newPos, newPos);
-            } catch {
-                /* ignore for unsupported input types */
-            }
+            } catch {}
         }
         handler();
     };
@@ -3591,9 +3577,7 @@ function copyTextWithButtonFeedback(text, buttonEl) {
     setBrandCopyBtnCopied(buttonEl, true);
     const resetTimer = window.setTimeout(() => setBrandCopyBtnCopied(buttonEl, false), 1500);
 
-    const finishCopy = () => {
-        /* visual already shown; timer handles reset */
-    };
+    const finishCopy = () => {};
 
     const onCopyFail = () => {
         window.clearTimeout(resetTimer);

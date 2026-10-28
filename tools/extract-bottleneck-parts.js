@@ -43,9 +43,7 @@ function extractEscArray(html, key) {
                             if (!best || scored.length > best.length) {
                                 best = parsed;
                             }
-                        } catch {
-                            /* try next occurrence */
-                        }
+                        } catch {}
                         closed = true;
                         break;
                     }
