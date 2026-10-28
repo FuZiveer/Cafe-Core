@@ -1,4 +1,5 @@
-const { freeze: coreFreeze } = window.CafeCore;
+(function () {
+const coreFreeze = window.CafeCore.freeze;
 
 const PROSETTINGS_PRO_LIST_URL = 'https://prosettings.net/wp-json/pro/v1/pro-list';
 const PROSETTINGS_GAME_FILTERS_URL = 'https://prosettings.net/wp-json/pro/v2/player-filters?only=games';
@@ -420,3 +421,4 @@ async function updateEdpiProGraph(game, userEdpi) {
 
 window.updateEdpiProGraph = updateEdpiProGraph;
 window.CafeCore.mount('EdpiProGraph', coreFreeze({ updateEdpiProGraph }));
+})();
