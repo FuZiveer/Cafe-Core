@@ -36,7 +36,7 @@
 
     async function ensureSensitivityScripts() {
         await loadScript('data/sensitivity-games.js');
-        await loadScript('sensitivity-engine.js');
+        await loadScript('js/sensitivity-engine.js');
     }
 
     async function fetchPageHtml(pageKey) {
