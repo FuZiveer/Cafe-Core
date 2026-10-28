@@ -1,0 +1,76 @@
+<div id="page-bottleneck" class="main-page w-full max-w-5xl mx-auto p-8">
+                <div class="page-intro mb-8">
+                    <h2 class="text-xl font-bold tracking-widest uppercase text-white">Bottleneck Checker</h2>
+                    <p class="text-sm text-slate-400 mt-2 tracking-wide">Checks for CPU or GPU bottlenecks in your build</p>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div class="bottleneck-field bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                        <div class="bottleneck-part-header flex items-center justify-between gap-2 min-w-0 min-h-9">
+                            <span class="text-sm font-bold tracking-widest uppercase text-white shrink-0">CPU</span>
+                        </div>
+                        <div id="bottleneck-cpu-pick" class="tool-picklist w-full" data-value="">
+                            <div class="tool-picklist-control ui-interactive">
+                                <input id="bottleneck-cpu-input" type="text" class="tool-picklist-input w-full" placeholder="Choose CPU" autocomplete="off" spellcheck="false">
+                                <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
+                            </div>
+                            <div id="bottleneck-cpu-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="CPU options"></div>
+                        </div>
+                    </div>
+                    <div class="bottleneck-field bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                        <div class="bottleneck-part-header flex items-center justify-between gap-2 min-w-0 min-h-9">
+                            <span class="text-sm font-bold tracking-widest uppercase text-white shrink-0">GPU</span>
+                            <button type="button" id="bottleneck-detect-gpu-btn" class="topbar-action-btn ui-interactive shrink-0 inline-flex items-center gap-2 h-9 px-3 rounded-lg text-slate-400 hover:text-redneon-500 hover:bg-matte-800 text-xs font-bold tracking-widest uppercase" aria-label="Automatically set GPU via WebGL">
+                                <i class="fa-solid fa-microchip text-sm" aria-hidden="true"></i>
+                                <span>Automatically set gpu</span>
+                            </button>
+                        </div>
+                        <div id="bottleneck-gpu-pick" class="tool-picklist w-full" data-value="">
+                            <div class="tool-picklist-control ui-interactive">
+                                <input id="bottleneck-gpu-input" type="text" class="tool-picklist-input w-full" placeholder="Choose GPU" autocomplete="off" spellcheck="false">
+                                <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
+                            </div>
+                            <div id="bottleneck-gpu-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="GPU options"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3 flex flex-col items-center text-center">
+                    <div id="bottleneck-resolution-glide" class="glide-selector w-full max-w-md mx-auto" role="radiogroup" aria-label="Display resolution" data-value="1080p">
+                        <div class="glide-selector-track">
+                            <div class="glide-selector-viewport" aria-hidden="true">
+                                <span class="glide-selector-thumb ui-interactive"></span>
+                            </div>
+                            <button type="button" class="glide-selector-option ui-interactive is-selected" data-resolution="1080p" role="radio" aria-checked="true">1080p</button>
+                            <button type="button" class="glide-selector-option ui-interactive" data-resolution="1440p" role="radio" aria-checked="false">1440p</button>
+                            <button type="button" class="glide-selector-option ui-interactive" data-resolution="2160p" role="radio" aria-checked="false">4K</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 items-stretch">
+                    <section class="bottleneck-chart bg-matte-900 rounded-lg p-6 border border-matte-800" aria-live="polite">
+                        <h3 class="text-sm font-bold tracking-widest uppercase text-slate-400 mb-6">Bottleneck estimate</h3>
+                        <div class="space-y-3">
+                            <div class="bottleneck-bar-row flex items-center gap-3">
+                                <span class="text-xs font-bold tracking-widest uppercase text-slate-400 w-10 shrink-0">CPU</span>
+                                <div class="bottleneck-bar-track flex-1 h-3 rounded-lg bg-matte-800 border border-matte-700 overflow-hidden">
+                                    <div id="bottleneck-cpu-bar" class="bottleneck-bar-fill h-full rounded-lg bg-redneon-500" style="width: 0%;"></div>
+                                </div>
+                                <span id="bottleneck-cpu-pct" class="text-sm font-semibold tracking-wider text-slate-300 w-12 text-right shrink-0">0%</span>
+                            </div>
+                            <div class="bottleneck-bar-row flex items-center gap-3">
+                                <span class="text-xs font-bold tracking-widest uppercase text-slate-400 w-10 shrink-0">GPU</span>
+                                <div class="bottleneck-bar-track flex-1 h-3 rounded-lg bg-matte-800 border border-matte-700 overflow-hidden">
+                                    <div id="bottleneck-gpu-bar" class="bottleneck-bar-fill h-full rounded-lg bg-redneon-500" style="width: 0%;"></div>
+                                </div>
+                                <span id="bottleneck-gpu-pct" class="text-sm font-semibold tracking-wider text-slate-300 w-12 text-right shrink-0">0%</span>
+                            </div>
+                        </div>
+                        <p id="bottleneck-summary" class="text-sm text-slate-400 mt-6 tracking-wide leading-relaxed">Select a CPU and GPU to see an estimate.</p>
+                    </section>
+                    <section id="bottleneck-recommend" class="bottleneck-chart bg-matte-900 rounded-lg p-6 border border-matte-800 flex flex-col" aria-live="polite">
+                        <h3 class="text-sm font-bold tracking-widest uppercase text-slate-400 mb-6">Pairing suggestion</h3>
+                        <p id="bottleneck-recommend-kind" class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-2">—</p>
+                        <p id="bottleneck-recommend-name" class="text-lg font-semibold text-white tracking-wide leading-snug">—</p>
+                        <p id="bottleneck-recommend-detail" class="text-sm text-slate-400 mt-4 tracking-wide leading-relaxed flex-1">Select a CPU and GPU to get a part that pairs better with the weaker side of your build.</p>
+                    </section>
+                </div>
+            </div>

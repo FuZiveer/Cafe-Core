@@ -1,0 +1,318 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Café Core</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    transitionDuration: { DEFAULT: '150ms' },
+                    transitionTimingFunction: { DEFAULT: 'ease-out' },
+                    colors: {
+                        matte: {
+                            950: '#0a0a0c',
+                            900: '#121215',
+                            800: '#1a1a1e',
+                            700: '#26262b',
+                        },
+                        redneon: {
+                            500: '#ff1e43',
+                            600: '#e60026',
+                        },
+                    },
+                    fontFamily: {
+                        sans: ['Rajdhani', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        DEFAULT: '0.5rem',
+                        none: '0',
+                        sm: '0.5rem',
+                        md: '0.5rem',
+                        lg: '0.5rem',
+                        xl: '0.5rem',
+                        '2xl': '0.5rem',
+                        '3xl': '0.5rem',
+                        full: '0.5rem',
+                    },
+                },
+            },
+        };
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.9.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-matte-950 text-slate-200 antialiased h-screen flex overflow-hidden relative">
+
+    <button type="button" id="mobile-nav-backdrop" class="mobile-nav-backdrop ui-interactive" aria-hidden="true" tabindex="-1"></button>
+
+    <aside id="sidebar" class="w-56 bg-matte-900 border-r border-matte-800 flex flex-col h-full z-20 relative shrink-0 overflow-visible">
+        <button id="sidebar-toggle-btn" onclick="toggleSidebarCollapse()" class="ui-interactive radius-circle absolute -right-[15px] top-1/2 z-30 w-[30px] h-[30px] flex items-center justify-center bg-matte-900 border border-matte-800 text-slate-400 focus:outline-none">
+            <i id="toggle-icon" class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i>
+        </button>
+
+        <div id="sidebar-header" class="header-container h-[64px] flex items-center p-4 border-b border-matte-800 overflow-hidden whitespace-nowrap justify-start shrink-0 bg-matte-900 relative z-[2]">
+            <div class="flex items-center gap-2 overflow-hidden px-4">
+                <img src="images/Caf%C3%A9%20Core.png" alt="Café Core Logo" class="sidebar-logo w-5 h-5 min-w-[20px] min-h-[20px] max-w-[20px] max-h-[20px] shrink-0 object-contain rounded-lg" onerror="this.onerror=null; this.src='https://placehold.co/20x20/121215/ff1e43?text=CC';">
+                <span class="logo-text sidebar-slide-fade text-xl font-bold tracking-widest text-white whitespace-nowrap"><span>Café </span><span class="text-redneon-500">Core</span></span>
+            </div>
+        </div>
+
+        <nav id="sidebar-nav" class="nav-container relative flex-1 p-4 flex flex-col overflow-hidden min-h-0">
+            <div id="sidebar-nav-viewport" class="sidebar-nav-viewport" aria-hidden="true">
+                <div id="nav-indicator" class="absolute top-0 h-12 bg-matte-800 rounded-lg pointer-events-none z-0"></div>
+            </div>
+            <div id="sidebar-primary-nav" class="space-y-1">
+                <button id="btn-home" onclick="handleSidebarClick(this, 'home')" class="nav-btn direct-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left">
+                    <i class="fa-solid fa-house w-5 text-center flex-shrink-0"></i>
+                    <span class="btn-label sidebar-slide-fade whitespace-nowrap">Home</span>
+                </button>
+                <button onclick="handleSidebarClick(this, 'tools')" class="nav-btn parent-btn relative z-10 w-full h-12 flex items-center justify-between px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-wrench w-5 text-center flex-shrink-0"></i>
+                        <span class="btn-label sidebar-slide-fade whitespace-nowrap">Tools</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-70 transition-transform motion-standard chevron-icon"></i>
+                </button>
+                <button id="btn-strats" type="button" onclick="handleSidebarClick(this, 'strats')" class="nav-btn parent-btn relative z-10 w-full h-12 flex items-center justify-between px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-chess-board w-5 text-center flex-shrink-0"></i>
+                        <span class="btn-label sidebar-slide-fade whitespace-nowrap">Strats</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-70 transition-transform motion-standard chevron-icon"></i>
+                </button>
+                <button onclick="handleSidebarClick(this, 'apps')" class="nav-btn direct-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left">
+                    <i class="fa-solid fa-cubes w-5 text-center flex-shrink-0"></i>
+                    <span class="btn-label sidebar-slide-fade whitespace-nowrap">Apps</span>
+                </button>
+            </div>
+
+            <div id="sidebar-bottom-nav" class="mt-auto w-full space-y-1">
+                <button id="btn-settings" type="button" onclick="handleSettingsClick()" class="nav-btn direct-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left" aria-expanded="false" aria-controls="settings-modal">
+                    <i class="fa-solid fa-gear w-5 text-center flex-shrink-0"></i>
+                    <span class="btn-label sidebar-slide-fade whitespace-nowrap">Settings</span>
+                </button>
+                <button id="btn-more" onclick="handleSidebarClick(this, 'more')" class="nav-btn parent-btn relative z-10 w-full h-12 flex items-center justify-between px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-ellipsis w-5 text-center flex-shrink-0"></i>
+                        <span class="btn-label sidebar-slide-fade whitespace-nowrap">More</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs opacity-70 transition-transform motion-standard chevron-icon"></i>
+                </button>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full min-w-0 bg-matte-950 overflow-hidden">
+        <header id="top-bar" class="h-[64px] shrink-0 bg-matte-900 border-b border-matte-800 flex items-center justify-between p-4 relative z-20">
+            <div class="flex items-center min-w-0 flex-1 overflow-hidden relative z-10 gap-2">
+                <button type="button" id="mobile-menu-btn" class="mobile-menu-btn topbar-action-btn ui-interactive w-9 h-9 rounded-lg items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 shrink-0" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
+                    <i id="mobile-menu-icon" class="fa-solid fa-bars text-sm" aria-hidden="true"></i>
+                </button>
+                <div id="topbar-title-viewport" class="min-w-0 max-w-full overflow-hidden">
+                    <div id="topbar-title-row" class="flex items-center gap-2 min-w-0">
+                        <i id="topbar-icon" class="fa-solid fa-house w-5 text-center shrink-0 text-sm text-redneon-500" aria-hidden="true"></i>
+                        <h1 id="topbar-title" class="text-sm font-bold tracking-widest uppercase text-white truncate min-w-0">Home</h1>
+                    </div>
+                </div>
+            </div>
+            <div id="topbar-actions" class="flex items-center gap-1 shrink-0 relative z-10">
+                <button type="button" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800">
+                    <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                </button>
+                <div class="relative">
+                    <button id="notification-btn" type="button" aria-expanded="false" aria-haspopup="true" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative">
+                        <i class="fa-solid fa-bell text-sm"></i>
+                        <span id="notification-dot" class="absolute top-2 right-2 w-1.5 h-1.5 rounded-lg bg-redneon-500 hidden"></span>
+                    </button>
+                    <div id="notification-dropdown" class="dropdown-closed absolute right-0 top-full mt-1 w-80 bg-matte-900 border border-matte-800 rounded-lg z-50 overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-matte-800 gap-2">
+                            <span class="text-sm font-bold tracking-widest uppercase text-white shrink-0">Notifications</span>
+                            <div id="notification-actions" class="flex items-center gap-2 shrink-0">
+                                <button id="mark-notifications-read-btn" type="button" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-transparent disabled:hover:text-slate-400">
+                                    <i class="fa-solid fa-eye text-sm"></i>
+                                </button>
+                                <button id="clear-notifications-btn" type="button" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-transparent disabled:hover:text-slate-400">
+                                    <i class="fa-solid fa-trash text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="notification-list" class="divide-y divide-matte-800 max-h-72 overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <div id="main-content" class="flex-1 overflow-auto"></div>
+    </main>
+
+    <div id="flyout-panel" class="bg-matte-900 border-r border-matte-800 transform -translate-x-full opacity-0 pointer-events-none transition-all motion-standard p-4 flex flex-col justify-start space-y-4 min-h-0" aria-hidden="true">
+        <div class="flex items-center justify-between px-4 shrink-0">
+            <h3 id="flyout-title" class="text-sm font-bold tracking-widest uppercase text-white">Submenu</h3>
+            <button type="button" onclick="closeFlyout()" class="ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 shrink-0">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+        <div class="border-b border-matte-800 -mx-4 shrink-0" aria-hidden="true"></div>
+        <div id="flyout-content" class="flex-1 min-h-0 overflow-y-auto space-y-1 text-slate-400">
+            <div id="flyout-indicator" class="absolute top-0 h-12 bg-matte-800 rounded-lg pointer-events-none z-0"></div>
+        </div>
+        <div id="flyout-footer" class="hidden mt-auto shrink-0 space-y-1 text-slate-400 relative isolate">
+            <div id="flyout-footer-indicator" class="absolute top-0 left-0 right-0 h-12 bg-matte-800 rounded-lg pointer-events-none z-0" aria-hidden="true"></div>
+            <button type="button" id="flyout-privacy-policy" onclick="selectFlyoutItem('more-privacy-policy', 'Privacy Policy')" class="flyout-item group relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left">
+                <i class="fa-solid fa-shield-halved w-5 text-center flex-shrink-0 text-slate-400 group-hover:text-white" aria-hidden="true"></i>
+                <span>Privacy Policy</span>
+            </button>
+            <button type="button" id="flyout-terms-of-service" onclick="selectFlyoutItem('more-terms-of-service', 'Terms of Service')" class="flyout-item group relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left">
+                <i class="fa-solid fa-list w-5 text-center flex-shrink-0 text-slate-400 group-hover:text-white" aria-hidden="true"></i>
+                <span>Terms of Service</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="settings-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" aria-hidden="true">
+        <button type="button" id="settings-modal-backdrop" class="settings-modal-backdrop absolute inset-0 bg-black/70 ui-interactive" aria-label="Close settings"></button>
+        <div class="settings-modal-panel relative w-full max-w-md bg-matte-900 border border-matte-800 rounded-lg p-5 z-10">
+            <div class="flex items-center justify-between gap-3 mb-5">
+                <h3 id="settings-modal-title" class="text-sm font-bold tracking-widest uppercase text-white">Settings</h3>
+                <button type="button" id="settings-modal-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative" aria-label="Close settings">
+                    <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div class="settings-row bg-matte-950 rounded-lg p-4 flex items-center justify-between gap-4">
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold tracking-widest uppercase text-white">Compact sidebar</p>
+                        <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Start with the sidebar collapsed.</p>
+                    </div>
+                    <button type="button" id="settings-compact-sidebar" class="settings-toggle ui-interactive" role="switch" aria-checked="false" aria-label="Compact sidebar">
+                        <span class="settings-toggle-thumb" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <div class="settings-row bg-matte-950 rounded-lg p-4 flex items-center justify-between gap-4">
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold tracking-widest uppercase text-white">Reduced motion</p>
+                        <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Disable all animations and transitions.</p>
+                    </div>
+                    <button type="button" id="settings-reduced-motion" class="settings-toggle ui-interactive" role="switch" aria-checked="false" aria-label="Reduced motion">
+                        <span class="settings-toggle-thumb" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="lineups-video-modal" class="lineups-video-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="lineups-video-modal-title" aria-hidden="true">
+        <button type="button" id="lineups-video-modal-backdrop" class="lineups-video-modal-backdrop absolute inset-0 bg-black/70 ui-interactive" aria-label="Close video"></button>
+        <div class="lineups-video-modal-panel relative w-full max-w-4xl bg-matte-900 border border-matte-800 rounded-lg p-5 z-10">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                    <button type="button" id="lineups-video-modal-back" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0 hidden" aria-label="Back to requirements" hidden>
+                        <i class="fa-solid fa-arrow-left text-sm" aria-hidden="true"></i>
+                    </button>
+                    <h3 id="lineups-video-modal-title" class="text-sm font-bold tracking-widest uppercase text-white truncate min-w-0">Lineup</h3>
+                </div>
+                <button type="button" id="lineups-video-modal-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0" aria-label="Close video">
+                    <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div id="lineups-video-requirements" class="lineups-video-requirements">
+                <header class="lineups-requirements-head">
+                    <p class="lineups-requirements-label">Requirements</p>
+                    <p class="lineups-requirements-hint">What you need to perform this strat</p>
+                </header>
+                <ul id="lineups-requirements-list" class="lineups-requirements-list"></ul>
+                <button type="button" id="lineups-watch-video-btn" class="lineups-watch-video-btn ui-interactive">
+                    <i class="fa-solid fa-play text-xs" aria-hidden="true"></i>
+                    <span>Watch video</span>
+                </button>
+            </div>
+            <div id="lineups-player" class="lineups-player hidden">
+                <div id="lineups-player-stage" class="lineups-player-stage">
+                    <video id="lineups-modal-video" class="lineups-modal-video" playsinline preload="metadata"></video>
+                    <button type="button" id="lineups-player-center-play" class="lineups-player-center-play ui-interactive" aria-label="Play video" hidden>
+                        <i class="fa-solid fa-play text-xl" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="lineups-player-controls" role="group" aria-label="Video controls">
+                    <button type="button" id="lineups-player-play" class="lineups-player-btn ui-interactive" aria-label="Play">
+                        <i class="fa-solid fa-play text-sm lineups-icon-play" aria-hidden="true"></i>
+                        <i class="fa-solid fa-pause text-sm lineups-icon-pause hidden" aria-hidden="true"></i>
+                    </button>
+                    <span id="lineups-player-time" class="lineups-player-time tabular-nums">0:00 / 0:00</span>
+                    <div class="lineups-player-progress-wrap">
+                        <div id="lineups-player-scrub-preview" class="lineups-player-scrub-preview" hidden>
+                            <canvas id="lineups-player-scrub-canvas" width="320" height="180" aria-hidden="true"></canvas>
+                            <span id="lineups-player-scrub-time" class="lineups-player-scrub-time tabular-nums">0:00</span>
+                        </div>
+                        <div class="lineups-player-progress-rail" aria-hidden="true">
+                            <div id="lineups-player-progress-watched" class="lineups-player-progress-watched"></div>
+                        </div>
+                        <input type="range" id="lineups-player-progress" class="lineups-player-progress ui-interactive" min="0" max="10000" value="0" step="any" aria-label="Seek">
+                    </div>
+                    <video id="lineups-modal-video-scrub" class="lineups-modal-video-scrub" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
+                    <div class="lineups-player-volume-wrap">
+                        <div id="lineups-player-volume-tooltip" class="lineups-player-volume-tooltip tabular-nums" hidden>100%</div>
+                        <div class="lineups-player-volume-rail" aria-hidden="true">
+                            <div id="lineups-player-volume-level" class="lineups-player-volume-level"></div>
+                        </div>
+                        <input type="range" id="lineups-player-volume" class="lineups-player-volume ui-interactive" min="0" max="100" value="100" step="any" aria-label="Volume">
+                    </div>
+                    <div class="lineups-player-settings-wrap">
+                        <div id="lineups-player-speed-menu" class="lineups-player-speed-menu" role="menu" aria-label="Playback speed" hidden>
+                            <p class="lineups-player-speed-menu-label">Speed</p>
+                            <div class="lineups-player-speed-options" role="group" aria-label="Playback speed options">
+                                <button type="button" role="menuitemradio" class="lineups-player-speed-option ui-interactive" data-speed="0.25" aria-checked="false">0.25×</button>
+                                <button type="button" role="menuitemradio" class="lineups-player-speed-option ui-interactive" data-speed="0.5" aria-checked="false">0.5×</button>
+                                <button type="button" role="menuitemradio" class="lineups-player-speed-option ui-interactive" data-speed="0.75" aria-checked="false">0.75×</button>
+                                <button type="button" role="menuitemradio" class="lineups-player-speed-option ui-interactive" data-speed="1" aria-checked="false">Normal</button>
+                                <button type="button" role="menuitemradio" class="lineups-player-speed-option ui-interactive" data-speed="1.25" aria-checked="false">1.25×</button>
+                                <button type="button" role="menuitemradio" class="lineups-player-speed-option ui-interactive" data-speed="1.5" aria-checked="false">1.5×</button>
+                                <button type="button" role="menuitemradio" class="lineups-player-speed-option ui-interactive" data-speed="1.75" aria-checked="false">1.75×</button>
+                                <button type="button" role="menuitemradio" class="lineups-player-speed-option ui-interactive" data-speed="2" aria-checked="true">2×</button>
+                            </div>
+                        </div>
+                        <button type="button" id="lineups-player-settings" class="lineups-player-btn ui-interactive" aria-label="Playback settings" aria-haspopup="menu" aria-expanded="false" aria-controls="lineups-player-speed-menu">
+                            <i class="fa-solid fa-gear text-sm" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <button type="button" id="lineups-player-fullscreen" class="lineups-player-btn ui-interactive" aria-label="Fullscreen">
+                        <i class="fa-solid fa-expand text-sm" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="brand-logo-modal" class="brand-logo-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="brand-logo-modal-title" aria-hidden="true">
+        <button type="button" id="brand-logo-modal-backdrop" class="brand-logo-modal-backdrop absolute inset-0 bg-black/70 ui-interactive" aria-label="Close preview"></button>
+        <div class="brand-logo-modal-panel relative w-full max-w-xl bg-matte-900 border border-matte-800 rounded-lg p-5 z-10">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <h3 id="brand-logo-modal-title" class="text-sm font-bold tracking-widest uppercase text-white truncate min-w-0">Logo preview</h3>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" id="brand-logo-download-btn" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative" aria-label="Download">
+                        <i class="fa-solid fa-download text-sm" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" id="brand-logo-modal-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative" aria-label="Close preview">
+                        <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="brand-logo-modal-preview" class="brand-logo-modal-preview w-full rounded-lg border border-matte-700 flex items-center justify-center min-h-[14rem] sm:min-h-[16rem]">
+                <img id="brand-logo-modal-img" src="" alt="" class="brand-logo-preview-img w-40 h-40 sm:w-48 sm:h-48 object-contain">
+            </div>
+        </div>
+    </div>
+
+    <script src="cafe-core.js" defer></script>
+    <script src="page-loader.js" defer></script>
+    <script src="script.js" defer></script>
+</body>
+</html>
