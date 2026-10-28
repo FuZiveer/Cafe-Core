@@ -1,0 +1,94 @@
+<div id="page-sensitivity" class="main-page w-full max-w-5xl mx-auto p-8">
+                <div class="page-intro mb-8">
+                    <h2 class="text-xl font-bold tracking-widest uppercase text-white">Sensitivity Converter</h2>
+                    <p class="text-sm text-slate-400 mt-2 tracking-wide">Converts sensitivity between your selected games</p>
+                </div>
+                <div class="grid grid-cols-6 gap-3 mb-3">
+                    <div class="sens-games-row col-span-6">
+                        <div class="sens-games-pair grid grid-cols-2 gap-3 relative">
+                            <div class="bottleneck-field bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                                <span class="text-sm font-bold tracking-widest uppercase text-white">From game</span>
+                                <div id="sens-from-pick" class="tool-picklist w-full" data-value="">
+                                    <div class="tool-picklist-control tool-picklist-control--has-icon ui-interactive">
+                                        <i class="ri-search-line tool-picklist-leading-icon" aria-hidden="true"></i>
+                                        <input id="sens-from-input" type="text" class="tool-picklist-input w-full" placeholder="Choose game" autocomplete="off" spellcheck="false">
+                                        <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
+                                    </div>
+                                    <div id="sens-from-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Source game options"></div>
+                                </div>
+                            </div>
+                            <div class="bottleneck-field bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                                <span class="text-sm font-bold tracking-widest uppercase text-white">To game</span>
+                                <div id="sens-to-pick" class="tool-picklist w-full" data-value="">
+                                    <div class="tool-picklist-control tool-picklist-control--has-icon ui-interactive">
+                                        <i class="ri-search-line tool-picklist-leading-icon" aria-hidden="true"></i>
+                                        <input id="sens-to-input" type="text" class="tool-picklist-input w-full" placeholder="Choose game" autocomplete="off" spellcheck="false">
+                                        <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
+                                    </div>
+                                    <div id="sens-to-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Target game options"></div>
+                                </div>
+                            </div>
+                            <button type="button" id="sens-swap-btn" aria-label="Swap games and DPI" class="sens-swap-btn ui-interactive radius-circle absolute left-1/2 top-1/2 z-30 w-10 h-10 flex items-center justify-center bg-matte-900 border border-matte-800 text-slate-400 focus:outline-none pointer-events-auto">
+                                <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                        <span class="text-sm font-bold tracking-widest uppercase text-white">Your sensitivity</span>
+                        <div class="tool-picklist-control tool-field-input ui-interactive">
+                            <i class="ri-crosshair-2-line tool-field-icon" aria-hidden="true"></i>
+                            <input id="sens-from-value" type="text" inputmode="decimal" class="tool-picklist-input tool-picklist-input--field w-full" placeholder="Enter sensitivity" autocomplete="off" spellcheck="false">
+                        </div>
+                    </div>
+                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                        <span class="text-sm font-bold tracking-widest uppercase text-white">From DPI</span>
+                        <div class="tool-picklist-control tool-field-input ui-interactive">
+                            <i class="ri-mouse-line tool-field-icon" aria-hidden="true"></i>
+                            <input id="sens-from-dpi" type="text" inputmode="numeric" class="tool-picklist-input tool-picklist-input--field w-full" placeholder="Enter DPI" autocomplete="off" spellcheck="false" value="800">
+                        </div>
+                    </div>
+                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                        <span class="text-sm font-bold tracking-widest uppercase text-white">To DPI</span>
+                        <div class="tool-picklist-control tool-field-input ui-interactive">
+                            <i class="ri-mouse-line tool-field-icon" aria-hidden="true"></i>
+                            <input id="sens-to-dpi" type="text" inputmode="numeric" class="tool-picklist-input tool-picklist-input--field w-full" placeholder="Enter DPI" autocomplete="off" spellcheck="false" value="800">
+                        </div>
+                    </div>
+                </div>
+                <section id="sens-results" class="bg-matte-900 rounded-lg border border-matte-800 overflow-hidden flex flex-col min-h-[12rem]" aria-live="polite">
+                    <div class="tool-results-hero relative flex flex-col items-center justify-center px-6 py-8 text-center flex-1">
+                        <p class="text-xs font-bold tracking-widest uppercase text-slate-500 mb-2.5">Converted sensitivity</p>
+                        <p id="sens-result-value" class="text-5xl font-semibold text-redneon-500 leading-none tabular-nums mb-4">—</p>
+                        <div id="sens-game-labels" class="flex items-center justify-center gap-2.5 text-sm text-slate-300 hidden">
+                            <span id="sens-from-label" class="font-semibold text-white tracking-wide"></span>
+                            <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                            </svg>
+                            <span id="sens-to-label" class="font-semibold text-white tracking-wide"></span>
+                        </div>
+                        <p id="sens-analysis" class="text-sm text-slate-500 mt-3.5 tracking-wide leading-relaxed max-w-md">Choose a source and target game to convert.</p>
+                        <span class="brand-copy-btn-host tool-results-copy-host">
+                            <button type="button" id="sens-result-copy-btn" onclick="copyToolResultValue('sens-result-value', this)" class="tool-result-copy-btn brand-copy-btn ui-interactive inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-matte-800 bg-matte-950 text-[11px] font-bold tracking-widest uppercase text-slate-400 hover:text-redneon-500 hover:bg-matte-800 hover:border-matte-700 disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-matte-950 disabled:hover:text-slate-400 disabled:hover:border-matte-800" aria-label="Copy result" disabled>
+                                <i class="fa-solid fa-copy text-sm shrink-0" aria-hidden="true"></i>
+                                <span class="tool-result-copy-label">Copy result</span>
+                            </button>
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-3 border-t border-matte-800 divide-x divide-matte-800">
+                        <div class="px-4 py-4 text-center">
+                            <p class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">Calculated eDPI</p>
+                            <p id="sens-edpi-from" class="text-lg font-semibold text-white tabular-nums">—</p>
+                        </div>
+                        <div class="px-4 py-4 text-center">
+                            <p class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">cm / 360°</p>
+                            <p id="sens-cm360" class="text-lg font-semibold text-white tabular-nums">—</p>
+                        </div>
+                        <div class="px-4 py-4 text-center">
+                            <p class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">Sens</p>
+                            <p id="sens-feel" class="text-lg font-semibold text-white">—</p>
+                        </div>
+                    </div>
+                </section>
+            </div>

@@ -1,0 +1,2271 @@
+{
+  "cpus": [
+    {
+      "id": "athlon-200ge",
+      "name": "AMD Athlon 200GE",
+      "score": 15
+    },
+    {
+      "id": "athlon-3000g",
+      "name": "AMD Athlon 3000G",
+      "score": 18
+    },
+    {
+      "id": "ryzen-3-1200",
+      "name": "AMD Ryzen 3 1200",
+      "score": 22
+    },
+    {
+      "id": "ryzen-3-2200g",
+      "name": "AMD Ryzen 3 2200G",
+      "score": 25
+    },
+    {
+      "id": "ryzen-3-3100",
+      "name": "AMD Ryzen 3 3100",
+      "score": 40
+    },
+    {
+      "id": "ryzen-3-3200g",
+      "name": "AMD Ryzen 3 3200G",
+      "score": 30
+    },
+    {
+      "id": "ryzen-3-3300x",
+      "name": "AMD Ryzen 3 3300X",
+      "score": 48
+    },
+    {
+      "id": "ryzen-3-4100",
+      "name": "AMD Ryzen 3 4100",
+      "score": 45
+    },
+    {
+      "id": "ryzen-5-1400",
+      "name": "AMD Ryzen 5 1400",
+      "score": 30
+    },
+    {
+      "id": "ryzen-5-1600",
+      "name": "AMD Ryzen 5 1600",
+      "score": 37
+    },
+    {
+      "id": "ryzen-5-1600x",
+      "name": "AMD Ryzen 5 1600X",
+      "score": 39
+    },
+    {
+      "id": "ryzen-5-2400g",
+      "name": "AMD Ryzen 5 2400G",
+      "score": 32
+    },
+    {
+      "id": "ryzen-5-2600",
+      "name": "AMD Ryzen 5 2600",
+      "score": 44
+    },
+    {
+      "id": "ryzen-5-2600x",
+      "name": "AMD Ryzen 5 2600X",
+      "score": 46
+    },
+    {
+      "id": "ryzen-5-3400g",
+      "name": "AMD Ryzen 5 3400G",
+      "score": 38
+    },
+    {
+      "id": "ryzen-5-3500",
+      "name": "AMD Ryzen 5 3500",
+      "score": 45
+    },
+    {
+      "id": "ryzen-5-3600",
+      "name": "AMD Ryzen 5 3600",
+      "score": 55
+    },
+    {
+      "id": "ryzen-5-3600x",
+      "name": "AMD Ryzen 5 3600X",
+      "score": 56
+    },
+    {
+      "id": "ryzen-5-3600xt",
+      "name": "AMD Ryzen 5 3600XT",
+      "score": 52
+    },
+    {
+      "id": "ryzen-5-4500",
+      "name": "AMD Ryzen 5 4500",
+      "score": 50
+    },
+    {
+      "id": "ryzen-5-4600g",
+      "name": "AMD Ryzen 5 4600G",
+      "score": 52
+    },
+    {
+      "id": "ryzen-5-5500",
+      "name": "AMD Ryzen 5 5500",
+      "score": 65
+    },
+    {
+      "id": "ryzen-5-5600",
+      "name": "AMD Ryzen 5 5600",
+      "score": 73
+    },
+    {
+      "id": "ryzen-5-5600g",
+      "name": "AMD Ryzen 5 5600G",
+      "score": 64
+    },
+    {
+      "id": "ryzen-5-5600x",
+      "name": "AMD Ryzen 5 5600X",
+      "score": 75
+    },
+    {
+      "id": "ryzen-5-5600x3d",
+      "name": "AMD Ryzen 5 5600X3D",
+      "score": 84
+    },
+    {
+      "id": "ryzen-5-7500f",
+      "name": "AMD Ryzen 5 7500F",
+      "score": 82
+    },
+    {
+      "id": "ryzen-5-7600",
+      "name": "AMD Ryzen 5 7600",
+      "score": 83
+    },
+    {
+      "id": "ryzen-5-7600x",
+      "name": "AMD Ryzen 5 7600X",
+      "score": 85
+    },
+    {
+      "id": "ryzen-5-8600g",
+      "name": "AMD Ryzen 5 8600G",
+      "score": 70
+    },
+    {
+      "id": "ryzen-5-9600",
+      "name": "AMD Ryzen 5 9600",
+      "score": 86
+    },
+    {
+      "id": "ryzen-5-9600x",
+      "name": "AMD Ryzen 5 9600X",
+      "score": 88
+    },
+    {
+      "id": "ryzen-7-1700",
+      "name": "AMD Ryzen 7 1700",
+      "score": 38
+    },
+    {
+      "id": "ryzen-7-1700x",
+      "name": "AMD Ryzen 7 1700X",
+      "score": 40
+    },
+    {
+      "id": "ryzen-7-1800x",
+      "name": "AMD Ryzen 7 1800X",
+      "score": 37
+    },
+    {
+      "id": "ryzen-7-2700",
+      "name": "AMD Ryzen 7 2700",
+      "score": 46
+    },
+    {
+      "id": "ryzen-7-2700x",
+      "name": "AMD Ryzen 7 2700X",
+      "score": 48
+    },
+    {
+      "id": "ryzen-7-3700x",
+      "name": "AMD Ryzen 7 3700X",
+      "score": 58
+    },
+    {
+      "id": "ryzen-7-3800x",
+      "name": "AMD Ryzen 7 3800X",
+      "score": 60
+    },
+    {
+      "id": "ryzen-7-3800xt",
+      "name": "AMD Ryzen 7 3800XT",
+      "score": 61
+    },
+    {
+      "id": "ryzen-7-4700g",
+      "name": "AMD Ryzen 7 4700G",
+      "score": 55
+    },
+    {
+      "id": "ryzen-7-5700",
+      "name": "AMD Ryzen 7 5700",
+      "score": 67
+    },
+    {
+      "id": "ryzen-7-5700g",
+      "name": "AMD Ryzen 7 5700G",
+      "score": 68
+    },
+    {
+      "id": "ryzen-7-5700x",
+      "name": "AMD Ryzen 7 5700X",
+      "score": 76
+    },
+    {
+      "id": "ryzen-7-5700x3d",
+      "name": "AMD Ryzen 7 5700X3D",
+      "score": 84
+    },
+    {
+      "id": "ryzen-7-5800x",
+      "name": "AMD Ryzen 7 5800X",
+      "score": 78
+    },
+    {
+      "id": "ryzen-7-5800x3d",
+      "name": "AMD Ryzen 7 5800X3D",
+      "score": 86
+    },
+    {
+      "id": "ryzen-7-7700",
+      "name": "AMD Ryzen 7 7700",
+      "score": 87
+    },
+    {
+      "id": "ryzen-7-7700x",
+      "name": "AMD Ryzen 7 7700X",
+      "score": 89
+    },
+    {
+      "id": "ryzen-7-7800x3d",
+      "name": "AMD Ryzen 7 7800X3D",
+      "score": 98
+    },
+    {
+      "id": "ryzen-7-8700g",
+      "name": "AMD Ryzen 7 8700G",
+      "score": 74
+    },
+    {
+      "id": "ryzen-7-9700x",
+      "name": "AMD Ryzen 7 9700X",
+      "score": 92
+    },
+    {
+      "id": "ryzen-7-9800x3d",
+      "name": "AMD Ryzen 7 9800X3D",
+      "score": 99
+    },
+    {
+      "id": "ryzen-9-3900x",
+      "name": "AMD Ryzen 9 3900X",
+      "score": 62
+    },
+    {
+      "id": "ryzen-9-3900xt",
+      "name": "AMD Ryzen 9 3900XT",
+      "score": 62
+    },
+    {
+      "id": "ryzen-9-3950x",
+      "name": "AMD Ryzen 9 3950X",
+      "score": 65
+    },
+    {
+      "id": "ryzen-9-5900",
+      "name": "AMD Ryzen 9 5900",
+      "score": 77
+    },
+    {
+      "id": "ryzen-9-5900x",
+      "name": "AMD Ryzen 9 5900X",
+      "score": 80
+    },
+    {
+      "id": "ryzen-9-5950x",
+      "name": "AMD Ryzen 9 5950X",
+      "score": 82
+    },
+    {
+      "id": "ryzen-9-7900",
+      "name": "AMD Ryzen 9 7900",
+      "score": 89
+    },
+    {
+      "id": "ryzen-9-7900x",
+      "name": "AMD Ryzen 9 7900X",
+      "score": 91
+    },
+    {
+      "id": "ryzen-9-7900x3d",
+      "name": "AMD Ryzen 9 7900X3D",
+      "score": 94
+    },
+    {
+      "id": "ryzen-9-7950x",
+      "name": "AMD Ryzen 9 7950X",
+      "score": 93
+    },
+    {
+      "id": "ryzen-9-7950x3d",
+      "name": "AMD Ryzen 9 7950X3D",
+      "score": 96
+    },
+    {
+      "id": "ryzen-9-9900x",
+      "name": "AMD Ryzen 9 9900X",
+      "score": 95
+    },
+    {
+      "id": "ryzen-9-9900x3d",
+      "name": "AMD Ryzen 9 9900X3D",
+      "score": 97
+    },
+    {
+      "id": "ryzen-9-9950x",
+      "name": "AMD Ryzen 9 9950X",
+      "score": 97
+    },
+    {
+      "id": "ryzen-9-9950x3d",
+      "name": "AMD Ryzen 9 9950X3D",
+      "score": 98
+    },
+    {
+      "id": "ryzen-9-9950x3d2",
+      "name": "AMD Ryzen 9 9950X3D2",
+      "score": 99
+    },
+    {
+      "id": "threadripper-3960x",
+      "name": "AMD Ryzen Threadripper 3960X",
+      "score": 58
+    },
+    {
+      "id": "threadripper-3970x",
+      "name": "AMD Ryzen Threadripper 3970X",
+      "score": 57
+    },
+    {
+      "id": "threadripper-7960x",
+      "name": "AMD Ryzen Threadripper 7960X",
+      "score": 82
+    },
+    {
+      "id": "threadripper-7970x",
+      "name": "AMD Ryzen Threadripper 7970X",
+      "score": 82
+    },
+    {
+      "id": "threadripper-7980x",
+      "name": "AMD Ryzen Threadripper 7980X",
+      "score": 81
+    },
+    {
+      "id": "threadripper-5955wx",
+      "name": "AMD Ryzen Threadripper PRO 5955WX",
+      "score": 72
+    },
+    {
+      "id": "threadripper-5965wx",
+      "name": "AMD Ryzen Threadripper PRO 5965WX",
+      "score": 72
+    },
+    {
+      "id": "threadripper-5975wx",
+      "name": "AMD Ryzen Threadripper PRO 5975WX",
+      "score": 71
+    },
+    {
+      "id": "threadripper-5995wx",
+      "name": "AMD Ryzen Threadripper PRO 5995WX",
+      "score": 70
+    },
+    {
+      "id": "i3-10105f",
+      "name": "Core i3-10105F",
+      "score": 46
+    },
+    {
+      "id": "i3-10300",
+      "name": "Core i3-10300",
+      "score": 46
+    },
+    {
+      "id": "i3-2100",
+      "name": "Core i3-2100",
+      "score": 18
+    },
+    {
+      "id": "i3-2120",
+      "name": "Core i3-2120",
+      "score": 19
+    },
+    {
+      "id": "i3-2120t",
+      "name": "Core i3-2120T",
+      "score": 14
+    },
+    {
+      "id": "i3-2130",
+      "name": "Core i3-2130",
+      "score": 20
+    },
+    {
+      "id": "i3-3220",
+      "name": "Core i3-3220",
+      "score": 20
+    },
+    {
+      "id": "i3-3225",
+      "name": "Core i3-3225",
+      "score": 20
+    },
+    {
+      "id": "i3-3245",
+      "name": "Core i3-3245",
+      "score": 21
+    },
+    {
+      "id": "i3-4130",
+      "name": "Core i3-4130",
+      "score": 22
+    },
+    {
+      "id": "i3-4160",
+      "name": "Core i3-4160",
+      "score": 23
+    },
+    {
+      "id": "i3-4170",
+      "name": "Core i3-4170",
+      "score": 24
+    },
+    {
+      "id": "i3-4170t",
+      "name": "Core i3-4170T",
+      "score": 20
+    },
+    {
+      "id": "i3-4330",
+      "name": "Core i3-4330",
+      "score": 22
+    },
+    {
+      "id": "i3-4340",
+      "name": "Core i3-4340",
+      "score": 23
+    },
+    {
+      "id": "i3-540",
+      "name": "Core i3-540",
+      "score": 12
+    },
+    {
+      "id": "i3-6100",
+      "name": "Core i3-6100",
+      "score": 30
+    },
+    {
+      "id": "i3-6300t",
+      "name": "Core i3-6300T",
+      "score": 25
+    },
+    {
+      "id": "i3-7100",
+      "name": "Core i3-7100",
+      "score": 32
+    },
+    {
+      "id": "i3-7300",
+      "name": "Core i3-7300",
+      "score": 33
+    },
+    {
+      "id": "i3-7300t",
+      "name": "Core i3-7300T",
+      "score": 26
+    },
+    {
+      "id": "i3-7350k",
+      "name": "Core i3-7350K",
+      "score": 34
+    },
+    {
+      "id": "i3-8300",
+      "name": "Core i3-8300",
+      "score": 38
+    },
+    {
+      "id": "i3-8350k",
+      "name": "Core i3-8350K",
+      "score": 40
+    },
+    {
+      "id": "i3-9100",
+      "name": "Core i3-9100",
+      "score": 40
+    },
+    {
+      "id": "i3-9100f",
+      "name": "Core i3-9100F",
+      "score": 40
+    },
+    {
+      "id": "i3-9350k",
+      "name": "Core i3-9350K",
+      "score": 42
+    },
+    {
+      "id": "i3-9350kf",
+      "name": "Core i3-9350KF",
+      "score": 42
+    },
+    {
+      "id": "i5-10600",
+      "name": "Core i5-10600",
+      "score": 56
+    },
+    {
+      "id": "i5-11400",
+      "name": "Core i5-11400",
+      "score": 58
+    },
+    {
+      "id": "i5-11600",
+      "name": "Core i5-11600",
+      "score": 60
+    },
+    {
+      "id": "i5-12490f",
+      "name": "Core i5-12490F",
+      "score": 74
+    },
+    {
+      "id": "i5-12600",
+      "name": "Core i5-12600",
+      "score": 76
+    },
+    {
+      "id": "i5-13490f",
+      "name": "Core i5-13490F",
+      "score": 78
+    },
+    {
+      "id": "i5-14400",
+      "name": "Core i5-14400",
+      "score": 79
+    },
+    {
+      "id": "i5-2400",
+      "name": "Core i5-2400",
+      "score": 28
+    },
+    {
+      "id": "i5-2400s",
+      "name": "Core i5-2400S",
+      "score": 24
+    },
+    {
+      "id": "i5-2500k",
+      "name": "Core i5-2500K",
+      "score": 32
+    },
+    {
+      "id": "i5-3330",
+      "name": "Core i5-3330",
+      "score": 30
+    },
+    {
+      "id": "i5-3450",
+      "name": "Core i5-3450",
+      "score": 31
+    },
+    {
+      "id": "i5-3450s",
+      "name": "Core i5-3450S",
+      "score": 27
+    },
+    {
+      "id": "i5-3470",
+      "name": "Core i5-3470",
+      "score": 32
+    },
+    {
+      "id": "i5-3470s",
+      "name": "Core i5-3470S",
+      "score": 28
+    },
+    {
+      "id": "i5-3570",
+      "name": "Core i5-3570",
+      "score": 34
+    },
+    {
+      "id": "i5-3570k",
+      "name": "Core i5-3570K",
+      "score": 35
+    },
+    {
+      "id": "i5-4430",
+      "name": "Core i5-4430",
+      "score": 32
+    },
+    {
+      "id": "i5-4460",
+      "name": "Core i5-4460",
+      "score": 33
+    },
+    {
+      "id": "i5-4570",
+      "name": "Core i5-4570",
+      "score": 34
+    },
+    {
+      "id": "i5-4590",
+      "name": "Core i5-4590",
+      "score": 35
+    },
+    {
+      "id": "i5-4670",
+      "name": "Core i5-4670",
+      "score": 36
+    },
+    {
+      "id": "i5-4670k",
+      "name": "Core i5-4670K",
+      "score": 37
+    },
+    {
+      "id": "i5-4690",
+      "name": "Core i5-4690",
+      "score": 37
+    },
+    {
+      "id": "i5-4690k",
+      "name": "Core i5-4690K",
+      "score": 38
+    },
+    {
+      "id": "i5-6400",
+      "name": "Core i5-6400",
+      "score": 36
+    },
+    {
+      "id": "i5-6402p",
+      "name": "Core i5-6402P",
+      "score": 36
+    },
+    {
+      "id": "i5-6500",
+      "name": "Core i5-6500",
+      "score": 38
+    },
+    {
+      "id": "i5-6500t",
+      "name": "Core i5-6500T",
+      "score": 33
+    },
+    {
+      "id": "i5-6600",
+      "name": "Core i5-6600",
+      "score": 40
+    },
+    {
+      "id": "i5-6600k",
+      "name": "Core i5-6600K",
+      "score": 42
+    },
+    {
+      "id": "i5-7400",
+      "name": "Core i5-7400",
+      "score": 40
+    },
+    {
+      "id": "i5-7500",
+      "name": "Core i5-7500",
+      "score": 42
+    },
+    {
+      "id": "i5-7600",
+      "name": "Core i5-7600",
+      "score": 44
+    },
+    {
+      "id": "i5-7600k",
+      "name": "Core i5-7600K",
+      "score": 46
+    },
+    {
+      "id": "i5-7640x",
+      "name": "Core i5-7640X",
+      "score": 42
+    },
+    {
+      "id": "i5-8600",
+      "name": "Core i5-8600",
+      "score": 46
+    },
+    {
+      "id": "i5-9400",
+      "name": "Core i5-9400",
+      "score": 46
+    },
+    {
+      "id": "i5-9500",
+      "name": "Core i5-9500",
+      "score": 48
+    },
+    {
+      "id": "i5-9500f",
+      "name": "Core i5-9500F",
+      "score": 48
+    },
+    {
+      "id": "i7-13790f",
+      "name": "Core i7-13790F",
+      "score": 90
+    },
+    {
+      "id": "i7-2600",
+      "name": "Core i7-2600",
+      "score": 34
+    },
+    {
+      "id": "i7-2600k",
+      "name": "Core i7-2600K",
+      "score": 36
+    },
+    {
+      "id": "i7-2600s",
+      "name": "Core i7-2600S",
+      "score": 30
+    },
+    {
+      "id": "i7-2700k",
+      "name": "Core i7-2700K",
+      "score": 37
+    },
+    {
+      "id": "i7-3770",
+      "name": "Core i7-3770",
+      "score": 38
+    },
+    {
+      "id": "i7-3770k",
+      "name": "Core i7-3770K",
+      "score": 40
+    },
+    {
+      "id": "i7-3960x",
+      "name": "Core i7-3960X",
+      "score": 35
+    },
+    {
+      "id": "i7-4770",
+      "name": "Core i7-4770",
+      "score": 40
+    },
+    {
+      "id": "i7-4770k",
+      "name": "Core i7-4770K",
+      "score": 42
+    },
+    {
+      "id": "i7-4770s",
+      "name": "Core i7-4770S",
+      "score": 38
+    },
+    {
+      "id": "i7-4790",
+      "name": "Core i7-4790",
+      "score": 43
+    },
+    {
+      "id": "i7-4790k",
+      "name": "Core i7-4790K",
+      "score": 46
+    },
+    {
+      "id": "i7-4790s",
+      "name": "Core i7-4790S",
+      "score": 40
+    },
+    {
+      "id": "i7-4960x",
+      "name": "Core i7-4960X",
+      "score": 38
+    },
+    {
+      "id": "i7-5820k",
+      "name": "Core i7-5820K",
+      "score": 40
+    },
+    {
+      "id": "i7-5960x",
+      "name": "Core i7-5960X",
+      "score": 42
+    },
+    {
+      "id": "i7-6700",
+      "name": "Core i7-6700",
+      "score": 44
+    },
+    {
+      "id": "i7-6700k",
+      "name": "Core i7-6700K",
+      "score": 48
+    },
+    {
+      "id": "i7-6800k",
+      "name": "Core i7-6800K",
+      "score": 42
+    },
+    {
+      "id": "i7-6900k",
+      "name": "Core i7-6900K",
+      "score": 44
+    },
+    {
+      "id": "i7-6950x",
+      "name": "Core i7-6950X",
+      "score": 44
+    },
+    {
+      "id": "i7-7700",
+      "name": "Core i7-7700",
+      "score": 48
+    },
+    {
+      "id": "i7-7700k",
+      "name": "Core i7-7700K",
+      "score": 52
+    },
+    {
+      "id": "i7-7740x",
+      "name": "Core i7-7740X",
+      "score": 50
+    },
+    {
+      "id": "i7-7800x",
+      "name": "Core i7-7800X",
+      "score": 46
+    },
+    {
+      "id": "i7-7820x",
+      "name": "Core i7-7820X",
+      "score": 48
+    },
+    {
+      "id": "i7-8086k",
+      "name": "Core i7-8086K",
+      "score": 54
+    },
+    {
+      "id": "i7-875k",
+      "name": "Core i7-875K",
+      "score": 18
+    },
+    {
+      "id": "i7-920",
+      "name": "Core i7-920",
+      "score": 15
+    },
+    {
+      "id": "i7-9800x",
+      "name": "Core i7-9800X",
+      "score": 50
+    },
+    {
+      "id": "i9-10850k",
+      "name": "Core i9-10850K",
+      "score": 62
+    },
+    {
+      "id": "i9-10900",
+      "name": "Core i9-10900",
+      "score": 60
+    },
+    {
+      "id": "i9-10900f",
+      "name": "Core i9-10900F",
+      "score": 60
+    },
+    {
+      "id": "i9-10900x",
+      "name": "Core i9-10900X",
+      "score": 52
+    },
+    {
+      "id": "i9-10920x",
+      "name": "Core i9-10920X",
+      "score": 52
+    },
+    {
+      "id": "i9-10940x",
+      "name": "Core i9-10940X",
+      "score": 52
+    },
+    {
+      "id": "i9-10980xe",
+      "name": "Core i9-10980XE",
+      "score": 52
+    },
+    {
+      "id": "i9-11900",
+      "name": "Core i9-11900",
+      "score": 68
+    },
+    {
+      "id": "i9-11900f",
+      "name": "Core i9-11900F",
+      "score": 68
+    },
+    {
+      "id": "i9-7900x",
+      "name": "Core i9-7900X",
+      "score": 50
+    },
+    {
+      "id": "i9-7920x",
+      "name": "Core i9-7920X",
+      "score": 48
+    },
+    {
+      "id": "i9-7940x",
+      "name": "Core i9-7940X",
+      "score": 48
+    },
+    {
+      "id": "i9-7960x",
+      "name": "Core i9-7960X",
+      "score": 47
+    },
+    {
+      "id": "i9-7980xe",
+      "name": "Core i9-7980XE",
+      "score": 46
+    },
+    {
+      "id": "i9-9820x",
+      "name": "Core i9-9820X",
+      "score": 50
+    },
+    {
+      "id": "i9-9920x",
+      "name": "Core i9-9920X",
+      "score": 50
+    },
+    {
+      "id": "i9-9940x",
+      "name": "Core i9-9940X",
+      "score": 50
+    },
+    {
+      "id": "i9-9960x",
+      "name": "Core i9-9960X",
+      "score": 50
+    },
+    {
+      "id": "celeron-g6900",
+      "name": "Intel Celeron G6900",
+      "score": 15
+    },
+    {
+      "id": "i3-10100",
+      "name": "Intel Core i3-10100",
+      "score": 46
+    },
+    {
+      "id": "i3-10100f",
+      "name": "Intel Core i3-10100F",
+      "score": 42
+    },
+    {
+      "id": "i3-11100f",
+      "name": "Intel Core i3-11100F",
+      "score": 52
+    },
+    {
+      "id": "i3-12100",
+      "name": "Intel Core i3-12100",
+      "score": 62
+    },
+    {
+      "id": "i3-12100f",
+      "name": "Intel Core i3-12100F",
+      "score": 58
+    },
+    {
+      "id": "i3-13100",
+      "name": "Intel Core i3-13100",
+      "score": 55
+    },
+    {
+      "id": "i3-13100f",
+      "name": "Intel Core i3-13100F",
+      "score": 55
+    },
+    {
+      "id": "i3-14100",
+      "name": "Intel Core i3-14100",
+      "score": 60
+    },
+    {
+      "id": "i3-14100f",
+      "name": "Intel Core i3-14100F",
+      "score": 60
+    },
+    {
+      "id": "i3-8100",
+      "name": "Intel Core i3-8100",
+      "score": 38
+    },
+    {
+      "id": "i5-10400",
+      "name": "Intel Core i5-10400",
+      "score": 54
+    },
+    {
+      "id": "i5-10400f",
+      "name": "Intel Core i5-10400F",
+      "score": 55
+    },
+    {
+      "id": "i5-10500",
+      "name": "Intel Core i5-10500",
+      "score": 55
+    },
+    {
+      "id": "i5-10600k",
+      "name": "Intel Core i5-10600K",
+      "score": 57
+    },
+    {
+      "id": "i5-11400f",
+      "name": "Intel Core i5-11400F",
+      "score": 58
+    },
+    {
+      "id": "i5-11500",
+      "name": "Intel Core i5-11500",
+      "score": 62
+    },
+    {
+      "id": "i5-11600k",
+      "name": "Intel Core i5-11600K",
+      "score": 62
+    },
+    {
+      "id": "i5-12400",
+      "name": "Intel Core i5-12400",
+      "score": 70
+    },
+    {
+      "id": "i5-12400f",
+      "name": "Intel Core i5-12400F",
+      "score": 72
+    },
+    {
+      "id": "i5-12500",
+      "name": "Intel Core i5-12500",
+      "score": 70
+    },
+    {
+      "id": "i5-12600k",
+      "name": "Intel Core i5-12600K",
+      "score": 79
+    },
+    {
+      "id": "i5-13400",
+      "name": "Intel Core i5-13400",
+      "score": 74
+    },
+    {
+      "id": "i5-13400f",
+      "name": "Intel Core i5-13400F",
+      "score": 76
+    },
+    {
+      "id": "i5-13500",
+      "name": "Intel Core i5-13500",
+      "score": 78
+    },
+    {
+      "id": "i5-13600",
+      "name": "Intel Core i5-13600",
+      "score": 78
+    },
+    {
+      "id": "i5-13600k",
+      "name": "Intel Core i5-13600K",
+      "score": 87
+    },
+    {
+      "id": "i5-13600kf",
+      "name": "Intel Core i5-13600KF",
+      "score": 87
+    },
+    {
+      "id": "i5-14400f",
+      "name": "Intel Core i5-14400F",
+      "score": 79
+    },
+    {
+      "id": "i5-14500",
+      "name": "Intel Core i5-14500",
+      "score": 80
+    },
+    {
+      "id": "i5-14600",
+      "name": "Intel Core i5-14600",
+      "score": 84
+    },
+    {
+      "id": "i5-14600k",
+      "name": "Intel Core i5-14600K",
+      "score": 90
+    },
+    {
+      "id": "i5-14600kf",
+      "name": "Intel Core i5-14600KF",
+      "score": 90
+    },
+    {
+      "id": "i5-8400",
+      "name": "Intel Core i5-8400",
+      "score": 45
+    },
+    {
+      "id": "i5-8500",
+      "name": "Intel Core i5-8500",
+      "score": 46
+    },
+    {
+      "id": "i5-8600k",
+      "name": "Intel Core i5-8600K",
+      "score": 48
+    },
+    {
+      "id": "i5-9400f",
+      "name": "Intel Core i5-9400F",
+      "score": 45
+    },
+    {
+      "id": "i5-9600",
+      "name": "Intel Core i5-9600",
+      "score": 49
+    },
+    {
+      "id": "i5-9600k",
+      "name": "Intel Core i5-9600K",
+      "score": 50
+    },
+    {
+      "id": "i7-10700",
+      "name": "Intel Core i7-10700",
+      "score": 56
+    },
+    {
+      "id": "i7-10700k",
+      "name": "Intel Core i7-10700K",
+      "score": 60
+    },
+    {
+      "id": "i7-11700",
+      "name": "Intel Core i7-11700",
+      "score": 68
+    },
+    {
+      "id": "i7-11700k",
+      "name": "Intel Core i7-11700K",
+      "score": 65
+    },
+    {
+      "id": "i7-12700",
+      "name": "Intel Core i7-12700",
+      "score": 80
+    },
+    {
+      "id": "i7-12700f",
+      "name": "Intel Core i7-12700F",
+      "score": 80
+    },
+    {
+      "id": "i7-12700k",
+      "name": "Intel Core i7-12700K",
+      "score": 82
+    },
+    {
+      "id": "i7-13700",
+      "name": "Intel Core i7-13700",
+      "score": 86
+    },
+    {
+      "id": "i7-13700f",
+      "name": "Intel Core i7-13700F",
+      "score": 86
+    },
+    {
+      "id": "i7-13700k",
+      "name": "Intel Core i7-13700K",
+      "score": 91
+    },
+    {
+      "id": "i7-13700kf",
+      "name": "Intel Core i7-13700KF",
+      "score": 88
+    },
+    {
+      "id": "i7-14700",
+      "name": "Intel Core i7-14700",
+      "score": 90
+    },
+    {
+      "id": "i7-14700f",
+      "name": "Intel Core i7-14700F",
+      "score": 90
+    },
+    {
+      "id": "i7-14700k",
+      "name": "Intel Core i7-14700K",
+      "score": 94
+    },
+    {
+      "id": "i7-14700kf",
+      "name": "Intel Core i7-14700KF",
+      "score": 94
+    },
+    {
+      "id": "i7-8700",
+      "name": "Intel Core i7-8700",
+      "score": 50
+    },
+    {
+      "id": "i7-8700k",
+      "name": "Intel Core i7-8700K",
+      "score": 52
+    },
+    {
+      "id": "i7-9700",
+      "name": "Intel Core i7-9700",
+      "score": 54
+    },
+    {
+      "id": "i7-9700k",
+      "name": "Intel Core i7-9700K",
+      "score": 54
+    },
+    {
+      "id": "i9-10900k",
+      "name": "Intel Core i9-10900K",
+      "score": 63
+    },
+    {
+      "id": "i9-11900k",
+      "name": "Intel Core i9-11900K",
+      "score": 68
+    },
+    {
+      "id": "i9-12900",
+      "name": "Intel Core i9-12900",
+      "score": 81
+    },
+    {
+      "id": "i9-12900f",
+      "name": "Intel Core i9-12900F",
+      "score": 84
+    },
+    {
+      "id": "i9-12900k",
+      "name": "Intel Core i9-12900K",
+      "score": 85
+    },
+    {
+      "id": "i9-12900kf",
+      "name": "Intel Core i9-12900KF",
+      "score": 85
+    },
+    {
+      "id": "i9-13900",
+      "name": "Intel Core i9-13900",
+      "score": 89
+    },
+    {
+      "id": "i9-13900f",
+      "name": "Intel Core i9-13900F",
+      "score": 90
+    },
+    {
+      "id": "i9-13900k",
+      "name": "Intel Core i9-13900K",
+      "score": 94
+    },
+    {
+      "id": "i9-13900kf",
+      "name": "Intel Core i9-13900KF",
+      "score": 94
+    },
+    {
+      "id": "i9-13900ks",
+      "name": "Intel Core i9-13900KS",
+      "score": 95
+    },
+    {
+      "id": "i9-14900",
+      "name": "Intel Core i9-14900",
+      "score": 91
+    },
+    {
+      "id": "i9-14900f",
+      "name": "Intel Core i9-14900F",
+      "score": 91
+    },
+    {
+      "id": "i9-14900k",
+      "name": "Intel Core i9-14900K",
+      "score": 96
+    },
+    {
+      "id": "i9-14900kf",
+      "name": "Intel Core i9-14900KF",
+      "score": 96
+    },
+    {
+      "id": "i9-14900ks",
+      "name": "Intel Core i9-14900KS",
+      "score": 96
+    },
+    {
+      "id": "i9-9900",
+      "name": "Intel Core i9-9900",
+      "score": 56
+    },
+    {
+      "id": "i9-9900k",
+      "name": "Intel Core i9-9900K",
+      "score": 57
+    },
+    {
+      "id": "i9-9900kf",
+      "name": "Intel Core i9-9900KF",
+      "score": 57
+    },
+    {
+      "id": "ultra-5-225",
+      "name": "Intel Core Ultra 5 225",
+      "score": 72
+    },
+    {
+      "id": "ultra-5-225f",
+      "name": "Intel Core Ultra 5 225F",
+      "score": 71
+    },
+    {
+      "id": "ultra-5-235",
+      "name": "Intel Core Ultra 5 235",
+      "score": 78
+    },
+    {
+      "id": "ultra-5-245k",
+      "name": "Intel Core Ultra 5 245K",
+      "score": 84
+    },
+    {
+      "id": "ultra-5-245kf",
+      "name": "Intel Core Ultra 5 245KF",
+      "score": 84
+    },
+    {
+      "id": "ultra-5-250k-plus",
+      "name": "Intel Core Ultra 5 250K Plus",
+      "score": 90
+    },
+    {
+      "id": "ultra-5-250kf-plus",
+      "name": "Intel Core Ultra 5 250KF Plus",
+      "score": 90
+    },
+    {
+      "id": "ultra-7-265",
+      "name": "Intel Core Ultra 7 265",
+      "score": 84
+    },
+    {
+      "id": "ultra-7-265k",
+      "name": "Intel Core Ultra 7 265K",
+      "score": 88
+    },
+    {
+      "id": "ultra-7-265kf",
+      "name": "Intel Core Ultra 7 265KF",
+      "score": 88
+    },
+    {
+      "id": "ultra-7-270k-plus",
+      "name": "Intel Core Ultra 7 270K Plus",
+      "score": 93
+    },
+    {
+      "id": "ultra-9-285",
+      "name": "Intel Core Ultra 9 285",
+      "score": 88
+    },
+    {
+      "id": "ultra-9-285k",
+      "name": "Intel Core Ultra 9 285K",
+      "score": 92
+    },
+    {
+      "id": "pentium-gold-g6400",
+      "name": "Intel Pentium Gold G6400",
+      "score": 20
+    },
+    {
+      "id": "pentium-gold-g7400",
+      "name": "Intel Pentium Gold G7400",
+      "score": 22
+    },
+    {
+      "id": "ryzen-5-7400f",
+      "name": "Ryzen 5 7400F",
+      "score": 80
+    },
+    {
+      "id": "ryzen-5-7500x3d",
+      "name": "Ryzen 5 7500X3D",
+      "score": 92
+    },
+    {
+      "id": "ryzen-5-8400f",
+      "name": "Ryzen 5 8400F",
+      "score": 68
+    },
+    {
+      "id": "ryzen-5-8500g",
+      "name": "Ryzen 5 8500G",
+      "score": 68
+    },
+    {
+      "id": "ryzen-5-pro-4650g",
+      "name": "Ryzen 5 PRO 4650G",
+      "score": 55
+    },
+    {
+      "id": "ryzen-5-pro-4655g",
+      "name": "Ryzen 5 PRO 4655G",
+      "score": 55
+    },
+    {
+      "id": "ryzen-7-8700f",
+      "name": "Ryzen 7 8700F",
+      "score": 76
+    },
+    {
+      "id": "ryzen-7-9850x3d",
+      "name": "Ryzen 7 9850X3D",
+      "score": 99
+    },
+    {
+      "id": "threadripper-9960x",
+      "name": "Ryzen Threadripper 9960X",
+      "score": 84
+    },
+    {
+      "id": "threadripper-9970x",
+      "name": "Ryzen Threadripper 9970X",
+      "score": 83
+    },
+    {
+      "id": "threadripper-9980x",
+      "name": "Ryzen Threadripper 9980X",
+      "score": 83
+    },
+    {
+      "id": "threadripper-pro-3955wx",
+      "name": "Ryzen Threadripper PRO 3955WX",
+      "score": 45
+    },
+    {
+      "id": "threadripper-pro-3995wx",
+      "name": "Ryzen Threadripper PRO 3995WX",
+      "score": 55
+    },
+    {
+      "id": "threadripper-pro-7955wx",
+      "name": "Ryzen Threadripper PRO 7955WX",
+      "score": 78
+    },
+    {
+      "id": "threadripper-pro-7965wx",
+      "name": "Ryzen Threadripper PRO 7965WX",
+      "score": 80
+    },
+    {
+      "id": "threadripper-pro-7975wx",
+      "name": "Ryzen Threadripper PRO 7975WX",
+      "score": 80
+    },
+    {
+      "id": "threadripper-pro-7985wx",
+      "name": "Ryzen Threadripper PRO 7985WX",
+      "score": 80
+    },
+    {
+      "id": "threadripper-pro-7995wx",
+      "name": "Ryzen Threadripper PRO 7995WX",
+      "score": 79
+    },
+    {
+      "id": "threadripper-pro-9955wx",
+      "name": "Ryzen Threadripper PRO 9955WX",
+      "score": 82
+    },
+    {
+      "id": "threadripper-pro-9965wx",
+      "name": "Ryzen Threadripper PRO 9965WX",
+      "score": 83
+    },
+    {
+      "id": "threadripper-pro-9975wx",
+      "name": "Ryzen Threadripper PRO 9975WX",
+      "score": 83
+    },
+    {
+      "id": "threadripper-pro-9985wx",
+      "name": "Ryzen Threadripper PRO 9985WX",
+      "score": 82
+    },
+    {
+      "id": "threadripper-pro-9995wx",
+      "name": "Ryzen Threadripper PRO 9995WX",
+      "score": 82
+    }
+  ],
+  "gpus": [
+    {
+      "id": "hd-7850",
+      "name": "AMD HD 7850",
+      "score": 7
+    },
+    {
+      "id": "hd-7870",
+      "name": "AMD HD 7870",
+      "score": 8
+    },
+    {
+      "id": "hd-7950",
+      "name": "AMD HD 7950",
+      "score": 9
+    },
+    {
+      "id": "hd-7970",
+      "name": "AMD HD 7970",
+      "score": 10
+    },
+    {
+      "id": "r7-360",
+      "name": "AMD R7 360",
+      "score": 5
+    },
+    {
+      "id": "r7-370",
+      "name": "AMD R7 370",
+      "score": 7
+    },
+    {
+      "id": "r9-290",
+      "name": "AMD R9 290",
+      "score": 14
+    },
+    {
+      "id": "r9-290x",
+      "name": "AMD R9 290X",
+      "score": 16
+    },
+    {
+      "id": "r9-370",
+      "name": "AMD R9 370",
+      "score": 8
+    },
+    {
+      "id": "r9-370x",
+      "name": "AMD R9 370X",
+      "score": 9
+    },
+    {
+      "id": "r9-380",
+      "name": "AMD R9 380",
+      "score": 13
+    },
+    {
+      "id": "r9-380x",
+      "name": "AMD R9 380X",
+      "score": 14
+    },
+    {
+      "id": "r9-390",
+      "name": "AMD R9 390",
+      "score": 19
+    },
+    {
+      "id": "r9-390x",
+      "name": "AMD R9 390X",
+      "score": 20
+    },
+    {
+      "id": "r9-fury",
+      "name": "AMD R9 Fury",
+      "score": 20
+    },
+    {
+      "id": "r9-fury-x",
+      "name": "AMD R9 Fury X",
+      "score": 22
+    },
+    {
+      "id": "r9-fury-nano",
+      "name": "AMD R9 Nano",
+      "score": 19
+    },
+    {
+      "id": "radeon-vii",
+      "name": "AMD Radeon VII",
+      "score": 35
+    },
+    {
+      "id": "rx-460",
+      "name": "AMD RX 460",
+      "score": 9
+    },
+    {
+      "id": "rx-470",
+      "name": "AMD RX 470",
+      "score": 17
+    },
+    {
+      "id": "rx-480",
+      "name": "AMD RX 480",
+      "score": 20
+    },
+    {
+      "id": "rx-550",
+      "name": "AMD RX 550",
+      "score": 8
+    },
+    {
+      "id": "rx-550-4gb",
+      "name": "AMD RX 550 4GB",
+      "score": 9
+    },
+    {
+      "id": "rx-5500",
+      "name": "AMD RX 5500",
+      "score": 21
+    },
+    {
+      "id": "rx-5500xt",
+      "name": "AMD RX 5500 XT",
+      "score": 23
+    },
+    {
+      "id": "rx-560",
+      "name": "AMD RX 560",
+      "score": 11
+    },
+    {
+      "id": "rx-5600",
+      "name": "AMD RX 5600",
+      "score": 30
+    },
+    {
+      "id": "rx-5600xt",
+      "name": "AMD RX 5600 XT",
+      "score": 33
+    },
+    {
+      "id": "rx-570",
+      "name": "AMD RX 570",
+      "score": 18
+    },
+    {
+      "id": "rx-5700",
+      "name": "AMD RX 5700",
+      "score": 37
+    },
+    {
+      "id": "rx-5700xt",
+      "name": "AMD RX 5700 XT",
+      "score": 41
+    },
+    {
+      "id": "rx-580",
+      "name": "AMD RX 580",
+      "score": 22
+    },
+    {
+      "id": "rx-580-2048sp",
+      "name": "AMD RX 580 2048SP",
+      "score": 20
+    },
+    {
+      "id": "rx-590",
+      "name": "AMD RX 590",
+      "score": 24
+    },
+    {
+      "id": "rx-6400",
+      "name": "AMD RX 6400",
+      "score": 20
+    },
+    {
+      "id": "rx-6500xt",
+      "name": "AMD RX 6500 XT",
+      "score": 25
+    },
+    {
+      "id": "rx-6600",
+      "name": "AMD RX 6600",
+      "score": 42
+    },
+    {
+      "id": "rx-6600xt",
+      "name": "AMD RX 6600 XT",
+      "score": 46
+    },
+    {
+      "id": "rx-6650xt",
+      "name": "AMD RX 6650 XT",
+      "score": 48
+    },
+    {
+      "id": "rx-6700",
+      "name": "AMD RX 6700",
+      "score": 49
+    },
+    {
+      "id": "rx-6700xt",
+      "name": "AMD RX 6700 XT",
+      "score": 54
+    },
+    {
+      "id": "rx-6750xt",
+      "name": "AMD RX 6750 XT",
+      "score": 57
+    },
+    {
+      "id": "rx-6800",
+      "name": "AMD RX 6800",
+      "score": 64
+    },
+    {
+      "id": "rx-6800xt",
+      "name": "AMD RX 6800 XT",
+      "score": 69
+    },
+    {
+      "id": "rx-6900xt",
+      "name": "AMD RX 6900 XT",
+      "score": 71
+    },
+    {
+      "id": "rx-6950xt",
+      "name": "AMD RX 6950 XT",
+      "score": 74
+    },
+    {
+      "id": "rx-7600",
+      "name": "AMD RX 7600",
+      "score": 52
+    },
+    {
+      "id": "rx-7600xt",
+      "name": "AMD RX 7600 XT",
+      "score": 56
+    },
+    {
+      "id": "rx-7700xt",
+      "name": "AMD RX 7700 XT",
+      "score": 66
+    },
+    {
+      "id": "rx-7800xt",
+      "name": "AMD RX 7800 XT",
+      "score": 72
+    },
+    {
+      "id": "rx-7900gre",
+      "name": "AMD RX 7900 GRE",
+      "score": 75
+    },
+    {
+      "id": "rx-7900xt",
+      "name": "AMD RX 7900 XT",
+      "score": 82
+    },
+    {
+      "id": "rx-7900xtx",
+      "name": "AMD RX 7900 XTX",
+      "score": 88
+    },
+    {
+      "id": "rx-9060",
+      "name": "AMD RX 9060",
+      "score": 54
+    },
+    {
+      "id": "rx-9060xt",
+      "name": "AMD RX 9060 XT",
+      "score": 62
+    },
+    {
+      "id": "rx-9070",
+      "name": "AMD RX 9070",
+      "score": 76
+    },
+    {
+      "id": "rx-9070xt",
+      "name": "AMD RX 9070 XT",
+      "score": 84
+    },
+    {
+      "id": "rx-vega56",
+      "name": "AMD RX Vega 56",
+      "score": 27
+    },
+    {
+      "id": "rx-vega64",
+      "name": "AMD RX Vega 64",
+      "score": 30
+    },
+    {
+      "id": "gt-1030",
+      "name": "GT 1030",
+      "score": 8
+    },
+    {
+      "id": "gt-710",
+      "name": "GT 710",
+      "score": 3
+    },
+    {
+      "id": "arc-a310",
+      "name": "Intel Arc A310",
+      "score": 11
+    },
+    {
+      "id": "arc-a380",
+      "name": "Intel Arc A380",
+      "score": 18
+    },
+    {
+      "id": "arc-a580",
+      "name": "Intel Arc A580",
+      "score": 37
+    },
+    {
+      "id": "arc-a750",
+      "name": "Intel Arc A750",
+      "score": 44
+    },
+    {
+      "id": "arc-a770",
+      "name": "Intel Arc A770",
+      "score": 48
+    },
+    {
+      "id": "arc-b570",
+      "name": "Intel Arc B570",
+      "score": 43
+    },
+    {
+      "id": "arc-b580",
+      "name": "Intel Arc B580",
+      "score": 50
+    },
+    {
+      "id": "gtx-1050",
+      "name": "NVIDIA GTX 1050",
+      "score": 12
+    },
+    {
+      "id": "gtx-1050ti",
+      "name": "NVIDIA GTX 1050 Ti",
+      "score": 15
+    },
+    {
+      "id": "gtx-1060-3gb",
+      "name": "NVIDIA GTX 1060 3GB",
+      "score": 21
+    },
+    {
+      "id": "gtx-1060-5gb",
+      "name": "NVIDIA GTX 1060 5GB",
+      "score": 22
+    },
+    {
+      "id": "gtx-1060-6gb",
+      "name": "NVIDIA GTX 1060 6GB",
+      "score": 24
+    },
+    {
+      "id": "gtx-1070",
+      "name": "NVIDIA GTX 1070",
+      "score": 30
+    },
+    {
+      "id": "gtx-1070ti",
+      "name": "NVIDIA GTX 1070 Ti",
+      "score": 34
+    },
+    {
+      "id": "gtx-1080",
+      "name": "NVIDIA GTX 1080",
+      "score": 37
+    },
+    {
+      "id": "gtx-1080ti",
+      "name": "NVIDIA GTX 1080 Ti",
+      "score": 44
+    },
+    {
+      "id": "gtx-1630",
+      "name": "NVIDIA GTX 1630",
+      "score": 13
+    },
+    {
+      "id": "gtx-1650",
+      "name": "NVIDIA GTX 1650",
+      "score": 22
+    },
+    {
+      "id": "gtx-1650s",
+      "name": "NVIDIA GTX 1650 Super",
+      "score": 27
+    },
+    {
+      "id": "gtx-1660",
+      "name": "NVIDIA GTX 1660",
+      "score": 29
+    },
+    {
+      "id": "gtx-1660s",
+      "name": "NVIDIA GTX 1660 Super",
+      "score": 33
+    },
+    {
+      "id": "gtx-1660ti",
+      "name": "NVIDIA GTX 1660 Ti",
+      "score": 32
+    },
+    {
+      "id": "gtx-660",
+      "name": "NVIDIA GTX 660",
+      "score": 6
+    },
+    {
+      "id": "gtx-660ti",
+      "name": "NVIDIA GTX 660 Ti",
+      "score": 7
+    },
+    {
+      "id": "gtx-670",
+      "name": "NVIDIA GTX 670",
+      "score": 8
+    },
+    {
+      "id": "gtx-680",
+      "name": "NVIDIA GTX 680",
+      "score": 9
+    },
+    {
+      "id": "gtx-690",
+      "name": "NVIDIA GTX 690",
+      "score": 10
+    },
+    {
+      "id": "gtx-750",
+      "name": "NVIDIA GTX 750",
+      "score": 6
+    },
+    {
+      "id": "gtx-750ti",
+      "name": "NVIDIA GTX 750 Ti",
+      "score": 8
+    },
+    {
+      "id": "gtx-760",
+      "name": "NVIDIA GTX 760",
+      "score": 7
+    },
+    {
+      "id": "gtx-770",
+      "name": "NVIDIA GTX 770",
+      "score": 9
+    },
+    {
+      "id": "gtx-780",
+      "name": "NVIDIA GTX 780",
+      "score": 11
+    },
+    {
+      "id": "gtx-780ti",
+      "name": "NVIDIA GTX 780 Ti",
+      "score": 13
+    },
+    {
+      "id": "gtx-950",
+      "name": "NVIDIA GTX 950",
+      "score": 10
+    },
+    {
+      "id": "gtx-960",
+      "name": "NVIDIA GTX 960",
+      "score": 12
+    },
+    {
+      "id": "gtx-960-4gb",
+      "name": "NVIDIA GTX 960 4GB",
+      "score": 13
+    },
+    {
+      "id": "gtx-970",
+      "name": "NVIDIA GTX 970",
+      "score": 16
+    },
+    {
+      "id": "gtx-980",
+      "name": "NVIDIA GTX 980",
+      "score": 17
+    },
+    {
+      "id": "gtx-980ti",
+      "name": "NVIDIA GTX 980 Ti",
+      "score": 20
+    },
+    {
+      "id": "gtx-titan",
+      "name": "NVIDIA GTX Titan",
+      "score": 10
+    },
+    {
+      "id": "gtx-titan-black",
+      "name": "NVIDIA GTX Titan Black",
+      "score": 12
+    },
+    {
+      "id": "rtx-2060",
+      "name": "NVIDIA RTX 2060",
+      "score": 38
+    },
+    {
+      "id": "rtx-2060-12gb",
+      "name": "NVIDIA RTX 2060 12GB",
+      "score": 40
+    },
+    {
+      "id": "rtx-2060s",
+      "name": "NVIDIA RTX 2060 Super",
+      "score": 42
+    },
+    {
+      "id": "rtx-2070",
+      "name": "NVIDIA RTX 2070",
+      "score": 45
+    },
+    {
+      "id": "rtx-2070s",
+      "name": "NVIDIA RTX 2070 Super",
+      "score": 48
+    },
+    {
+      "id": "rtx-2080",
+      "name": "NVIDIA RTX 2080",
+      "score": 51
+    },
+    {
+      "id": "rtx-2080s",
+      "name": "NVIDIA RTX 2080 Super",
+      "score": 53
+    },
+    {
+      "id": "rtx-2080ti",
+      "name": "NVIDIA RTX 2080 Ti",
+      "score": 56
+    },
+    {
+      "id": "rtx-3050",
+      "name": "NVIDIA RTX 3050",
+      "score": 38
+    },
+    {
+      "id": "rtx-3050-6gb",
+      "name": "NVIDIA RTX 3050 6GB",
+      "score": 33
+    },
+    {
+      "id": "rtx-3050ti",
+      "name": "NVIDIA RTX 3050 Ti",
+      "score": 35
+    },
+    {
+      "id": "rtx-3060-12gb",
+      "name": "NVIDIA RTX 3060 12GB",
+      "score": 52
+    },
+    {
+      "id": "rtx-3060ti",
+      "name": "NVIDIA RTX 3060 Ti",
+      "score": 62
+    },
+    {
+      "id": "rtx-3070",
+      "name": "NVIDIA RTX 3070",
+      "score": 67
+    },
+    {
+      "id": "rtx-3070ti",
+      "name": "NVIDIA RTX 3070 Ti",
+      "score": 70
+    },
+    {
+      "id": "rtx-3080",
+      "name": "NVIDIA RTX 3080",
+      "score": 75
+    },
+    {
+      "id": "rtx-3080-12gb",
+      "name": "NVIDIA RTX 3080 12GB",
+      "score": 77
+    },
+    {
+      "id": "rtx-3080ti",
+      "name": "NVIDIA RTX 3080 Ti",
+      "score": 78
+    },
+    {
+      "id": "rtx-3090",
+      "name": "NVIDIA RTX 3090",
+      "score": 80
+    },
+    {
+      "id": "rtx-3090ti",
+      "name": "NVIDIA RTX 3090 Ti",
+      "score": 84
+    },
+    {
+      "id": "rtx-4060",
+      "name": "NVIDIA RTX 4060",
+      "score": 58
+    },
+    {
+      "id": "rtx-4060ti",
+      "name": "NVIDIA RTX 4060 Ti",
+      "score": 65
+    },
+    {
+      "id": "rtx-4070",
+      "name": "NVIDIA RTX 4070",
+      "score": 73
+    },
+    {
+      "id": "rtx-4070s",
+      "name": "NVIDIA RTX 4070 Super",
+      "score": 78
+    },
+    {
+      "id": "rtx-4070ti",
+      "name": "NVIDIA RTX 4070 Ti",
+      "score": 82
+    },
+    {
+      "id": "rtx-4070tis",
+      "name": "NVIDIA RTX 4070 Ti Super",
+      "score": 84
+    },
+    {
+      "id": "rtx-4080",
+      "name": "NVIDIA RTX 4080",
+      "score": 88
+    },
+    {
+      "id": "rtx-4080s",
+      "name": "NVIDIA RTX 4080 Super",
+      "score": 90
+    },
+    {
+      "id": "rtx-4090",
+      "name": "NVIDIA RTX 4090",
+      "score": 98
+    },
+    {
+      "id": "rtx-4090d",
+      "name": "NVIDIA RTX 4090 D",
+      "score": 94
+    },
+    {
+      "id": "rtx-5060",
+      "name": "NVIDIA RTX 5060",
+      "score": 64
+    },
+    {
+      "id": "rtx-5060ti",
+      "name": "NVIDIA RTX 5060 Ti",
+      "score": 72
+    },
+    {
+      "id": "rtx-5070",
+      "name": "NVIDIA RTX 5070",
+      "score": 82
+    },
+    {
+      "id": "rtx-5070ti",
+      "name": "NVIDIA RTX 5070 Ti",
+      "score": 87
+    },
+    {
+      "id": "rtx-5080",
+      "name": "NVIDIA RTX 5080",
+      "score": 93
+    },
+    {
+      "id": "rtx-5090",
+      "name": "NVIDIA RTX 5090",
+      "score": 99
+    },
+    {
+      "id": "titan-rtx",
+      "name": "NVIDIA Titan RTX",
+      "score": 54
+    },
+    {
+      "id": "titan-x-maxwell",
+      "name": "NVIDIA Titan X (Maxwell)",
+      "score": 23
+    },
+    {
+      "id": "titan-x-pascal",
+      "name": "NVIDIA Titan X (Pascal)",
+      "score": 37
+    },
+    {
+      "id": "titan-xp",
+      "name": "NVIDIA Titan Xp",
+      "score": 39
+    },
+    {
+      "id": "rtx-5050",
+      "name": "RTX 5050",
+      "score": 45
+    }
+  ]
+}
