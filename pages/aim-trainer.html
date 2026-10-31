@@ -1,0 +1,297 @@
+<div id="page-aim-trainer" class="main-page aim-trainer-page w-full max-w-5xl mx-auto p-8">
+                <div id="aim-trainer-hub">
+                    <div class="page-intro mb-8">
+                        <h2 class="text-xl font-bold tracking-widest uppercase text-white">Aim Trainer</h2>
+                        <p class="text-sm text-slate-400 mt-2 tracking-wide">Pick a drill — click to enter the 3D range</p>
+                    </div>
+                    <section id="aim-trainer-browser" class="aim-trainer-browser bg-matte-900 rounded-lg border border-matte-800 p-6" aria-label="Training drills">
+                        <div class="aim-trainer-browser-toolbar mb-3">
+                            <div class="aim-trainer-browser-search flex flex-col gap-3 min-w-0">
+                                <span class="text-sm font-bold tracking-widest uppercase text-white">Search</span>
+                                <div class="tool-picklist-control tool-picklist-control--has-icon aim-trainer-search-control ui-interactive">
+                                    <i class="ri-search-line tool-picklist-leading-icon" aria-hidden="true"></i>
+                                    <input id="aim-trainer-search" type="text" class="tool-picklist-input aim-trainer-search-input w-full" placeholder="Search training" autocomplete="off" spellcheck="false" aria-label="Search training">
+                                    <div class="aim-trainer-search-trailing">
+                                        <button type="button" id="aim-trainer-search-clear" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 shrink-0" aria-label="Clear search" hidden>
+                                            <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="aim-trainer-browser-types flex flex-col gap-3 min-w-0">
+                                <span class="text-sm font-bold tracking-widest uppercase text-white">Type</span>
+                                <div id="aim-trainer-type-glide" class="glide-selector w-full" role="radiogroup" aria-label="Filter by training type" data-value="all">
+                                    <div class="glide-selector-track">
+                                        <div class="glide-selector-viewport" aria-hidden="true">
+                                            <span class="glide-selector-thumb ui-interactive"></span>
+                                        </div>
+                                        <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-type="all" role="radio" aria-checked="true">All</button>
+                                        <button type="button" class="glide-selector-option ui-interactive" data-aim-type="flick" role="radio" aria-checked="false">Flicking</button>
+                                        <button type="button" class="glide-selector-option ui-interactive" data-aim-type="track" role="radio" aria-checked="false">Tracking</button>
+                                        <button type="button" class="glide-selector-option ui-interactive" data-aim-type="react" role="radio" aria-checked="false">Reacting</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="aim-trainer-browser-toolbar-actions flex items-end sm:justify-end shrink-0">
+                                <button type="button" id="aim-trainer-settings-open" class="aim-trainer-toolbar-settings ui-interactive" aria-haspopup="dialog" aria-expanded="false" aria-controls="aim-trainer-settings-modal">
+                                    <i class="fa-solid fa-gear text-sm" aria-hidden="true"></i>
+                                    <span>Training Settings</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="aim-trainer-list" class="aim-trainer-list grid grid-cols-1 sm:grid-cols-2 gap-3" role="list"></div>
+                        <p id="aim-trainer-list-empty" class="aim-trainer-list-empty text-sm text-slate-400 tracking-wide text-center py-8" hidden>No drills match your filters.</p>
+                    </section>
+                    <div id="aim-trainer-settings-modal" class="aim-trainer-settings-modal settings-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="aim-trainer-settings-title" aria-hidden="true">
+                        <button type="button" id="aim-trainer-settings-backdrop" class="settings-modal-backdrop absolute inset-0 bg-black/70 ui-interactive" aria-label="Close training settings" tabindex="-1"></button>
+                        <div class="settings-modal-shell aim-trainer-settings-shell">
+                            <div class="settings-modal-panel relative w-full bg-matte-900 border border-matte-800 rounded-lg p-5 max-h-[min(90vh,640px)] flex flex-col min-h-0">
+                                <div class="flex items-center justify-between gap-3 mb-4 shrink-0">
+                                    <h3 id="aim-trainer-settings-title" class="text-sm font-bold tracking-widest uppercase text-white">Training Settings</h3>
+                                    <button type="button" id="aim-trainer-settings-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative" aria-label="Close training settings">
+                                        <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <div class="aim-trainer-settings-body settings-modal-body flex-1 min-h-0 overflow-y-auto space-y-3">
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-aim-settings-section="session">
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold tracking-widest uppercase text-white">Timer</p>
+                                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">How long a run lasts before the summary appears.</p>
+                                        </div>
+                                        <div id="aim-trainer-settings-timer-glide" class="glide-selector w-full" role="radiogroup" aria-label="Session timer" data-value="30">
+                                            <div class="glide-selector-track">
+                                                <div class="glide-selector-viewport" aria-hidden="true"><span class="glide-selector-thumb ui-interactive"></span></div>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-timer="15" role="radio">15s</button>
+                                                <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-timer="30" role="radio">30s</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-timer="60" role="radio">60s</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-timer="0" role="radio">Inf</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3 hidden" data-aim-settings-section="game" hidden>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold tracking-widest uppercase text-white">Game</p>
+                                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Match turn rate so in-game sensitivity feels the same here.</p>
+                                        </div>
+                                        <div id="aim-trainer-settings-game-pick" class="tool-picklist w-full" data-value="Valorant">
+                                            <div class="tool-picklist-control tool-picklist-control--has-icon ui-interactive">
+                                                <i class="ri-search-line tool-picklist-leading-icon" aria-hidden="true"></i>
+                                                <input id="aim-trainer-settings-game-input" type="text" class="tool-picklist-input w-full" placeholder="Select game" autocomplete="off" spellcheck="false" aria-label="Game">
+                                                <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
+                                            </div>
+                                            <div id="aim-trainer-settings-game-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Games"></div>
+                                        </div>
+                                    </div>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3 hidden" data-aim-settings-section="sensitivity" hidden>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold tracking-widest uppercase text-white">Sensitivity</p>
+                                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">In-game sensitivity and mouse DPI.</p>
+                                        </div>
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <label class="flex flex-col gap-2 min-w-0">
+                                                <span class="text-xs font-bold tracking-widest uppercase text-slate-400">Sensitivity</span>
+                                                <input type="text" inputmode="decimal" id="aim-trainer-settings-sens" class="tool-picklist-input w-full" value="1" autocomplete="off" spellcheck="false">
+                                            </label>
+                                            <label class="flex flex-col gap-2 min-w-0">
+                                                <span class="text-xs font-bold tracking-widest uppercase text-slate-400">DPI</span>
+                                                <input type="text" inputmode="numeric" id="aim-trainer-settings-dpi" class="tool-picklist-input w-full" value="800" autocomplete="off" spellcheck="false">
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3 hidden" data-aim-settings-section="target" hidden>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold tracking-widest uppercase text-white">Target color</p>
+                                        </div>
+                                        <div id="aim-trainer-settings-tcolor-glide" class="glide-selector w-full" role="radiogroup" aria-label="Target color" data-value="yellow">
+                                            <div class="glide-selector-track">
+                                                <div class="glide-selector-viewport" aria-hidden="true"><span class="glide-selector-thumb ui-interactive"></span></div>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-tcolor="blue" role="radio">Blue</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-tcolor="red" role="radio">Red</button>
+                                                <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-tcolor="yellow" role="radio">Yellow</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-tcolor="purple" role="radio">Purple</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3 hidden" data-aim-settings-section="aspect" hidden>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold tracking-widest uppercase text-white">Aspect ratio</p>
+                                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Simulate stretched resolutions by locking the render aspect while the view fills your display.</p>
+                                        </div>
+                                        <div id="aim-trainer-settings-aspect-glide" class="glide-selector w-full aim-trainer-aspect-glide" role="radiogroup" aria-label="Aspect ratio" data-value="native">
+                                            <div class="glide-selector-track">
+                                                <div class="glide-selector-viewport" aria-hidden="true"><span class="glide-selector-thumb ui-interactive"></span></div>
+                                                <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-aspect="native" role="radio">Native</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-aspect="16:9" role="radio">16:9</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-aspect="16:10" role="radio">16:10</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-aspect="5:4" role="radio">5:4</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-aspect="4:3" role="radio">4:3</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-aspect="3:2" role="radio">3:2</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3 hidden" data-aim-settings-section="crosshair" hidden>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold tracking-widest uppercase text-white">Color</p>
+                                        </div>
+                                        <div id="aim-trainer-settings-chcolor-glide" class="glide-selector w-full" role="radiogroup" aria-label="Crosshair color" data-value="#00ff00">
+                                            <div class="glide-selector-track">
+                                                <div class="glide-selector-viewport" aria-hidden="true"><span class="glide-selector-thumb ui-interactive"></span></div>
+                                                <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-chcolor="#00ff00" role="radio">Green</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chcolor="#ffffff" role="radio">White</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chcolor="#00e5ff" role="radio">Cyan</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chcolor="#ff1e43" role="radio">Neon</button>
+                                            </div>
+                                        </div>
+                                        <div class="min-w-0 pt-1">
+                                            <p class="text-sm font-bold tracking-widest uppercase text-white">Center dot</p>
+                                        </div>
+                                        <div id="aim-trainer-settings-chdot-glide" class="glide-selector w-full" role="radiogroup" aria-label="Crosshair center dot" data-value="true">
+                                            <div class="glide-selector-track">
+                                                <div class="glide-selector-viewport" aria-hidden="true"><span class="glide-selector-thumb ui-interactive"></span></div>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chdot="false" role="radio">Off</button>
+                                                <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-chdot="true" role="radio">On</button>
+                                            </div>
+                                        </div>
+                                        <div class="min-w-0 pt-1">
+                                            <p class="text-sm font-bold tracking-widest uppercase text-white">Outline</p>
+                                        </div>
+                                        <div id="aim-trainer-settings-choutline-glide" class="glide-selector w-full" role="radiogroup" aria-label="Crosshair outline" data-value="false">
+                                            <div class="glide-selector-track">
+                                                <div class="glide-selector-viewport" aria-hidden="true"><span class="glide-selector-thumb ui-interactive"></span></div>
+                                                <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-choutline="false" role="radio">Off</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-choutline="true" role="radio">On</button>
+                                            </div>
+                                        </div>
+                                        <label class="aim-trainer-settings-range pt-1">
+                                            <span class="text-xs font-bold tracking-widest uppercase text-slate-400">Size</span>
+                                            <strong id="aim-trainer-ch-size-val" class="text-sm text-white tabular-nums">10</strong>
+                                            <span class="aim-trainer-range-wrap">
+                                                <span class="aim-trainer-range-rail" aria-hidden="true"><span class="aim-trainer-range-fill" id="aim-trainer-ch-size-fill"></span></span>
+                                                <input type="range" id="aim-trainer-ch-size" class="aim-trainer-range ui-interactive" min="2" max="30" step="1" value="10" aria-label="Crosshair size">
+                                            </span>
+                                        </label>
+                                        <label class="aim-trainer-settings-range">
+                                            <span class="text-xs font-bold tracking-widest uppercase text-slate-400">Gap</span>
+                                            <strong id="aim-trainer-ch-gap-val" class="text-sm text-white tabular-nums">4</strong>
+                                            <span class="aim-trainer-range-wrap">
+                                                <span class="aim-trainer-range-rail" aria-hidden="true"><span class="aim-trainer-range-fill" id="aim-trainer-ch-gap-fill"></span></span>
+                                                <input type="range" id="aim-trainer-ch-gap" class="aim-trainer-range ui-interactive" min="0" max="20" step="1" value="4" aria-label="Crosshair gap">
+                                            </span>
+                                        </label>
+                                        <label class="aim-trainer-settings-range">
+                                            <span class="text-xs font-bold tracking-widest uppercase text-slate-400">Thickness</span>
+                                            <strong id="aim-trainer-ch-thick-val" class="text-sm text-white tabular-nums">2</strong>
+                                            <span class="aim-trainer-range-wrap">
+                                                <span class="aim-trainer-range-rail" aria-hidden="true"><span class="aim-trainer-range-fill" id="aim-trainer-ch-thick-fill"></span></span>
+                                                <input type="range" id="aim-trainer-ch-thick" class="aim-trainer-range ui-interactive" min="2" max="6" step="1" value="2" aria-label="Crosshair thickness">
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <aside id="aim-trainer-chpreview-rail" class="aim-trainer-chpreview-rail" aria-label="Crosshair preview" hidden>
+                                <span class="aim-trainer-chpreview-label text-sm font-bold tracking-widest uppercase text-white">Preview</span>
+                                <div class="aim-trainer-chpreview-panel rounded-lg border border-matte-800 bg-matte-900 p-3 flex items-center justify-center gap-1">
+                                    <button type="button" id="aim-trainer-chpreview-prev" class="aim-trainer-chpreview-bg-btn ui-interactive" aria-label="Previous preview background">
+                                        <i class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i>
+                                    </button>
+                                    <canvas class="aim-trainer-chpreview-canvas" id="aim-trainer-crosshair-preview" width="140" height="140" aria-hidden="true"></canvas>
+                                    <button type="button" id="aim-trainer-chpreview-next" class="aim-trainer-chpreview-bg-btn ui-interactive" aria-label="Next preview background">
+                                        <i class="fa-solid fa-chevron-right text-xs" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </aside>
+                            <nav class="settings-modal-tabs aim-trainer-settings-tabs" id="aim-trainer-settings-tabs" aria-label="Training settings sections">
+                                <div class="settings-tab-row" id="aim-trainer-settings-tab-row">
+                                    <span class="settings-tab-glider" id="aim-trainer-settings-tab-glider" aria-hidden="true"></span>
+                                    <button type="button" class="settings-tab-btn ui-interactive active" data-aim-section="session" role="tab" aria-selected="true">Session</button>
+                                    <button type="button" class="settings-tab-btn ui-interactive" data-aim-section="game" role="tab" aria-selected="false">Game</button>
+                                    <button type="button" class="settings-tab-btn ui-interactive" data-aim-section="sensitivity" role="tab" aria-selected="false">Sens</button>
+                                    <button type="button" class="settings-tab-btn ui-interactive" data-aim-section="target" role="tab" aria-selected="false">Target</button>
+                                    <button type="button" class="settings-tab-btn ui-interactive" data-aim-section="crosshair" role="tab" aria-selected="false">Crosshair</button>
+                                    <button type="button" class="settings-tab-btn ui-interactive" data-aim-section="aspect" role="tab" aria-selected="false">Aspect</button>
+                                </div>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+                <div id="aim-trainer-session" class="aim-trainer-session hidden" aria-hidden="true">
+                    <div class="aim-trainer-viewport relative flex-1 min-h-0">
+                        <canvas id="aim-trainer-canvas" class="aim-trainer-canvas block w-full h-full" aria-label="Aim training 3D view"></canvas>
+                        <div class="aim-hud-in" id="aim-trainer-hud" aria-live="polite">
+                            <div class="aim-hud-left">
+                                <div class="aim-hud-stat">
+                                    <span>Score</span>
+                                    <strong id="aim-trainer-score">0</strong>
+                                </div>
+                                <div class="aim-hud-stat">
+                                    <span>Misses</span>
+                                    <strong id="aim-trainer-misses">0</strong>
+                                </div>
+                                <div class="aim-hud-stat">
+                                    <span>Accuracy</span>
+                                    <strong id="aim-trainer-accuracy">0%</strong>
+                                </div>
+                            </div>
+                            <div class="aim-timer" id="aim-trainer-timer">30</div>
+                        </div>
+                        <div class="aim-trainer-start-overlay" id="aim-trainer-start-overlay" hidden>
+                            <span class="aim-trainer-start-overlay-text" id="aim-trainer-start-text">Click to start</span>
+                            <div class="aim-countdown" id="aim-trainer-countdown" hidden>
+                                <span id="aim-trainer-cd-num">2</span>
+                            </div>
+                        </div>
+                        <div class="aim-trainer-crosshair pointer-events-none" id="aim-trainer-crosshair" aria-hidden="true">
+                            <span class="aim-ch-line aim-ch-t" aria-hidden="true"></span>
+                            <span class="aim-ch-line aim-ch-r" aria-hidden="true"></span>
+                            <span class="aim-ch-line aim-ch-b" aria-hidden="true"></span>
+                            <span class="aim-ch-line aim-ch-l" aria-hidden="true"></span>
+                            <span class="aim-ch-dot" aria-hidden="true"></span>
+                        </div>
+                        <div class="aim-trainer-results" id="aim-trainer-results" hidden>
+                            <div class="aim-trainer-results-panel">
+                                <h2 class="aim-trainer-results-heading">Session Summary</h2>
+                                <div class="aim-trainer-results-stats">
+                                    <div class="aim-trainer-result-stat">
+                                        <span>Hits</span>
+                                        <strong id="aim-trainer-result-hits">0</strong>
+                                    </div>
+                                    <div class="aim-trainer-result-stat">
+                                        <span>Misses</span>
+                                        <strong id="aim-trainer-result-misses">0</strong>
+                                    </div>
+                                    <div class="aim-trainer-result-stat">
+                                        <span>Accuracy</span>
+                                        <strong id="aim-trainer-result-accuracy">0%</strong>
+                                    </div>
+                                    <div class="aim-trainer-result-stat">
+                                        <span>Reaction Time</span>
+                                        <strong id="aim-trainer-result-reaction">—</strong>
+                                    </div>
+                                </div>
+                                <div class="aim-trainer-results-maps">
+                                    <div>
+                                        <span>Spatial (Clicks)</span>
+                                        <canvas id="aim-trainer-result-spatial" width="379" height="213"></canvas>
+                                    </div>
+                                    <div>
+                                        <span>Precision</span>
+                                        <canvas id="aim-trainer-result-precision" width="213" height="213"></canvas>
+                                    </div>
+                                </div>
+                                <div class="aim-trainer-results-actions">
+                                    <button type="button" class="aim-trainer-results-btn aim-trainer-results-restart ui-interactive" id="aim-trainer-results-restart">Restart</button>
+                                    <button type="button" class="aim-trainer-results-btn aim-trainer-results-exit ui-interactive" id="aim-trainer-results-exit">Exit</button>
+                                    <div class="aim-trainer-results-menu-wrap" id="aim-trainer-results-share-wrap">
+                                        <button type="button" class="aim-trainer-results-btn aim-trainer-results-share ui-interactive" id="aim-trainer-results-share" aria-haspopup="true" aria-expanded="false">Share</button>
+                                        <div class="aim-trainer-results-menu" id="aim-trainer-results-share-menu" role="menu" hidden>
+                                            <button type="button" role="menuitem" data-aim-share="copy">Copy image</button>
+                                            <button type="button" role="menuitem" data-aim-share="download">Download</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>

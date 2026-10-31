@@ -89,6 +89,10 @@
                     </div>
                     <i class="fa-solid fa-chevron-right text-xs opacity-70 transition-transform motion-standard chevron-icon"></i>
                 </button>
+                <button type="button" data-nav-page="find-team" onclick="handleSidebarClick(this, 'find-team')" class="nav-btn direct-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left" disabled aria-disabled="true">
+                    <i class="fa-solid fa-user-group w-5 text-center flex-shrink-0"></i>
+                    <span class="btn-label sidebar-slide-fade whitespace-nowrap">Find a team</span>
+                </button>
                 <button onclick="handleSidebarClick(this, 'apps')" class="nav-btn direct-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left">
                     <i class="fa-solid fa-cubes w-5 text-center flex-shrink-0"></i>
                     <span class="btn-label sidebar-slide-fade whitespace-nowrap">Apps</span>
@@ -179,33 +183,88 @@
 
     <div id="settings-modal" class="settings-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" aria-hidden="true">
         <button type="button" id="settings-modal-backdrop" class="settings-modal-backdrop absolute inset-0 bg-black/70 ui-interactive" aria-label="Close settings"></button>
-        <div class="settings-modal-panel relative w-full max-w-md bg-matte-900 border border-matte-800 rounded-lg p-5 z-10">
-            <div class="flex items-center justify-between gap-3 mb-5">
-                <h3 id="settings-modal-title" class="text-sm font-bold tracking-widest uppercase text-white">Settings</h3>
-                <button type="button" id="settings-modal-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative" aria-label="Close settings">
-                    <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
-                </button>
-            </div>
-            <div class="space-y-3">
-                <div class="settings-row bg-matte-950 rounded-lg p-4 flex items-center justify-between gap-4">
-                    <div class="min-w-0">
-                        <p class="text-sm font-bold tracking-widest uppercase text-white">Compact sidebar</p>
-                        <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Start with the sidebar collapsed.</p>
-                    </div>
-                    <button type="button" id="settings-compact-sidebar" class="settings-toggle ui-interactive" role="switch" aria-checked="false" aria-label="Compact sidebar">
-                        <span class="settings-toggle-thumb" aria-hidden="true"></span>
+        <div class="settings-modal-shell">
+            <div class="settings-modal-panel relative w-full bg-matte-900 border border-matte-800 rounded-lg p-5">
+            <div class="settings-modal-main flex flex-col h-full min-w-0">
+                <div class="flex items-center justify-between gap-3 mb-5">
+                    <h3 id="settings-modal-title" class="text-sm font-bold tracking-widest uppercase text-white">Settings</h3>
+                    <button type="button" id="settings-modal-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative" aria-label="Close settings">
+                        <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
                     </button>
                 </div>
-                <div class="settings-row bg-matte-950 rounded-lg p-4 flex items-center justify-between gap-4">
-                    <div class="min-w-0">
-                        <p class="text-sm font-bold tracking-widest uppercase text-white">Reduced motion</p>
-                        <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Disable all animations and transitions.</p>
+                <div class="settings-modal-body flex-1 min-h-0">
+                <div id="settings-section-system" class="settings-modal-section space-y-3" data-settings-section="system">
+                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex items-center justify-between gap-4">
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold tracking-widest uppercase text-white">Compact sidebar</p>
+                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Start with the sidebar collapsed.</p>
+                        </div>
+                        <label class="lazer-toggle ui-interactive shrink-0">
+                            <input type="checkbox" id="settings-compact-sidebar" role="switch" aria-checked="false" aria-label="Compact sidebar">
+                            <span class="lazer-slider" aria-hidden="true"></span>
+                        </label>
                     </div>
-                    <button type="button" id="settings-reduced-motion" class="settings-toggle ui-interactive" role="switch" aria-checked="false" aria-label="Reduced motion">
-                        <span class="settings-toggle-thumb" aria-hidden="true"></span>
-                    </button>
+                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3">
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold tracking-widest uppercase text-white">Interface refresh rate</p>
+                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Target frame rate for UI animations (60, 120, or 240&nbsp;Hz).</p>
+                        </div>
+                        <div id="settings-ui-refresh-glide" class="glide-selector w-full" role="radiogroup" aria-label="Interface refresh rate" data-value="240">
+                            <div class="glide-selector-track">
+                                <div class="glide-selector-viewport" aria-hidden="true">
+                                    <span class="glide-selector-thumb ui-interactive"></span>
+                                </div>
+                                <button type="button" class="glide-selector-option ui-interactive" data-refresh="60" role="radio" aria-checked="false">60 Hz</button>
+                                <button type="button" class="glide-selector-option ui-interactive" data-refresh="120" role="radio" aria-checked="false">120 Hz</button>
+                                <button type="button" class="glide-selector-option ui-interactive is-selected" data-refresh="240" role="radio" aria-checked="true">240 Hz</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex items-center justify-between gap-4">
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold tracking-widest uppercase text-white">Reduced motion</p>
+                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Disable animations and transitions. Does not mute system sounds, aim trainer, or video.</p>
+                        </div>
+                        <label class="lazer-toggle ui-interactive shrink-0">
+                            <input type="checkbox" id="settings-reduced-motion" role="switch" aria-checked="false" aria-label="Reduced motion">
+                            <span class="lazer-slider" aria-hidden="true"></span>
+                        </label>
+                    </div>
+                </div>
+                <div id="settings-section-sound" class="settings-modal-section space-y-3 hidden" data-settings-section="sound" hidden>
+                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3">
+                        <div class="flex items-center justify-between gap-4 w-full">
+                            <div class="min-w-0">
+                                <p class="text-sm font-bold tracking-widest uppercase text-white">System sounds</p>
+                                <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Button hover and toggle feedback sounds.</p>
+                            </div>
+                            <label class="lazer-toggle ui-interactive shrink-0">
+                                <input type="checkbox" id="settings-system-sounds" role="switch" aria-checked="false" aria-label="System sounds">
+                                <span class="lazer-slider" aria-hidden="true"></span>
+                            </label>
+                        </div>
+                        <div id="settings-ui-sound-glide" class="glide-selector w-full" role="radiogroup" aria-label="Interface sound style" data-value="standard">
+                            <div class="glide-selector-track">
+                                <div class="glide-selector-viewport" aria-hidden="true">
+                                    <span class="glide-selector-thumb ui-interactive"></span>
+                                </div>
+                                <button type="button" class="glide-selector-option ui-interactive is-selected" data-sound="standard" role="radio" aria-checked="true">Standard</button>
+                                <button type="button" class="glide-selector-option ui-interactive" data-sound="soft" role="radio" aria-checked="false">Soft</button>
+                                <button type="button" class="glide-selector-option ui-interactive" data-sound="bright" role="radio" aria-checked="false">Bright</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 </div>
             </div>
+            </div>
+            <nav class="settings-modal-tabs" id="settings-modal-tabs" aria-label="Settings categories">
+                <div class="settings-tab-row" id="settings-tab-row">
+                    <span class="settings-tab-glider" id="settings-tab-glider" aria-hidden="true"></span>
+                    <button type="button" class="settings-tab-btn ui-interactive active" data-settings-tab="system" aria-selected="true">System</button>
+                    <button type="button" class="settings-tab-btn ui-interactive" data-settings-tab="sound" aria-selected="false">Sound</button>
+                </div>
+            </nav>
         </div>
     </div>
 
@@ -311,7 +370,10 @@
         </div>
     </div>
 
+    <div id="cafe-toast-host" class="cafe-toast-host" aria-live="polite" aria-atomic="true"></div>
+
     <script src="js/cafe-core.js" defer></script>
+    <script src="js/page-html-bundle.js" defer></script>
     <script src="js/page-loader.js" defer></script>
     <script src="js/script.js" defer></script>
 </body>

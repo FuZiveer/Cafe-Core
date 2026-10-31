@@ -41,6 +41,7 @@ const flyoutData = coreFreeze({
 
 const topBarLabels = coreFreeze({
     home: 'Home',
+    'find-team': 'Find a team',
     apps: 'Apps',
     tools: 'Tools',
     strats: 'Strats',
@@ -115,6 +116,7 @@ const appsCatalog = [
 const mainPageIds = coreFreeze({
     default: 'page-default',
     apps: 'page-apps',
+    'find-team': 'page-find-team',
     branding: 'page-branding',
     fuziveer: 'page-fuziveer',
     privacy: 'page-privacy-policy',
@@ -124,12 +126,14 @@ const mainPageIds = coreFreeze({
     sensitivity: 'page-sensitivity',
     edpi: 'page-edpi',
     lineups: 'page-lineups',
+    'aim-trainer': 'page-aim-trainer',
 });
 
 window.mainPageIds = mainPageIds;
 
 function normalizeMainPageKey(pageKey) {
     if (pageKey === 'lineups' && !TIPS_AND_TRICKS_PAGE_ENABLED) return 'default';
+    if (pageKey === 'find-team' && isMainPageNavDisabled('find-team')) return 'default';
     return pageKey in mainPageIds ? pageKey : 'default';
 }
 
@@ -176,7 +180,7 @@ function setSensPicklistGame(root, game, fallbackText) {
     const input = root.querySelector('.tool-picklist-input');
     root.dataset.value = '';
     if (input) input.value = fallbackText || '';
-    root.querySelectorAll('.tool-picklist-option').forEach((btn) => {
+    getToolPicklistOptions(root).forEach((btn) => {
         btn.classList.remove('is-selected');
         btn.setAttribute('aria-selected', 'false');
     });
@@ -231,15 +235,19 @@ function initToolPicklistDismiss() {
     if (window.__toolPicklistDismissBound) return;
     document.addEventListener('click', (event) => {
         if (event.target.closest('.tool-picklist')) return;
+        // Menus portaled to the aim-trainer settings modal sit outside .tool-picklist.
+        if (event.target.closest('.tool-picklist-menu')) return;
         closeAllToolPicklists();
     });
     window.__toolPicklistDismissBound = true;
 }
 
 const BOTTLENECK_PARTS_URL = 'data/bottleneck-parts.json';
+const BOTTLENECK_PARTS_SCRIPT = 'data/bottleneck-parts.js';
 
 let bottleneckCpus = [];
 let bottleneckGpus = [];
+let bottleneckPartsScriptPromise = null;
 
 function normalizeBottleneckPartsList(parts) {
     if (!Array.isArray(parts)) return [];
@@ -252,12 +260,43 @@ function normalizeBottleneckPartsList(parts) {
         }));
 }
 
+function loadBottleneckPartsScript() {
+    if (window.BOTTLENECK_PARTS) return Promise.resolve(window.BOTTLENECK_PARTS);
+    if (bottleneckPartsScriptPromise) return bottleneckPartsScriptPromise;
+    bottleneckPartsScriptPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = BOTTLENECK_PARTS_SCRIPT;
+        script.onload = () => {
+            if (window.BOTTLENECK_PARTS) resolve(window.BOTTLENECK_PARTS);
+            else reject(new Error('Bottleneck parts script loaded without data'));
+        };
+        script.onerror = () => {
+            bottleneckPartsScriptPromise = null;
+            reject(new Error('Failed to load bottleneck parts script'));
+        };
+        document.body.appendChild(script);
+    });
+    return bottleneckPartsScriptPromise;
+}
+
 async function fetchBottleneckParts() {
-    const response = await fetch(BOTTLENECK_PARTS_URL);
-    if (!response.ok) {
-        throw new Error(`Failed to load bottleneck parts (${response.status})`);
+    const protocol = location.protocol;
+    if (protocol === 'http:' || protocol === 'https:') {
+        try {
+            const response = await fetch(BOTTLENECK_PARTS_URL);
+            if (response.ok) {
+                const data = await response.json();
+                return {
+                    cpus: normalizeBottleneckPartsList(data.cpus),
+                    gpus: normalizeBottleneckPartsList(data.gpus),
+                };
+            }
+        } catch {
+            /* fall through to script bundle for file:// / offline */
+        }
     }
-    const data = await response.json();
+
+    const data = await loadBottleneckPartsScript();
     return {
         cpus: normalizeBottleneckPartsList(data.cpus),
         gpus: normalizeBottleneckPartsList(data.gpus),
@@ -579,6 +618,12 @@ window.clearMainPageInitState = function clearMainPageInitState(pageKey) {
     if (pageKey === 'sensitivity') window.__sensitivityConverterMounted = false;
     if (pageKey === 'edpi') window.__edpiCalculatorMounted = false;
     if (pageKey === 'bottleneck') window.__bottleneckPicklistsMounted = false;
+    if (pageKey === 'find-team' && typeof window.teardownFindTeamPage === 'function') {
+        window.teardownFindTeamPage();
+    }
+    if (pageKey === 'aim-trainer' && typeof window.teardownAimTrainerPage === 'function') {
+        window.teardownAimTrainerPage();
+    }
 };
 
 function destroyHomeFeatureCardTilt() {
@@ -624,7 +669,6 @@ function initHomeFeatureCardTilt() {
         const cards = root.querySelectorAll('.home-feature-card');
         window.VanillaTilt.init(cards, {
             max: 5,
-            reverse: true,
             speed: MOTION_MS,
             easing: MOTION_EASE,
             perspective: 900,
@@ -662,6 +706,12 @@ window.initMainPage = async function initMainPage(pageKey) {
         case 'lineups':
             initLineupsPage();
             break;
+        case 'find-team':
+            if (typeof window.initFindTeamPage === 'function') window.initFindTeamPage();
+            break;
+        case 'aim-trainer':
+            if (typeof window.initAimTrainerPage === 'function') window.initAimTrainerPage();
+            break;
         case 'default':
             syncDefaultPageView();
             initHomeFeatureCardTilt();
@@ -681,6 +731,7 @@ function mainPageKeyForFlyoutItem(itemId) {
     if (itemId === 'tool-bottleneck') return 'bottleneck';
     if (itemId === 'tool-sens') return 'sensitivity';
     if (itemId === 'tool-edpi') return 'edpi';
+    if (itemId === 'tool-aim') return 'aim-trainer';
     if (itemId === 'strat-tips' || itemId === 'strat-lineups') {
         return TIPS_AND_TRICKS_PAGE_ENABLED ? 'lineups' : 'default';
     }
@@ -688,7 +739,7 @@ function mainPageKeyForFlyoutItem(itemId) {
 }
 
 function isFlyoutItemNavDisabled(itemId) {
-    if (itemId === 'tool-notes' || itemId === 'tool-aim') return true;
+    if (itemId === 'tool-notes') return true;
     if ((itemId === 'strat-tips' || itemId === 'strat-lineups') && !TIPS_AND_TRICKS_PAGE_ENABLED) {
         return true;
     }
@@ -697,6 +748,7 @@ function isFlyoutItemNavDisabled(itemId) {
 
 function isMainPageNavDisabled(pageKey) {
     if (pageKey === 'notes') return true;
+    if (pageKey === 'find-team') return true;
     if (pageKey === 'lineups' && !TIPS_AND_TRICKS_PAGE_ENABLED) return true;
     return false;
 }
@@ -719,7 +771,7 @@ function applyEmptyPageNavDisabledState(root = document) {
         if (isFlyoutItemNavDisabled(itemId)) {
             badge.className = 'home-badge home-badge--soon';
             badge.textContent = 'coming soon';
-        } else if (itemId === 'strat-tips') {
+        } else if (itemId === 'strat-tips' || itemId === 'tool-aim') {
             badge.className = 'home-badge home-badge--live';
             badge.textContent = 'Functional';
         }
@@ -727,7 +779,15 @@ function applyEmptyPageNavDisabledState(root = document) {
     root.querySelectorAll('[data-nav-page]').forEach((control) => {
         const pageKey = control.getAttribute('data-nav-page');
         if (!pageKey) return;
-        setNavControlDisabled(control, isMainPageNavDisabled(pageKey));
+        const disabled = isMainPageNavDisabled(pageKey);
+        setNavControlDisabled(control, disabled);
+        if (!control.classList.contains('home-feature-card')) return;
+        const badge = control.querySelector('.home-badge');
+        if (!badge) return;
+        if (disabled) {
+            badge.className = 'home-badge home-badge--soon';
+            badge.textContent = 'coming soon';
+        }
     });
 }
 
@@ -735,6 +795,7 @@ const mainPageKeyToFlyoutItemId = {
     edpi: 'tool-edpi',
     sensitivity: 'tool-sens',
     bottleneck: 'tool-bottleneck',
+    'aim-trainer': 'tool-aim',
     notes: 'tool-notes',
     branding: 'more-branding',
     fuziveer: 'more-fuziveer',
@@ -913,6 +974,17 @@ function syncNavUiForMainPage(pageKey, { animate = false } = {}) {
         setTopBarTitle(topBarLabels.apps, {
             animate,
             iconClasses: getTopBarIconClassesFromEl(appsBtn),
+        });
+        return;
+    }
+
+    if (pageKey === 'find-team') {
+        selectedFlyoutItem = null;
+        const findTeamBtn = findNavBtnForSidebarTab('find-team');
+        setSidebarNavActive(findTeamBtn, { animate });
+        setTopBarTitle(topBarLabels['find-team'], {
+            animate,
+            iconClasses: getTopBarIconClassesFromEl(findTeamBtn),
         });
         return;
     }
@@ -1162,14 +1234,32 @@ function animateGlideCross(track, thumb, fromIndex, toIndex, count) {
     thumb.addEventListener('transitionend', onExitEnd);
 }
 
+function getGlideValueKey(root) {
+    return root?.dataset?.glideValueKey || 'resolution';
+}
+
+function glideOptionDataAttrName(key) {
+    return String(key).replace(/([A-Z])/g, '-$1').toLowerCase();
+}
+
+function getGlideOptionValue(btn, key) {
+    if (!btn || !key) return '';
+    const fromDataset = btn.dataset[key];
+    if (fromDataset != null && fromDataset !== '') return fromDataset;
+    return btn.getAttribute(`data-${glideOptionDataAttrName(key)}`) ?? '';
+}
+
 function applyGlideSelection(root, activeIndex, options) {
+    const valueKey = getGlideValueKey(root);
     options.forEach((btn, index) => {
         const selected = index === activeIndex;
         btn.classList.toggle('is-selected', selected);
         btn.setAttribute('aria-checked', selected ? 'true' : 'false');
     });
     const active = options[activeIndex];
-    if (active) root.dataset.value = active.dataset.resolution || root.dataset.value;
+    if (active) {
+        root.dataset.value = getGlideOptionValue(active, valueKey) || root.dataset.value;
+    }
     root.dataset.glideIndex = String(activeIndex);
 }
 
@@ -1180,8 +1270,9 @@ function syncGlideSelector(root, { fromIndex } = {}) {
     const options = [...root.querySelectorAll('.glide-selector-option')];
     if (!track || !options.length) return;
 
-    const activeValue = root.dataset.value || options[0].dataset.resolution;
-    let activeIndex = options.findIndex((btn) => btn.dataset.resolution === activeValue);
+    const valueKey = getGlideValueKey(root);
+    const activeValue = root.dataset.value || getGlideOptionValue(options[0], valueKey);
+    let activeIndex = options.findIndex((btn) => getGlideOptionValue(btn, valueKey) === activeValue);
     if (activeIndex < 0) activeIndex = 0;
 
     track.style.setProperty('--glide-count', String(options.length));
@@ -1199,20 +1290,30 @@ function syncGlideSelector(root, { fromIndex } = {}) {
     finishManualGlide(track, thumb, activeIndex);
 }
 
-function initBottleneckResolutionGlide() {
-    const root = document.getElementById('bottleneck-resolution-glide');
+function initGlideSelectorRoot(root, { onChange, valueKey = 'resolution' } = {}) {
     if (!root || root.dataset.glideBound === '1') return;
     root.dataset.glideBound = '1';
+    root.dataset.glideValueKey = valueKey;
 
     syncGlideSelector(root);
 
     root.querySelectorAll('.glide-selector-option').forEach((btn) => {
         btn.addEventListener('click', () => {
             const prevIndex = parseInt(root.dataset.glideIndex ?? '0', 10);
-            root.dataset.value = btn.dataset.resolution || '1080p';
+            root.dataset.value = getGlideOptionValue(btn, valueKey) || '';
             syncGlideSelector(root, { fromIndex: prevIndex });
-            updateBottleneckChart();
+            if (onChange) onChange();
         });
+    });
+}
+
+function initBottleneckResolutionGlide() {
+    const root = document.getElementById('bottleneck-resolution-glide');
+    if (!root) return;
+    if (!root.dataset.value) root.dataset.value = '1080p';
+    initGlideSelectorRoot(root, {
+        valueKey: 'resolution',
+        onChange: updateBottleneckChart,
     });
 }
 
@@ -2558,14 +2659,85 @@ function initLineupsPage() {
     updateLineupsGamePanel();
 }
 
-function setToolPicklistMenuOpen(menu, open) {
-    if (!menu) return;
-    menu.classList.toggle('dropdown-open', open);
-    menu.classList.toggle('dropdown-closed', !open);
+function getToolPicklistMenu(root) {
+    if (!root) return null;
+    if (root._picklistMenuEl?.isConnected) return root._picklistMenuEl;
+    return root.querySelector('.tool-picklist-menu');
+}
+
+function restoreToolPicklistMenuHome(root, menu) {
+    const home = root?._picklistMenuHome;
+    if (!root || !menu || !home) return;
+    if (menu.parentElement !== home) home.appendChild(menu);
+    root._picklistMenuHome = null;
+    root._picklistMenuEl = null;
+}
+
+function clearToolPicklistMenuFixedLayout(root, menu) {
+    const el = menu || getToolPicklistMenu(root);
+    if (!el) return;
+    if (el.dataset.picklistFixed === '1') {
+        delete el.dataset.picklistFixed;
+        el.style.position = '';
+        el.style.left = '';
+        el.style.right = '';
+        el.style.top = '';
+        el.style.width = '';
+        el.style.zIndex = '';
+    }
+    if (root) restoreToolPicklistMenuHome(root, el);
+}
+
+function syncToolPicklistMenuLayout(root) {
+    const menu = getToolPicklistMenu(root);
+    const control = root?.querySelector('.tool-picklist-control') || root;
+    if (!menu || !root?.classList.contains('is-open')) return;
+    const modal = root.closest('#aim-trainer-settings-modal');
+    if (!modal) {
+        clearToolPicklistMenuFixedLayout(root, menu);
+        return;
+    }
+    // Portal outside the transformed shell so position:fixed uses the viewport
+    // (shell transform would otherwise offset getBoundingClientRect coords).
+    if (!root._picklistMenuHome) root._picklistMenuHome = menu.parentElement;
+    root._picklistMenuEl = menu;
+    if (menu.parentElement !== modal) modal.appendChild(menu);
+
+    const anchor = control.getBoundingClientRect();
+    const gap = 4;
+    menu.dataset.picklistFixed = '1';
+    menu.style.position = 'fixed';
+    menu.style.left = `${anchor.left}px`;
+    menu.style.width = `${anchor.width}px`;
+    menu.style.right = 'auto';
+    menu.style.zIndex = '110';
+    // Always open below the field, same as page picklists — may extend past the panel.
+    menu.style.top = `${anchor.bottom + gap}px`;
+}
+
+function bindToolPicklistModalLayout(root) {
+    if (!root?.closest('#aim-trainer-settings-modal')) return;
+    if (root.dataset.picklistLayoutBound === '1') return;
+    root.dataset.picklistLayoutBound = '1';
+    const reposition = () => {
+        if (root.classList.contains('is-open')) syncToolPicklistMenuLayout(root);
+    };
+    window.addEventListener('resize', reposition);
+    root.closest('#aim-trainer-settings-modal')
+        ?.querySelector('.aim-trainer-settings-body')
+        ?.addEventListener('scroll', reposition, { passive: true });
+}
+
+function setToolPicklistMenuOpen(root, menu, open) {
+    const el = menu || getToolPicklistMenu(root);
+    if (!el) return;
+    el.classList.toggle('dropdown-open', open);
+    el.classList.toggle('dropdown-closed', !open);
+    if (!open) clearToolPicklistMenuFixedLayout(root, el);
 }
 
 function syncToolPicklistEmptyState(root, query) {
-    const menu = root.querySelector('.tool-picklist-menu');
+    const menu = getToolPicklistMenu(root);
     const emptyEl = menu?.querySelector('.tool-picklist-empty');
     if (!emptyEl) return;
     const q = String(query ?? root.querySelector('.tool-picklist-input')?.value ?? '').trim();
@@ -2576,13 +2748,14 @@ function syncToolPicklistEmptyState(root, query) {
 
 function filterToolPicklistOptions(root, query) {
     const q = String(query || '').trim().toLowerCase();
-    root.querySelectorAll('.tool-picklist-option').forEach((btn) => {
+    getToolPicklistOptions(root).forEach((btn) => {
         const search = (btn.dataset.search || '').trim().toLowerCase();
         const label = (btn.textContent || '').trim().toLowerCase();
         const haystack = `${search} ${label}`.trim();
         btn.classList.toggle('is-filtered-out', q.length > 0 && !haystack.includes(q));
     });
     syncToolPicklistEmptyState(root, query);
+    if (root.classList.contains('is-open')) syncToolPicklistMenuLayout(root);
 }
 
 function syncToolPicklistInputDisplay(root) {
@@ -2600,7 +2773,7 @@ function beginToolPicklistEdit(root, onChange) {
     const input = root.querySelector('.tool-picklist-input');
     root.dataset.value = '';
     if (input) input.value = '';
-    root.querySelectorAll('.tool-picklist-option').forEach((btn) => {
+    getToolPicklistOptions(root).forEach((btn) => {
         btn.classList.remove('is-selected');
         btn.setAttribute('aria-selected', 'false');
     });
@@ -2629,6 +2802,12 @@ function getToolPicklistScrollStep(menu) {
     return opt.offsetHeight + gapPx;
 }
 
+function getToolPicklistOptions(root) {
+    const menu = getToolPicklistMenu(root);
+    if (!menu) return [];
+    return [...menu.querySelectorAll('.tool-picklist-option')];
+}
+
 function getToolPicklistVisibleOptionCount(menu) {
     return menu.querySelectorAll('.tool-picklist-option:not(.is-filtered-out)').length;
 }
@@ -2638,7 +2817,8 @@ function getToolPicklistVisibleOptions(menu) {
 }
 
 function clearToolPicklistActive(root) {
-    root.querySelectorAll('.tool-picklist-option.is-active').forEach((btn) => {
+    // Options may live in a portaled menu outside `root` — always clear via the menu node.
+    getToolPicklistOptions(root).forEach((btn) => {
         btn.classList.remove('is-active');
     });
 }
@@ -2715,10 +2895,12 @@ function bindToolPicklistMenuScroll(menu) {
 }
 
 function openToolPicklist(root) {
-    const menu = root.querySelector('.tool-picklist-menu');
+    const menu = getToolPicklistMenu(root);
     closeAllToolPicklists(root);
     root.classList.add('is-open');
-    setToolPicklistMenuOpen(menu, true);
+    setToolPicklistMenuOpen(root, menu, true);
+    syncToolPicklistMenuLayout(root);
+    requestAnimationFrame(() => syncToolPicklistMenuLayout(root));
 }
 
 function closeAllToolPicklists(exceptRoot = null) {
@@ -2726,10 +2908,12 @@ function closeAllToolPicklists(exceptRoot = null) {
         if (exceptRoot && root === exceptRoot) return;
         revertToolPicklistIfAborted(root);
         root.classList.remove('is-open');
-        setToolPicklistMenuOpen(root.querySelector('.tool-picklist-menu'), false);
+        setToolPicklistMenuOpen(root, getToolPicklistMenu(root), false);
         clearToolPicklistActive(root);
         syncToolPicklistInputDisplay(root);
         filterToolPicklistOptions(root, '');
+        const input = root.querySelector('.tool-picklist-input');
+        if (input && document.activeElement === input) input.blur();
     });
 }
 
@@ -2741,7 +2925,7 @@ function setToolPicklistValue(root, part) {
         input.value = part ? part.name : '';
         input.placeholder = input.getAttribute('data-placeholder') || input.placeholder;
     }
-    root.querySelectorAll('.tool-picklist-option').forEach((btn) => {
+    getToolPicklistOptions(root).forEach((btn) => {
         const selected = part && btn.dataset.value === part.id;
         btn.classList.toggle('is-selected', selected);
         btn.setAttribute('aria-selected', selected ? 'true' : 'false');
@@ -2749,7 +2933,7 @@ function setToolPicklistValue(root, part) {
 }
 
 function bindToolPicklistMenuOptions(root, parts, onChange) {
-    const menu = root.querySelector('.tool-picklist-menu');
+    const menu = getToolPicklistMenu(root);
     if (!menu) return;
     menu.querySelectorAll('.tool-picklist-option').forEach((btn) => {
         btn.addEventListener('mouseenter', () => {
@@ -2764,7 +2948,7 @@ function bindToolPicklistMenuOptions(root, parts, onChange) {
 }
 
 function renderToolPicklistMenu(root, parts, emptyMessage) {
-    const menu = root.querySelector('.tool-picklist-menu');
+    const menu = getToolPicklistMenu(root);
     if (!menu) return;
     menu.innerHTML = parts.map((part) => {
         const searchAttr = part.searchText
@@ -2811,7 +2995,7 @@ function updateToolPicklistOptions(root, parts, selectedId) {
 function initToolPicklist(root, parts, { onChange, emptyMessage = "Couldn't find that part" } = {}) {
     if (!root) return;
     if (root.dataset.toolPicklistInit === '1') return;
-    const menu = root.querySelector('.tool-picklist-menu');
+    const menu = getToolPicklistMenu(root);
     const input = root.querySelector('.tool-picklist-input');
     const chevron = root.querySelector('.tool-picklist-chevron');
     if (!menu || !input) return;
@@ -2822,11 +3006,13 @@ function initToolPicklist(root, parts, { onChange, emptyMessage = "Couldn't find
     root._picklistEmptyMessage = emptyMessage;
     root._picklistRevertId = '';
     root._picklistEditing = false;
+    root._picklistMenuEl = menu;
 
     if (input.placeholder) input.setAttribute('data-placeholder', input.placeholder);
 
     renderToolPicklistMenu(root, parts, emptyMessage);
     bindToolPicklistMenuOptions(root, parts, onChange);
+    bindToolPicklistModalLayout(root);
 
     input.addEventListener('pointerdown', (event) => {
         if (event.button !== 0) return;
@@ -2851,7 +3037,7 @@ function initToolPicklist(root, parts, { onChange, emptyMessage = "Couldn't find
         const stillMatches = selected && selected.name.toLowerCase().includes(query);
         if (root.dataset.value && !stillMatches) {
             root.dataset.value = '';
-            root.querySelectorAll('.tool-picklist-option').forEach((btn) => {
+            getToolPicklistOptions(root).forEach((btn) => {
                 btn.classList.remove('is-selected');
                 btn.setAttribute('aria-selected', 'false');
             });
@@ -3282,6 +3468,7 @@ async function initBottleneckChecker() {
 
 function mainPageKeyForSidebarTab(tabType) {
     if (tabType === 'apps') return 'apps';
+    if (tabType === 'find-team') return 'find-team';
     return 'default';
 }
 
@@ -3564,36 +3751,60 @@ function setBrandCopyBtnCopied(buttonEl, copied) {
     icon.classList.toggle('fa-check', copied);
 }
 
-function copyTextWithButtonFeedback(text, buttonEl) {
-    if (!buttonEl || buttonEl.disabled || buttonEl.classList.contains('copied')) return;
+function showCopyToast(message) {
+    window.CafeCore?.Toast?.show(message || 'Copied to clipboard');
+}
 
-    setBrandCopyBtnCopied(buttonEl, true);
-    const resetTimer = window.setTimeout(() => setBrandCopyBtnCopied(buttonEl, false), 1500);
-
-    const finishCopy = () => {};
-
-    const onCopyFail = () => {
-        window.clearTimeout(resetTimer);
-        setBrandCopyBtnCopied(buttonEl, false);
+function copyTextToClipboard(text, { onSuccess, onFailure } = {}) {
+    const succeed = () => {
+        onSuccess?.();
+    };
+    const fail = () => {
+        onFailure?.();
     };
 
     if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(text).then(finishCopy).catch(() => {
+        navigator.clipboard.writeText(text).then(succeed).catch(() => {
             try {
                 fallbackCopy(text);
-                finishCopy();
+                succeed();
             } catch {
-                onCopyFail();
+                fail();
             }
         });
     } else {
         try {
             fallbackCopy(text);
-            finishCopy();
+            succeed();
         } catch {
-            onCopyFail();
+            fail();
         }
     }
+}
+
+function copyTextWithToast(text, toastMessage) {
+    const copiedValue = String(text ?? '').trim();
+    const toast = toastMessage ?? (copiedValue ? `${copiedValue} copied` : 'Copied to clipboard');
+    copyTextToClipboard(text, {
+        onSuccess: () => showCopyToast(toast),
+    });
+}
+
+function copyTextWithButtonFeedback(text, buttonEl, toastMessage) {
+    if (!buttonEl || buttonEl.disabled || buttonEl.classList.contains('copied')) return;
+
+    setBrandCopyBtnCopied(buttonEl, true);
+    const resetTimer = window.setTimeout(() => setBrandCopyBtnCopied(buttonEl, false), 1500);
+    const copiedValue = String(text ?? '').trim();
+    const toast = toastMessage ?? (copiedValue ? `${copiedValue} copied` : 'Copied to clipboard');
+
+    copyTextToClipboard(text, {
+        onSuccess: () => showCopyToast(toast),
+        onFailure: () => {
+            window.clearTimeout(resetTimer);
+            setBrandCopyBtnCopied(buttonEl, false);
+        },
+    });
 }
 
 function copyBrandColor(hex, buttonEl) {
@@ -3624,7 +3835,7 @@ function copyToolResultValue(resultElementId, buttonEl) {
     const resultEl = document.getElementById(resultElementId);
     const text = resultEl?.textContent?.trim();
     if (!text || text === '—') return;
-    copyTextWithButtonFeedback(text, buttonEl);
+    copyTextWithToast(text);
 }
 
 function fallbackCopy(text) {
@@ -4108,8 +4319,14 @@ function closeFlyout() {
 
 const SETTINGS_STORAGE_KEY = 'cafeCoreSettings';
 
+const UI_SOUND_PRESET_IDS = ['standard', 'soft', 'bright'];
+const UI_REFRESH_HZ_VALUES = [60, 120, 240];
+
 const defaultSettings = {
     compactSidebar: null,
+    systemSounds: false,
+    uiSoundPreset: 'standard',
+    interfaceRefreshHz: 240,
     reducedMotion: false,
 };
 
@@ -4137,6 +4354,13 @@ function loadAppSettings() {
     if (!parsed || typeof parsed !== 'object') return { ...defaultSettings };
     return {
         compactSidebar: typeof parsed.compactSidebar === 'boolean' ? parsed.compactSidebar : null,
+        systemSounds: typeof parsed.systemSounds === 'boolean' ? parsed.systemSounds : defaultSettings.systemSounds,
+        uiSoundPreset: UI_SOUND_PRESET_IDS.includes(parsed.uiSoundPreset)
+            ? parsed.uiSoundPreset
+            : defaultSettings.uiSoundPreset,
+        interfaceRefreshHz: UI_REFRESH_HZ_VALUES.includes(Number(parsed.interfaceRefreshHz))
+            ? Number(parsed.interfaceRefreshHz)
+            : defaultSettings.interfaceRefreshHz,
         reducedMotion: !!parsed.reducedMotion,
     };
 }
@@ -4145,27 +4369,96 @@ function saveAppSettings() {
     CoreStorage.writeJson(SETTINGS_STORAGE_KEY, appSettings);
 }
 
-function syncSettingsToggle(buttonEl, enabled) {
-    if (!buttonEl) return;
-    buttonEl.setAttribute('aria-checked', enabled ? 'true' : 'false');
-    buttonEl.classList.toggle('settings-toggle-on', enabled);
+function syncSettingsToggle(inputEl, enabled) {
+    if (!inputEl) return;
+    inputEl.checked = Boolean(enabled);
+    inputEl.setAttribute('aria-checked', enabled ? 'true' : 'false');
+}
+
+function syncSettingsUiSoundGlide() {
+    const root = document.getElementById('settings-ui-sound-glide');
+    if (!root) return;
+    root.dataset.value = appSettings.uiSoundPreset;
+    if (root.dataset.glideBound === '1') {
+        syncGlideSelector(root);
+    }
+    const locked = !appSettings.systemSounds;
+    root.classList.toggle('glide-selector--locked', locked);
+    root.setAttribute('aria-disabled', locked ? 'true' : 'false');
+    root.querySelectorAll('.glide-selector-option').forEach((btn) => {
+        btn.disabled = locked;
+    });
+}
+
+function syncSettingsUiRefreshGlide() {
+    const root = document.getElementById('settings-ui-refresh-glide');
+    if (!root || root.dataset.glideBound !== '1') return;
+    const prevIndex = parseInt(root.dataset.glideIndex ?? '0', 10);
+    root.dataset.value = String(appSettings.interfaceRefreshHz);
+    syncGlideSelector(root, { fromIndex: prevIndex });
+}
+
+function initSettingsUiRefreshGlide() {
+    const root = document.getElementById('settings-ui-refresh-glide');
+    if (!root) return;
+    root.dataset.value = String(appSettings.interfaceRefreshHz);
+    initGlideSelectorRoot(root, {
+        valueKey: 'refresh',
+        onChange: () => {
+            const next = Number(root.dataset.value);
+            if (!UI_REFRESH_HZ_VALUES.includes(next)) return;
+            appSettings.interfaceRefreshHz = next;
+            saveAppSettings();
+            window.CafeCore?.UiRefresh?.setHz?.(appSettings.interfaceRefreshHz);
+        },
+    });
+}
+
+function initSettingsUiSoundGlide() {
+    const root = document.getElementById('settings-ui-sound-glide');
+    if (!root) return;
+    if (!root.dataset.value) root.dataset.value = appSettings.uiSoundPreset;
+    initGlideSelectorRoot(root, {
+        valueKey: 'sound',
+        onChange: () => {
+            const next = root.dataset.value;
+            if (!UI_SOUND_PRESET_IDS.includes(next)) return;
+            appSettings.uiSoundPreset = next;
+            saveAppSettings();
+            window.CafeCore?.UiSound?.setPreset?.(appSettings.uiSoundPreset);
+            window.CafeCore?.UiSound?.previewPreset?.();
+        },
+    });
+    syncSettingsUiSoundGlide();
 }
 
 function applyAppSettings() {
     syncSettingsToggle(document.getElementById('settings-compact-sidebar'), appSettings.compactSidebar === true);
+    syncSettingsToggle(document.getElementById('settings-system-sounds'), appSettings.systemSounds);
     syncSettingsToggle(document.getElementById('settings-reduced-motion'), appSettings.reducedMotion);
+    document.documentElement.classList.toggle('ui-sounds-off', !appSettings.systemSounds);
+    if (appSettings.systemSounds) {
+        window.CafeCore?.UiSound?.unlockAudio?.();
+    }
+    window.CafeCore?.UiSound?.setPreset?.(appSettings.uiSoundPreset);
+    syncSettingsUiSoundGlide();
+    window.CafeCore?.UiRefresh?.setHz?.(appSettings.interfaceRefreshHz);
+    syncSettingsUiRefreshGlide();
     document.documentElement.classList.toggle('reduce-motion', appSettings.reducedMotion);
     if (appSettings.reducedMotion) snapUiMotionInstant();
     if (currentMainPageKey === 'default') {
         if (appSettings.reducedMotion) destroyHomeFeatureCardTilt();
         else initHomeFeatureCardTilt();
     }
+}
+
+function applyCompactSidebarStartupPreference() {
     if (isMobileLayout()) {
         document.body.classList.remove('sidebar-collapsed');
-    } else if (appSettings.compactSidebar === true) {
+        return;
+    }
+    if (appSettings.compactSidebar === true) {
         setSidebarCollapsed(true);
-    } else if (appSettings.compactSidebar === false) {
-        setSidebarCollapsed(false);
     }
 }
 
@@ -4218,11 +4511,6 @@ function applyResponsiveLayout() {
     document.body.classList.toggle('layout-mobile', mobile);
     if (!mobile) {
         closeMobileNav();
-        if (appSettings.compactSidebar === true) {
-            setSidebarCollapsed(true);
-        } else if (appSettings.compactSidebar === false) {
-            setSidebarCollapsed(false);
-        }
     } else {
         document.body.classList.remove('sidebar-collapsed');
         closeMobileNav();
@@ -4266,6 +4554,12 @@ function setSettingsModalOpen(open) {
 
         const closeBtn = document.getElementById('settings-modal-close');
         if (closeBtn) closeBtn.focus();
+
+        requestAnimationFrame(() => {
+            syncSettingsUiSoundGlide();
+            syncSettingsUiRefreshGlide();
+            syncSettingsTabGlider({ instant: true });
+        });
         return;
     }
 
@@ -4298,36 +4592,181 @@ function handleSettingsClick() {
     toggleSettingsModal();
 }
 
+let settingsTabId = 'system';
+let settingsTabGliderAnimToken = 0;
+
+function finishVerticalTabGlider(glider, top, height) {
+    if (!glider) return;
+    glider.style.transition = '';
+    glider.style.top = `${top}px`;
+    glider.style.height = `${height}px`;
+}
+
+function animateVerticalTabGliderCross(row, glider, fromBtn, toBtn, fromIndex, toIndex) {
+    const token = ++settingsTabGliderAnimToken;
+    const transition = `top ${MOTION_MS}ms ${MOTION_EASE}, height ${MOTION_MS}ms ${MOTION_EASE}`;
+    const fromTop = fromBtn.offsetTop;
+    const fromH = fromBtn.offsetHeight;
+    const toTop = toBtn.offsetTop;
+    const toH = toBtn.offsetHeight;
+    const goingDown = toIndex > fromIndex;
+    const exitTop = goingDown ? -(fromH + 4) : row.clientHeight + 4;
+    const enterTop = goingDown ? row.clientHeight + 4 : -(toH + 4);
+
+    row.classList.remove('is-instant');
+    glider.style.transition = 'none';
+    glider.style.top = `${fromTop}px`;
+    glider.style.height = `${fromH}px`;
+    void glider.offsetHeight;
+    glider.style.transition = transition;
+    glider.style.top = `${exitTop}px`;
+
+    const onExitEnd = (e) => {
+        if (e.propertyName !== 'top') return;
+        if (token !== settingsTabGliderAnimToken) return;
+        glider.removeEventListener('transitionend', onExitEnd);
+
+        glider.style.transition = 'none';
+        glider.style.top = `${enterTop}px`;
+        glider.style.height = `${toH}px`;
+        void glider.offsetHeight;
+
+        requestAnimationFrame(() => {
+            if (token !== settingsTabGliderAnimToken) return;
+            glider.style.transition = transition;
+            glider.style.top = `${toTop}px`;
+
+            const onEnterEnd = (e2) => {
+                if (e2.propertyName !== 'top') return;
+                if (token !== settingsTabGliderAnimToken) return;
+                glider.removeEventListener('transitionend', onEnterEnd);
+                finishVerticalTabGlider(glider, toTop, toH);
+            };
+            glider.addEventListener('transitionend', onEnterEnd);
+        });
+    };
+    glider.addEventListener('transitionend', onExitEnd);
+}
+
+function syncVerticalTabGlider(row, glider, { instant = false, fromIndex } = {}) {
+    if (!row || !glider) return;
+    const buttons = [...row.querySelectorAll('.settings-tab-btn')];
+    const activeBtn = row.querySelector('.settings-tab-btn.active');
+    if (!activeBtn || !buttons.length) return;
+
+    const activeIndex = buttons.indexOf(activeBtn);
+    if (activeIndex < 0) return;
+
+    const prevIndex = fromIndex ?? parseInt(row.dataset.glideIndex ?? String(activeIndex), 10);
+    row.dataset.glideIndex = String(activeIndex);
+
+    const toTop = activeBtn.offsetTop;
+    const toH = activeBtn.offsetHeight;
+    const reduceMotion = isReducedMotionEnabled();
+
+    if (instant || reduceMotion) {
+        settingsTabGliderAnimToken += 1;
+        row.classList.add('is-instant');
+        finishVerticalTabGlider(glider, toTop, toH);
+        requestAnimationFrame(() => row.classList.remove('is-instant'));
+        return;
+    }
+
+    const skipJump = Math.abs(activeIndex - prevIndex) > 1;
+    if (skipJump && prevIndex !== activeIndex && buttons[prevIndex]) {
+        animateVerticalTabGliderCross(row, glider, buttons[prevIndex], activeBtn, prevIndex, activeIndex);
+        return;
+    }
+
+    if (prevIndex !== activeIndex) settingsTabGliderAnimToken += 1;
+    glider.style.transition = '';
+    glider.style.top = `${toTop}px`;
+    glider.style.height = `${toH}px`;
+}
+
+function syncSettingsTabGlider({ instant = false, fromIndex } = {}) {
+    syncVerticalTabGlider(
+        document.getElementById('settings-tab-row'),
+        document.getElementById('settings-tab-glider'),
+        { instant, fromIndex }
+    );
+}
+
+function setSettingsTab(tabId, { instant = false, fromIndex } = {}) {
+    const id = tabId === 'sound' ? 'sound' : 'system';
+    settingsTabId = id;
+    document.querySelectorAll('.settings-tab-btn[data-settings-tab]').forEach((btn) => {
+        const selected = btn.dataset.settingsTab === id;
+        btn.classList.toggle('active', selected);
+        btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+    });
+    document.querySelectorAll('.settings-modal-section[data-settings-section]').forEach((section) => {
+        const show = section.dataset.settingsSection === id;
+        section.hidden = !show;
+        section.classList.toggle('hidden', !show);
+    });
+    syncSettingsTabGlider({ instant, fromIndex });
+}
+
+function initSettingsModalTabs() {
+    const row = document.getElementById('settings-tab-row');
+    if (!row || row.dataset.settingsTabsBound === '1') return;
+    row.dataset.settingsTabsBound = '1';
+    row.querySelectorAll('.settings-tab-btn[data-settings-tab]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (btn.classList.contains('active')) return;
+            const fromIndex = parseInt(row.dataset.glideIndex ?? '0', 10);
+            setSettingsTab(btn.dataset.settingsTab, { fromIndex });
+        });
+    });
+    setSettingsTab(settingsTabId, { instant: true });
+    window.addEventListener('resize', () => syncSettingsTabGlider({ instant: true }));
+}
+
 function initSettingsModal() {
     const modal = document.getElementById('settings-modal');
     const backdrop = document.getElementById('settings-modal-backdrop');
     const closeBtn = document.getElementById('settings-modal-close');
     const compactToggle = document.getElementById('settings-compact-sidebar');
+    const soundsToggle = document.getElementById('settings-system-sounds');
     const motionToggle = document.getElementById('settings-reduced-motion');
     if (!modal) return;
+
+    initSettingsModalTabs();
 
     if (backdrop) backdrop.addEventListener('click', closeSettingsModal);
     if (closeBtn) closeBtn.addEventListener('click', closeSettingsModal);
 
     if (compactToggle) {
-        compactToggle.addEventListener('click', () => {
+        compactToggle.addEventListener('change', () => {
             if (appSettings.compactSidebar === null) {
                 appSettings.compactSidebar = true;
             } else {
-                appSettings.compactSidebar = !appSettings.compactSidebar;
+                appSettings.compactSidebar = compactToggle.checked;
             }
             saveAppSettings();
             applyAppSettings();
         });
     }
 
-    if (motionToggle) {
-        motionToggle.addEventListener('click', () => {
-            appSettings.reducedMotion = !appSettings.reducedMotion;
+    if (soundsToggle) {
+        soundsToggle.addEventListener('change', () => {
+            appSettings.systemSounds = soundsToggle.checked;
             saveAppSettings();
             applyAppSettings();
         });
     }
+
+    if (motionToggle) {
+        motionToggle.addEventListener('change', () => {
+            appSettings.reducedMotion = motionToggle.checked;
+            saveAppSettings();
+            applyAppSettings();
+        });
+    }
+
+    initSettingsUiSoundGlide();
+    initSettingsUiRefreshGlide();
 }
 
 function initModalEscapeClose() {
@@ -4346,6 +4785,11 @@ function initModalEscapeClose() {
         const settingsModal = document.getElementById('settings-modal');
         if (settingsModal && !settingsModal.classList.contains('hidden')) {
             closeSettingsModal();
+            return;
+        }
+        const aimSettingsModal = document.getElementById('aim-trainer-settings-modal');
+        if (aimSettingsModal && aimSettingsModal.classList.contains('is-open')) {
+            window.AimTrainerSettings?.close?.();
             return;
         }
         if (isMobileLayout() && document.body.classList.contains('mobile-nav-open')) {
@@ -4379,6 +4823,8 @@ function handleSidebarClick(clickedBtn, tabType) {
         }
         return;
     }
+
+    if (isMainPageNavDisabled(mainPageKeyForSidebarTab(tabType))) return;
 
     closeFlyout();
     closeMobileNav();
@@ -4692,15 +5138,35 @@ function initKeyboardRestrictions() {
     });
 }
 
+window.__cafeCorePicklist = {
+    init: initToolPicklist,
+    setValue: setToolPicklistValue,
+    updateOptions: updateToolPicklistOptions,
+    ensureDismiss: initToolPicklistDismiss,
+    closeAll: closeAllToolPicklists,
+};
+
+window.__cafeCoreGlide = {
+    init: initGlideSelectorRoot,
+    sync: syncGlideSelector,
+};
+
+window.syncVerticalTabGlider = syncVerticalTabGlider;
+
 window.addEventListener('DOMContentLoaded', () => {
+    initToolPicklistDismiss();
     initKeyboardRestrictions();
     appSettings = loadAppSettings();
     applyAppSettings();
+    applyCompactSidebarStartupPreference();
+    window.CafeCore?.UiSound?.initSidebarNavHoverSounds?.();
+    window.CafeCore?.UiSound?.initLazerToggleSounds?.();
     initResponsiveLayout();
     initSettingsModal();
     initLineupsVideoModal();
     initModalEscapeClose();
     initBrandLogoPreviewModal();
+    applyEmptyPageNavDisabledState(document);
 
     let initialKey = (window.pageLoader && window.pageLoader.pageKeyFromHash())
         || 'default';
