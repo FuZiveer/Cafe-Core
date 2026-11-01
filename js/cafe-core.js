@@ -110,7 +110,7 @@
     }
 
     const Features = freeze({
-        tipsAndTricksPage: false,
+        tipsAndTricksPage: true,
     });
 
     const UiSound = (() => {
@@ -401,9 +401,7 @@
             if (el.getAttribute('aria-disabled') === 'true') return false;
             if (el.classList.contains('is-nav-disabled')) return false;
             if (
-                el.classList.contains('settings-modal-backdrop')
-                || el.classList.contains('lineups-video-modal-backdrop')
-                || el.classList.contains('brand-logo-modal-backdrop')
+                el.classList.contains('modal-backdrop')
                 || el.classList.contains('mobile-nav-backdrop')
             ) {
                 return false;

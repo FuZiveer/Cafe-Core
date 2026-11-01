@@ -636,6 +636,72 @@ function destroyHomeFeatureCardTilt() {
     });
 }
 
+async function preloadHomeHeroMarqueeImages(track) {
+    const imgs = [...track.querySelectorAll('img[src]')];
+    const urls = [...new Set(imgs.map((img) => img.getAttribute('src')).filter(Boolean))];
+    await Promise.all(urls.map((src) => new Promise((resolve) => {
+        const loader = new Image();
+        loader.onload = loader.onerror = resolve;
+        loader.src = src;
+    })));
+    await Promise.all(imgs.map((img) => (typeof img.decode === 'function'
+        ? img.decode().catch(() => {})
+        : Promise.resolve())));
+}
+
+function setupHomeHeroMarqueeTrack(track) {
+    const marquee = track.closest('.home-hero-marquee');
+    if (!marquee || track.dataset.marqueeReady === '1') return;
+
+    const templateSets = [...track.querySelectorAll(':scope > .home-hero-marquee-set')];
+    if (!templateSets.length) return;
+
+    const templates = templateSets.map((set) => set.cloneNode(true));
+
+    const build = () => {
+        if (track.dataset.marqueeReady === '1') return true;
+        const viewportW = marquee.clientWidth;
+        if (viewportW <= 0) return false;
+
+        const half = document.createElement('div');
+        half.className = 'home-hero-marquee-half';
+        let guard = 0;
+        while (guard++ < 24) {
+            templates.forEach((set) => half.appendChild(set.cloneNode(true)));
+            if (half.scrollWidth >= viewportW + 8) break;
+        }
+
+        track.replaceChildren();
+        track.appendChild(half);
+        track.appendChild(half.cloneNode(true));
+        track.dataset.marqueeReady = '1';
+
+        track.querySelectorAll('img[src]').forEach((img) => {
+            img.loading = 'eager';
+        });
+
+        void preloadHomeHeroMarqueeImages(track).then(() => {
+            marquee.classList.add('home-hero-marquee--ready');
+        });
+        return true;
+    };
+
+    if (build()) return;
+
+    const observer = new ResizeObserver(() => {
+        if (build()) observer.disconnect();
+    });
+    observer.observe(marquee);
+}
+
+function initHomeHeroMarquees(root) {
+    const page = root || document.getElementById('page-default');
+    if (!page) return;
+    page.querySelectorAll('.home-hero-marquee-track').forEach((track) => {
+        setupHomeHeroMarqueeTrack(track);
+    });
+}
+
 let vanillaTiltLoadPromise = null;
 
 function ensureVanillaTiltScript() {
@@ -655,10 +721,12 @@ function ensureVanillaTiltScript() {
 }
 
 function initHomeFeatureCardTilt() {
+    const root = document.getElementById('page-default');
+    if (root) initHomeHeroMarquees(root);
+
     void ensureVanillaTiltScript().then(() => {
         if (typeof window.VanillaTilt === 'undefined') return;
 
-        const root = document.getElementById('page-default');
         if (!root) return;
 
         if (isReducedMotionEnabled()) {
@@ -1169,11 +1237,31 @@ function updateBottleneckRecommendation(cpu, gpu, bottleneckResult) {
 
 let glideSelectorAnimToken = 0;
 
+function getGlideGapPx(track) {
+    const raw = getComputedStyle(track).columnGap || getComputedStyle(track).gap || '0';
+    if (raw.endsWith('px')) return parseFloat(raw) || 0;
+    if (raw.endsWith('rem')) {
+        const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+        return (parseFloat(raw) || 0) * rootPx;
+    }
+    return parseFloat(raw) || 0;
+}
+
 function getGlideThumbStepPx(track) {
     const thumb = track.querySelector('.glide-selector-thumb');
+    const options = track.querySelectorAll('.glide-selector-option');
+    if (options.length >= 2) {
+        const delta = options[1].offsetLeft - options[0].offsetLeft;
+        if (delta > 0) return delta;
+    }
     if (!thumb) return 0;
-    const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap) || 0;
-    return thumb.offsetWidth + gap;
+    return thumb.offsetWidth + getGlideGapPx(track);
+}
+
+function getGlideThumbXForIndex(track, index, count, step) {
+    if (index < 0) return -step;
+    if (index >= count) return count * step;
+    return index * step;
 }
 
 function finishManualGlide(track, thumb, toIndex) {
@@ -1195,11 +1283,15 @@ function animateGlideCross(track, thumb, fromIndex, toIndex, count) {
     }
 
     const transition = `transform ${MOTION_MS}ms ${MOTION_EASE}`;
-    const fromX = fromIndex * step;
-    const toX = toIndex * step;
-    const exitLeft = toIndex > fromIndex;
-    const exitX = exitLeft ? -step : count * step;
-    const enterX = exitLeft ? count * step : -step;
+    const fromX = getGlideThumbXForIndex(track, fromIndex, count, step);
+    const toX = getGlideThumbXForIndex(track, toIndex, count, step);
+    const goingForward = toIndex > fromIndex;
+    const exitX = goingForward
+        ? getGlideThumbXForIndex(track, -1, count, step)
+        : getGlideThumbXForIndex(track, count, count, step);
+    const enterX = goingForward
+        ? getGlideThumbXForIndex(track, count, count, step)
+        : getGlideThumbXForIndex(track, -1, count, step);
 
     track.classList.add('glide-selector-track--manual-thumb');
     thumb.style.transition = 'none';
@@ -1280,8 +1372,9 @@ function syncGlideSelector(root, { fromIndex } = {}) {
     const prevIndex = fromIndex ?? parseInt(root.dataset.glideIndex ?? String(activeIndex), 10);
     applyGlideSelection(root, activeIndex, options);
 
-    const skipJump = Math.abs(activeIndex - prevIndex) > 1;
-    if (skipJump && !isReducedMotionEnabled() && thumb && prevIndex !== activeIndex) {
+    const delta = Math.abs(activeIndex - prevIndex);
+    const shouldWrap = delta > 1;
+    if (shouldWrap && !isReducedMotionEnabled() && thumb && prevIndex !== activeIndex) {
         animateGlideCross(track, thumb, prevIndex, activeIndex, options.length);
         return;
     }
@@ -1358,13 +1451,24 @@ const LINEUPS_SIEGE_MAPS = [
 ];
 
 const LINEUPS_VIDEO_LIBRARY = {
-    siege: [],
+    siege: [
+        {
+            title: 'Oregon Garage Window Spawn Peek',
+            src: 'videos/siege/oregon-garage-spawnpeek-1.mp4',
+            difficulty: 2,
+            requirements: {
+                map: 'Oregon',
+                spot: 'Garage window',
+                needed: 'Bionic arm, shotgun or impacts',
+            },
+        },
+    ],
 };
 
 const LINEUPS_REQUIREMENT_ROWS = [
     { key: 'map', label: 'Map', icon: 'fa-map' },
     { key: 'spot', label: 'Spot', icon: 'fa-location-crosshairs' },
-    { key: 'needed', label: 'Operator', icon: 'fa-helmet-safety' },
+    { key: 'needed', label: 'Required', icon: 'fa-toolbox' },
 ];
 
 const DEFAULT_LINEUPS_REQUIREMENTS = {
@@ -2029,6 +2133,7 @@ function setLineupsVideoModalOpen(open) {
     lineupsVideoModalCloseTimer = null;
 
     if (open) {
+        portalAppModalToBody(modal);
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('lineups-video-modal-open');
@@ -3555,6 +3660,7 @@ function setBrandLogoModalOpen(open) {
     brandLogoModalCloseTimer = null;
 
     if (open) {
+        portalAppModalToBody(modal);
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('brand-logo-modal-open');
@@ -4544,6 +4650,7 @@ function setSettingsModalOpen(open) {
     settingsModalOpen = open;
 
     if (open) {
+        portalAppModalToBody(modal);
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('settings-modal-open');
@@ -4721,6 +4828,17 @@ function initSettingsModalTabs() {
     });
     setSettingsTab(settingsTabId, { instant: true });
     window.addEventListener('resize', () => syncSettingsTabGlider({ instant: true }));
+}
+
+function portalAppModalToBody(modal) {
+    if (!modal || modal.parentElement === document.body) return;
+    document.body.appendChild(modal);
+}
+
+function initAppModalPortals() {
+    portalAppModalToBody(document.getElementById('settings-modal'));
+    portalAppModalToBody(document.getElementById('lineups-video-modal'));
+    portalAppModalToBody(document.getElementById('brand-logo-modal'));
 }
 
 function initSettingsModal() {
@@ -5162,6 +5280,7 @@ window.addEventListener('DOMContentLoaded', () => {
     window.CafeCore?.UiSound?.initSidebarNavHoverSounds?.();
     window.CafeCore?.UiSound?.initLazerToggleSounds?.();
     initResponsiveLayout();
+    initAppModalPortals();
     initSettingsModal();
     initLineupsVideoModal();
     initModalEscapeClose();

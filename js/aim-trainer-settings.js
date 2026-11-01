@@ -4,6 +4,8 @@
     const STORAGE_KEY = 'cafe-aim-trainer-settings';
     const AIM_SECTIONS = ['session', 'game', 'sensitivity', 'target', 'crosshair', 'aspect'];
     const AIM_ASPECTS = Object.freeze(['native', '16:9', '16:10', '5:4', '4:3', '3:2']);
+    const AIM_CH_PRESETS = Object.freeze(['#ff0000', '#00ff00', '#0000ff']);
+    const AIM_CH_CUSTOM = 'custom';
     const AIM_CH_THICK_MIN = 2;
     const AIM_CH_THICK_MAX = 6;
 
@@ -17,6 +19,9 @@
         tsize: 'medium',
         tcolor: 'yellow',
         chcolor: '#00ff00',
+        chcustom: '#ff1e43',
+        chcolorcustom: false,
+        chlines: true,
         chdot: true,
         choutline: false,
         chsize: 10,
@@ -33,6 +38,8 @@
     let settingsModalCloseTimer = null;
     let closeSettingsModalFn = null;
     let previewBgIndex = 0;
+    let chPickerHsv = hexToHsv(DEFAULTS.chcustom);
+    let chPickerDragging = null;
 
     function settingsModalCloseDelayMs() {
         if (typeof isReducedMotionEnabled === 'function' && isReducedMotionEnabled()) return 0;
@@ -61,6 +68,73 @@
         return Number.isFinite(n) && n > 0 ? n : fallback;
     }
 
+    function normalizeHexColor(value, fallback) {
+        const raw = String(value ?? '').trim();
+        if (/^#[0-9a-fA-F]{6}$/.test(raw)) return `#${raw.slice(1).toLowerCase()}`;
+        if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+            return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`.toLowerCase();
+        }
+        return fallback;
+    }
+
+    function isPresetChColor(color) {
+        return AIM_CH_PRESETS.includes(normalizeHexColor(color, ''));
+    }
+
+    function clamp01(n) {
+        return Math.max(0, Math.min(1, n));
+    }
+
+    function hexToHsv(hex) {
+        const normalized = normalizeHexColor(hex, DEFAULTS.chcustom);
+        const r = parseInt(normalized.slice(1, 3), 16) / 255;
+        const g = parseInt(normalized.slice(3, 5), 16) / 255;
+        const b = parseInt(normalized.slice(5, 7), 16) / 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const d = max - min;
+        let h = 0;
+        if (d !== 0) {
+            if (max === r) h = ((g - b) / d) % 6;
+            else if (max === g) h = (b - r) / d + 2;
+            else h = (r - g) / d + 4;
+            h *= 60;
+            if (h < 0) h += 360;
+        }
+        const s = max === 0 ? 0 : d / max;
+        return { h, s, v: max };
+    }
+
+    function hsvToRgb(h, s, v) {
+        const c = v * s;
+        const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+        const m = v - c;
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        if (h < 60) { r = c; g = x; }
+        else if (h < 120) { r = x; g = c; }
+        else if (h < 180) { g = c; b = x; }
+        else if (h < 240) { g = x; b = c; }
+        else if (h < 300) { r = x; b = c; }
+        else { r = c; b = x; }
+        return {
+            r: Math.round((r + m) * 255),
+            g: Math.round((g + m) * 255),
+            b: Math.round((b + m) * 255),
+        };
+    }
+
+    function hsvToHex(h, s, v) {
+        const { r, g, b } = hsvToRgb(h, s, v);
+        return `#${[r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('')}`;
+    }
+
+    function hueCss(h) {
+        const { r, g, b } = hsvToRgb(h, 1, 1);
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
     function loadSettings() {
         const s = { ...DEFAULTS };
         try {
@@ -78,6 +152,11 @@
         const timers = [15, 30, 60, 0];
         if (!timers.includes(Number(s.timer))) s.timer = DEFAULTS.timer;
         else s.timer = Number(s.timer);
+        s.chcolor = normalizeHexColor(s.chcolor, DEFAULTS.chcolor);
+        s.chcustom = normalizeHexColor(s.chcustom, DEFAULTS.chcustom);
+        if (!isPresetChColor(s.chcolor)) s.chcustom = s.chcolor;
+        s.chcolorcustom = s.chcolorcustom === true || s.chcolorcustom === 'true' || !isPresetChColor(s.chcolor);
+        s.chlines = s.chlines !== false && s.chlines !== 'false';
         s.chdot = s.chdot === true || s.chdot === 'true';
         s.choutline = s.choutline === true || s.choutline === 'true';
         s.chsize = Math.min(30, Math.max(2, Math.round(Number(s.chsize) || DEFAULTS.chsize)));
@@ -118,6 +197,122 @@
         if (!root || value == null) return;
         root.dataset.value = String(value);
         if (typeof syncGlideSelector === 'function') syncGlideSelector(root, { fromIndex });
+    }
+
+    function isCrosshairSectionActive() {
+        return settings.section === 'crosshair';
+    }
+
+    function syncChColorUi() {
+        const root = byId('aim-trainer-settings-chcolor-glide');
+        const glideValue = settings.chcolorcustom ? AIM_CH_CUSTOM : settings.chcolor;
+        syncGlide(root, glideValue);
+        if (settings.chcolorcustom) {
+            chPickerHsv = hexToHsv(settings.chcustom);
+            // Custom selected → keep picker open while on the Crosshair tab.
+            if (isCrosshairSectionActive()) setChColorPickerOpen(true);
+            else updateChColorPickerChrome();
+        } else {
+            setChColorPickerOpen(false);
+        }
+    }
+
+    function isChColorPickerOpen() {
+        const picker = byId('aim-trainer-chcolor-picker');
+        return Boolean(picker && !picker.hidden);
+    }
+
+    function setChColorPickerOpen(open) {
+        const picker = byId('aim-trainer-chcolor-picker');
+        if (!picker) return;
+        const wasOpen = !picker.hidden;
+        picker.hidden = !open;
+        picker.classList.toggle('is-open', open);
+        if (open) {
+            if (!wasOpen) chPickerHsv = hexToHsv(settings.chcustom || DEFAULTS.chcustom);
+            drawChColorSvCanvas();
+            updateChColorPickerChrome();
+        }
+    }
+
+    function openCustomChColorPicker() {
+        setChColorPickerOpen(true);
+    }
+
+    function applyCustomChColor(value, { openPicker = false } = {}) {
+        const hex = normalizeHexColor(value, settings.chcustom || DEFAULTS.chcustom);
+        settings.chcolorcustom = true;
+        settings.chcustom = hex;
+        settings.chcolor = hex;
+        chPickerHsv = hexToHsv(hex);
+        // Keep picker open whenever Custom is the active glide choice.
+        syncChColorUi();
+        if (openPicker) setChColorPickerOpen(true);
+        notifyChange();
+    }
+
+    function commitChPickerHsv({ openPicker = false } = {}) {
+        applyCustomChColor(hsvToHex(chPickerHsv.h, chPickerHsv.s, chPickerHsv.v), { openPicker });
+    }
+
+    function drawChColorSvCanvas() {
+        const canvas = byId('aim-trainer-chcolor-sv-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const w = canvas.width;
+        const h = canvas.height;
+        const hue = hueCss(chPickerHsv.h);
+        ctx.clearRect(0, 0, w, h);
+        const sat = ctx.createLinearGradient(0, 0, w, 0);
+        sat.addColorStop(0, '#ffffff');
+        sat.addColorStop(1, hue);
+        ctx.fillStyle = sat;
+        ctx.fillRect(0, 0, w, h);
+        const val = ctx.createLinearGradient(0, 0, 0, h);
+        val.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        val.addColorStop(1, 'rgba(0, 0, 0, 1)');
+        ctx.fillStyle = val;
+        ctx.fillRect(0, 0, w, h);
+    }
+
+    function updateChColorPickerChrome() {
+        const hex = hsvToHex(chPickerHsv.h, chPickerHsv.s, chPickerHsv.v);
+        const preview = byId('aim-trainer-chcolor-preview');
+        const hexInput = byId('aim-trainer-chcolor-hex');
+        const svThumb = byId('aim-trainer-chcolor-sv-thumb');
+        const hueThumb = byId('aim-trainer-chcolor-hue-thumb');
+        const hueTrack = byId('aim-trainer-chcolor-hue');
+        if (preview) preview.style.backgroundColor = hex;
+        if (hexInput && document.activeElement !== hexInput) hexInput.value = hex.toUpperCase();
+        if (svThumb) {
+            svThumb.style.left = `${clamp01(chPickerHsv.s) * 100}%`;
+            svThumb.style.top = `${(1 - clamp01(chPickerHsv.v)) * 100}%`;
+        }
+        if (hueThumb) hueThumb.style.left = `${(chPickerHsv.h / 360) * 100}%`;
+        if (hueTrack) hueTrack.style.setProperty('--aim-ch-hue', hueCss(chPickerHsv.h));
+    }
+
+    function setChPickerFromSvPointer(clientX, clientY) {
+        const sv = byId('aim-trainer-chcolor-sv');
+        if (!sv) return;
+        const rect = sv.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        chPickerHsv.s = clamp01((clientX - rect.left) / rect.width);
+        chPickerHsv.v = clamp01(1 - ((clientY - rect.top) / rect.height));
+        updateChColorPickerChrome();
+        commitChPickerHsv();
+    }
+
+    function setChPickerFromHuePointer(clientX) {
+        const hue = byId('aim-trainer-chcolor-hue');
+        if (!hue) return;
+        const rect = hue.getBoundingClientRect();
+        if (!rect.width) return;
+        chPickerHsv.h = clamp01((clientX - rect.left) / rect.width) * 360;
+        drawChColorSvCanvas();
+        updateChColorPickerChrome();
+        commitChPickerHsv();
     }
 
     function syncAimTrainerTabGlider({ instant = false, fromIndex } = {}) {
@@ -163,7 +358,12 @@
             previewRail.hidden = !showPreview;
             previewRail.setAttribute('aria-hidden', showPreview ? 'false' : 'true');
         }
-        if (active === 'crosshair') drawCrosshairPreview();
+        if (active === 'crosshair') {
+            drawCrosshairPreview();
+            if (settings.chcolorcustom) setChColorPickerOpen(true);
+        } else {
+            setChColorPickerOpen(false);
+        }
     }
 
     function syncAimRangeFill(input) {
@@ -199,7 +399,8 @@
     function syncSettingsToUi() {
         syncGlide(byId('aim-trainer-settings-timer-glide'), String(settings.timer));
         syncGlide(byId('aim-trainer-settings-tcolor-glide'), settings.tcolor);
-        syncGlide(byId('aim-trainer-settings-chcolor-glide'), settings.chcolor);
+        syncChColorUi();
+        syncGlide(byId('aim-trainer-settings-chlines-glide'), settings.chlines ? 'true' : 'false');
         syncGlide(byId('aim-trainer-settings-chdot-glide'), settings.chdot ? 'true' : 'false');
         syncGlide(byId('aim-trainer-settings-choutline-glide'), settings.choutline ? 'true' : 'false');
         syncGlide(byId('aim-trainer-settings-aspect-glide'), settings.aspect);
@@ -223,6 +424,7 @@
         crosshair.style.setProperty('--ch-size', `${settings.chsize}px`);
         crosshair.style.setProperty('--ch-gap', `${settings.chgap}px`);
         crosshair.style.setProperty('--ch-thick', `${settings.chthick}px`);
+        crosshair.classList.toggle('has-lines', settings.chlines);
         crosshair.classList.toggle('has-dot', settings.chdot);
         crosshair.classList.toggle('has-outline', settings.choutline);
     }
@@ -244,28 +446,45 @@
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.imageSmoothingEnabled = false;
         ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = PREVIEW_BG_COLORS[previewBgIndex] || PREVIEW_BG_COLORS[0];
         ctx.fillRect(0, 0, w, h);
-        const cx = w / 2;
-        const cy = h / 2;
+        const cx = Math.round(w / 2);
+        const cy = Math.round(h / 2);
         const s = settings.chsize;
         const g = settings.chgap;
         const t = settings.chthick;
-        const rects = [
-            [cx - t / 2, cy - g - s, t, s],
-            [cx + g, cy - t / 2, s, t],
-            [cx - t / 2, cy + g, t, s],
-            [cx - g - s, cy - t / 2, s, t],
-        ];
-        if (settings.chdot) rects.push([cx - t * 0.65, cy - t * 0.65, t * 1.3, t * 1.3]);
-        if (settings.choutline) {
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
-            ctx.lineWidth = 1;
-            rects.forEach((r) => ctx.strokeRect(r[0] - 0.5, r[1] - 0.5, r[2] + 1, r[3] + 1));
+        const outline = settings.choutline;
+        const color = settings.chcolor;
+        const rects = [];
+        if (settings.chlines) {
+            rects.push(
+                [cx - Math.floor(t / 2), cy - g - s, t, s],
+                [cx + g, cy - Math.floor(t / 2), s, t],
+                [cx - Math.floor(t / 2), cy + g, t, s],
+                [cx - g - s, cy - Math.floor(t / 2), s, t],
+            );
         }
-        ctx.fillStyle = settings.chcolor;
-        rects.forEach((r) => ctx.fillRect(r[0], r[1], r[2], r[3]));
+        // Crisp 1px outline: paint a black expanded shape, then the color on top.
+        if (outline) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+            rects.forEach(([x, y, rw, rh]) => ctx.fillRect(x - 1, y - 1, rw + 2, rh + 2));
+        }
+        ctx.fillStyle = color;
+        rects.forEach(([x, y, rw, rh]) => ctx.fillRect(x, y, rw, rh));
+
+        if (settings.chdot) {
+            const size = Math.max(1, t);
+            const x = cx - Math.floor(size / 2);
+            const y = cy - Math.floor(size / 2);
+            if (outline) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+                ctx.fillRect(x - 1, y - 1, size + 2, size + 2);
+            }
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, size, size);
+        }
     }
 
     function syncGamePicklistDisplay() {
@@ -357,6 +576,91 @@
         bindRange('aim-trainer-ch-thick', 'chthick', AIM_CH_THICK_MIN, AIM_CH_THICK_MAX);
     }
 
+    function bindChColorControls() {
+        const root = byId('aim-trainer-settings-chcolor-glide');
+        const picker = byId('aim-trainer-chcolor-picker');
+        const sv = byId('aim-trainer-chcolor-sv');
+        const hue = byId('aim-trainer-chcolor-hue');
+        const hexInput = byId('aim-trainer-chcolor-hex');
+
+        if (root && root.dataset.aimChcolorBound !== '1') {
+            root.dataset.aimChcolorBound = '1';
+            if (typeof initGlideSelectorRoot === 'function' && root.dataset.glideBound !== '1') {
+                initGlideSelectorRoot(root, {
+                    valueKey: 'aimChcolor',
+                    onChange: () => {
+                        const value = root.dataset.value;
+                        if (value === AIM_CH_CUSTOM) {
+                            applyCustomChColor(settings.chcustom, { openPicker: true });
+                            return;
+                        }
+                        settings.chcolorcustom = false;
+                        settings.chcolor = normalizeHexColor(value, DEFAULTS.chcolor);
+                        setChColorPickerOpen(false);
+                        syncChColorUi();
+                        notifyChange();
+                    },
+                });
+            }
+            const customBtn = root.querySelector('[data-aim-chcolor="custom"]');
+            if (customBtn && customBtn.dataset.aimCustomBound !== '1') {
+                customBtn.dataset.aimCustomBound = '1';
+                customBtn.addEventListener('click', () => {
+                    if (root.dataset.value !== AIM_CH_CUSTOM) return;
+                    openCustomChColorPicker();
+                });
+            }
+        }
+
+        if (picker && picker.dataset.aimChcolorPickerBound !== '1') {
+            picker.dataset.aimChcolorPickerBound = '1';
+
+            const onPointerMove = (event) => {
+                if (!chPickerDragging) return;
+                if (chPickerDragging === 'sv') setChPickerFromSvPointer(event.clientX, event.clientY);
+                else if (chPickerDragging === 'hue') setChPickerFromHuePointer(event.clientX);
+            };
+            const onPointerUp = () => {
+                chPickerDragging = null;
+                window.removeEventListener('pointermove', onPointerMove);
+                window.removeEventListener('pointerup', onPointerUp);
+            };
+
+            if (sv) {
+                sv.addEventListener('pointerdown', (event) => {
+                    event.preventDefault();
+                    chPickerDragging = 'sv';
+                    setChPickerFromSvPointer(event.clientX, event.clientY);
+                    window.addEventListener('pointermove', onPointerMove);
+                    window.addEventListener('pointerup', onPointerUp);
+                });
+            }
+            if (hue) {
+                hue.addEventListener('pointerdown', (event) => {
+                    event.preventDefault();
+                    chPickerDragging = 'hue';
+                    setChPickerFromHuePointer(event.clientX);
+                    window.addEventListener('pointermove', onPointerMove);
+                    window.addEventListener('pointerup', onPointerUp);
+                });
+            }
+            if (hexInput) {
+                const commitHex = () => {
+                    const next = normalizeHexColor(hexInput.value, settings.chcustom);
+                    hexInput.value = next.toUpperCase();
+                    applyCustomChColor(next, { openPicker: true });
+                };
+                hexInput.addEventListener('change', commitHex);
+                hexInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        commitHex();
+                    }
+                });
+            }
+        }
+    }
+
     function bindModal() {
         const modal = byId('aim-trainer-settings-modal');
         if (!modal || modal.dataset.aimSettingsModalBound === '1') return;
@@ -383,8 +687,9 @@
         bindGlide(byId('aim-trainer-settings-tcolor-glide'), 'aimTcolor', (value) => {
             settings.tcolor = value;
         });
-        bindGlide(byId('aim-trainer-settings-chcolor-glide'), 'aimChcolor', (value) => {
-            settings.chcolor = value;
+        bindChColorControls();
+        bindGlide(byId('aim-trainer-settings-chlines-glide'), 'aimChlines', (value) => {
+            settings.chlines = value === 'true';
         });
         bindGlide(byId('aim-trainer-settings-chdot-glide'), 'aimChdot', (value) => {
             settings.chdot = value === 'true';
@@ -436,6 +741,7 @@
             if (!modal) return;
             clearTimeout(settingsModalCloseTimer);
             settingsModalCloseTimer = null;
+            setChColorPickerOpen(false);
             modal.classList.remove('is-open');
             modal.setAttribute('aria-hidden', 'true');
             document.body.classList.remove('settings-modal-open');

@@ -1,12 +1,17 @@
-<div id="page-aim-trainer" class="main-page aim-trainer-page w-full max-w-5xl mx-auto p-8">
-                <div id="aim-trainer-hub">
+<div id="page-aim-trainer" class="main-page aim-trainer-page w-full">
+                <div id="aim-trainer-hub" class="aim-trainer-hub">
+                    <button type="button" id="aim-trainer-settings-open" class="aim-trainer-settings-corner ui-interactive" aria-label="Training settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="aim-trainer-settings-modal">
+                        <i class="fa-solid fa-gear" aria-hidden="true"></i>
+                        <span>Settings</span>
+                    </button>
+                    <div class="aim-trainer-hub-main w-full max-w-5xl mx-auto p-8">
                     <div class="page-intro mb-8">
                         <h2 class="text-xl font-bold tracking-widest uppercase text-white">Aim Trainer</h2>
                         <p class="text-sm text-slate-400 mt-2 tracking-wide">Pick a drill — click to enter the 3D range</p>
                     </div>
                     <section id="aim-trainer-browser" class="aim-trainer-browser bg-matte-900 rounded-lg border border-matte-800 p-6" aria-label="Training drills">
-                        <div class="aim-trainer-browser-toolbar mb-3">
-                            <div class="aim-trainer-browser-search flex flex-col gap-3 min-w-0">
+                        <div class="aim-trainer-browser-toolbar">
+                            <div class="aim-trainer-browser-search flex flex-col min-w-0">
                                 <span class="text-sm font-bold tracking-widest uppercase text-white">Search</span>
                                 <div class="tool-picklist-control tool-picklist-control--has-icon aim-trainer-search-control ui-interactive">
                                     <i class="ri-search-line tool-picklist-leading-icon" aria-hidden="true"></i>
@@ -18,7 +23,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="aim-trainer-browser-types flex flex-col gap-3 min-w-0">
+                            <div class="aim-trainer-browser-types flex flex-col min-w-0">
                                 <span class="text-sm font-bold tracking-widest uppercase text-white">Type</span>
                                 <div id="aim-trainer-type-glide" class="glide-selector w-full" role="radiogroup" aria-label="Filter by training type" data-value="all">
                                     <div class="glide-selector-track">
@@ -32,28 +37,23 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="aim-trainer-browser-toolbar-actions flex items-end sm:justify-end shrink-0">
-                                <button type="button" id="aim-trainer-settings-open" class="aim-trainer-toolbar-settings ui-interactive" aria-haspopup="dialog" aria-expanded="false" aria-controls="aim-trainer-settings-modal">
-                                    <i class="fa-solid fa-gear text-sm" aria-hidden="true"></i>
-                                    <span>Training Settings</span>
-                                </button>
-                            </div>
                         </div>
-                        <div id="aim-trainer-list" class="aim-trainer-list grid grid-cols-1 sm:grid-cols-2 gap-3" role="list"></div>
+                        <div id="aim-trainer-list" class="aim-trainer-list grid grid-cols-1 sm:grid-cols-2" role="list"></div>
                         <p id="aim-trainer-list-empty" class="aim-trainer-list-empty text-sm text-slate-400 tracking-wide text-center py-8" hidden>No drills match your filters.</p>
                     </section>
+                    </div>
                     <div id="aim-trainer-settings-modal" class="aim-trainer-settings-modal settings-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="aim-trainer-settings-title" aria-hidden="true">
-                        <button type="button" id="aim-trainer-settings-backdrop" class="settings-modal-backdrop absolute inset-0 bg-black/70 ui-interactive" aria-label="Close training settings" tabindex="-1"></button>
+                        <button type="button" id="aim-trainer-settings-backdrop" class="modal-backdrop settings-modal-backdrop absolute inset-0 ui-interactive" aria-label="Close training settings" tabindex="-1"></button>
                         <div class="settings-modal-shell aim-trainer-settings-shell">
-                            <div class="settings-modal-panel relative w-full bg-matte-900 border border-matte-800 rounded-lg p-5 max-h-[min(90vh,640px)] flex flex-col min-h-0">
+                            <div class="settings-modal-panel relative w-full bg-matte-900 border border-matte-800 rounded-lg p-5 flex flex-col min-h-0">
                                 <div class="flex items-center justify-between gap-3 mb-4 shrink-0">
                                     <h3 id="aim-trainer-settings-title" class="text-sm font-bold tracking-widest uppercase text-white">Training Settings</h3>
                                     <button type="button" id="aim-trainer-settings-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative" aria-label="Close training settings">
                                         <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
                                     </button>
                                 </div>
-                                <div class="aim-trainer-settings-body settings-modal-body flex-1 min-h-0 overflow-y-auto space-y-3">
-                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-aim-settings-section="session">
+                                <div class="aim-trainer-settings-body settings-modal-body flex-1 min-h-0 overflow-y-auto">
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col" data-aim-settings-section="session">
                                         <div class="min-w-0">
                                             <p class="text-sm font-bold tracking-widest uppercase text-white">Timer</p>
                                             <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">How long a run lasts before the summary appears.</p>
@@ -68,7 +68,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3 hidden" data-aim-settings-section="game" hidden>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col hidden" data-aim-settings-section="game" hidden>
                                         <div class="min-w-0">
                                             <p class="text-sm font-bold tracking-widest uppercase text-white">Game</p>
                                             <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Match turn rate so in-game sensitivity feels the same here.</p>
@@ -82,23 +82,23 @@
                                             <div id="aim-trainer-settings-game-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Games"></div>
                                         </div>
                                     </div>
-                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3 hidden" data-aim-settings-section="sensitivity" hidden>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col hidden" data-aim-settings-section="sensitivity" hidden>
                                         <div class="min-w-0">
                                             <p class="text-sm font-bold tracking-widest uppercase text-white">Sensitivity</p>
                                             <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">In-game sensitivity and mouse DPI.</p>
                                         </div>
-                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <label class="flex flex-col gap-2 min-w-0">
+                                        <div class="grid grid-cols-1 sm:grid-cols-2">
+                                            <label class="flex flex-col min-w-0">
                                                 <span class="text-xs font-bold tracking-widest uppercase text-slate-400">Sensitivity</span>
                                                 <input type="text" inputmode="decimal" id="aim-trainer-settings-sens" class="tool-picklist-input w-full" value="1" autocomplete="off" spellcheck="false">
                                             </label>
-                                            <label class="flex flex-col gap-2 min-w-0">
+                                            <label class="flex flex-col min-w-0">
                                                 <span class="text-xs font-bold tracking-widest uppercase text-slate-400">DPI</span>
                                                 <input type="text" inputmode="numeric" id="aim-trainer-settings-dpi" class="tool-picklist-input w-full" value="800" autocomplete="off" spellcheck="false">
                                             </label>
                                         </div>
                                     </div>
-                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3 hidden" data-aim-settings-section="target" hidden>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col hidden" data-aim-settings-section="target" hidden>
                                         <div class="min-w-0">
                                             <p class="text-sm font-bold tracking-widest uppercase text-white">Target color</p>
                                         </div>
@@ -112,7 +112,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3 hidden" data-aim-settings-section="aspect" hidden>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col hidden" data-aim-settings-section="aspect" hidden>
                                         <div class="min-w-0">
                                             <p class="text-sm font-bold tracking-widest uppercase text-white">Aspect ratio</p>
                                             <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Simulate stretched resolutions by locking the render aspect while the view fills your display.</p>
@@ -129,20 +129,46 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3 hidden" data-aim-settings-section="crosshair" hidden>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col hidden" data-aim-settings-section="crosshair" hidden>
                                         <div class="min-w-0">
                                             <p class="text-sm font-bold tracking-widest uppercase text-white">Color</p>
                                         </div>
                                         <div id="aim-trainer-settings-chcolor-glide" class="glide-selector w-full" role="radiogroup" aria-label="Crosshair color" data-value="#00ff00">
                                             <div class="glide-selector-track">
                                                 <div class="glide-selector-viewport" aria-hidden="true"><span class="glide-selector-thumb ui-interactive"></span></div>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chcolor="#ff0000" role="radio">Red</button>
                                                 <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-chcolor="#00ff00" role="radio">Green</button>
-                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chcolor="#ffffff" role="radio">White</button>
-                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chcolor="#00e5ff" role="radio">Cyan</button>
-                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chcolor="#ff1e43" role="radio">Neon</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chcolor="#0000ff" role="radio">Blue</button>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chcolor="custom" role="radio">Custom</button>
                                             </div>
                                         </div>
-                                        <div class="min-w-0 pt-1">
+                                        <div id="aim-trainer-chcolor-picker" class="aim-chcolor-picker" hidden>
+                                            <div class="aim-chcolor-sv ui-interactive" id="aim-trainer-chcolor-sv" role="slider" aria-label="Saturation and brightness" tabindex="0">
+                                                <canvas id="aim-trainer-chcolor-sv-canvas" width="280" height="160" aria-hidden="true"></canvas>
+                                                <span class="aim-chcolor-sv-thumb" id="aim-trainer-chcolor-sv-thumb" aria-hidden="true"></span>
+                                            </div>
+                                            <div class="aim-chcolor-hue ui-interactive" id="aim-trainer-chcolor-hue" role="slider" aria-label="Hue" tabindex="0">
+                                                <span class="aim-chcolor-hue-thumb" id="aim-trainer-chcolor-hue-thumb" aria-hidden="true"></span>
+                                            </div>
+                                            <div class="aim-chcolor-meta">
+                                                <span class="aim-chcolor-preview" id="aim-trainer-chcolor-preview" aria-hidden="true"></span>
+                                                <label class="aim-chcolor-hex-field">
+                                                    <span class="aim-chcolor-hex-label">Hex</span>
+                                                    <input type="text" id="aim-trainer-chcolor-hex" class="tool-picklist-input aim-chcolor-hex-input" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Custom crosshair hex color">
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="text-sm font-bold tracking-widest uppercase text-white">Lines</p>
+                                        </div>
+                                        <div id="aim-trainer-settings-chlines-glide" class="glide-selector w-full" role="radiogroup" aria-label="Crosshair lines" data-value="true">
+                                            <div class="glide-selector-track">
+                                                <div class="glide-selector-viewport" aria-hidden="true"><span class="glide-selector-thumb ui-interactive"></span></div>
+                                                <button type="button" class="glide-selector-option ui-interactive" data-aim-chlines="false" role="radio">Off</button>
+                                                <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-chlines="true" role="radio">On</button>
+                                            </div>
+                                        </div>
+                                        <div class="min-w-0">
                                             <p class="text-sm font-bold tracking-widest uppercase text-white">Center dot</p>
                                         </div>
                                         <div id="aim-trainer-settings-chdot-glide" class="glide-selector w-full" role="radiogroup" aria-label="Crosshair center dot" data-value="true">
@@ -152,7 +178,7 @@
                                                 <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-chdot="true" role="radio">On</button>
                                             </div>
                                         </div>
-                                        <div class="min-w-0 pt-1">
+                                        <div class="min-w-0">
                                             <p class="text-sm font-bold tracking-widest uppercase text-white">Outline</p>
                                         </div>
                                         <div id="aim-trainer-settings-choutline-glide" class="glide-selector w-full" role="radiogroup" aria-label="Crosshair outline" data-value="false">
@@ -162,7 +188,7 @@
                                                 <button type="button" class="glide-selector-option ui-interactive" data-aim-choutline="true" role="radio">On</button>
                                             </div>
                                         </div>
-                                        <label class="aim-trainer-settings-range pt-1">
+                                        <label class="aim-trainer-settings-range">
                                             <span class="text-xs font-bold tracking-widest uppercase text-slate-400">Size</span>
                                             <strong id="aim-trainer-ch-size-val" class="text-sm text-white tabular-nums">10</strong>
                                             <span class="aim-trainer-range-wrap">
