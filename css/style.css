@@ -204,12 +204,22 @@ textarea:focus {
         transform var(--motion-duration) var(--motion-ease),
         visibility 0s linear var(--motion-duration);
 }
-#notification-dropdown[data-notification-portaled="1"] {
+.discord-auth-profile-btn .discord-auth-chevron {
+    transition: transform var(--motion-duration) var(--motion-ease);
+}
+.discord-auth-profile-btn[aria-expanded="true"] .discord-auth-chevron {
+    transform: rotate(180deg);
+}
+html.reduce-motion .discord-auth-profile-btn .discord-auth-chevron {
+    transition: none;
+}
+#notification-dropdown[data-notification-portaled="1"],
+.discord-auth-menu[data-discord-menu-portaled="1"] {
     position: fixed;
 }
 #notification-dropdown.dropdown-open,
 .discord-auth-menu.dropdown-open {
-    z-index: 10200;
+    z-index: 10300;
 }
 #notification-dropdown.dropdown-open,
 .discord-auth-menu.dropdown-open,

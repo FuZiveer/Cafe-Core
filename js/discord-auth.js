@@ -5,6 +5,77 @@
         return document.getElementById(id);
     }
 
+    let discordMenuPositionBound = false;
+
+    function portalDiscordProfileMenu() {
+        const menu = byId('discord-profile-menu');
+        if (!menu) return;
+        if (menu.parentElement !== document.body) {
+            document.body.appendChild(menu);
+        }
+        menu.dataset.discordMenuPortaled = '1';
+    }
+
+    function layoutDiscordProfileMenu() {
+        const menu = byId('discord-profile-menu');
+        const btn = byId('discord-profile-btn');
+        if (!menu || !btn) return;
+        const rect = btn.getBoundingClientRect();
+        const gap = 4;
+        menu.style.top = `${Math.round(rect.bottom + gap)}px`;
+        menu.style.right = `${Math.round(window.innerWidth - rect.right)}px`;
+        menu.style.left = 'auto';
+        menu.style.bottom = 'auto';
+    }
+
+    function bindDiscordMenuPositionListeners() {
+        if (discordMenuPositionBound) return;
+        discordMenuPositionBound = true;
+        const reposition = () => {
+            const menu = byId('discord-profile-menu');
+            if (menu?.classList.contains('dropdown-open')) layoutDiscordProfileMenu();
+        };
+        window.addEventListener('resize', reposition);
+        window.addEventListener('scroll', reposition, true);
+        document.getElementById('main-content')?.addEventListener('scroll', reposition, { passive: true });
+    }
+
+    window.closeDiscordProfileMenu = function closeDiscordProfileMenu() {
+        const menu = byId('discord-profile-menu');
+        const btn = byId('discord-profile-btn');
+        if (!menu || !btn || !menu.classList.contains('dropdown-open')) return;
+        menu.classList.remove('dropdown-open');
+        menu.classList.add('dropdown-closed');
+        btn.setAttribute('aria-expanded', 'false');
+    };
+
+    window.setDiscordProfileMenuOpen = function setDiscordProfileMenuOpen(open) {
+        const menu = byId('discord-profile-menu');
+        const btn = byId('discord-profile-btn');
+        if (!menu || !btn) return;
+
+        portalDiscordProfileMenu();
+        bindDiscordMenuPositionListeners();
+
+        if (open) {
+            window.closeNotificationDropdown?.();
+            layoutDiscordProfileMenu();
+            menu.classList.remove('dropdown-open');
+            menu.classList.add('dropdown-closed');
+            void menu.offsetHeight;
+            requestAnimationFrame(() => {
+                menu.classList.remove('dropdown-closed');
+                menu.classList.add('dropdown-open');
+                btn.setAttribute('aria-expanded', 'true');
+                layoutDiscordProfileMenu();
+            });
+        } else {
+            menu.classList.remove('dropdown-open');
+            menu.classList.add('dropdown-closed');
+            btn.setAttribute('aria-expanded', 'false');
+        }
+    };
+
     function escapeHtml(text) {
         return String(text)
             .replace(/&/g, '&amp;')
@@ -32,6 +103,9 @@
     }
 
     function currentReturnTo() {
+        if (window.location.protocol === 'file:') {
+            return 'https://fuziveer.github.io/Cafe-Core/';
+        }
         return `${window.location.origin}${window.location.pathname}${window.location.search}${window.location.hash}`;
     }
 
@@ -94,13 +168,12 @@
                         decoding="async"
                     />
                     <span class="discord-auth-name text-[10px] font-bold tracking-wide uppercase truncate min-w-0">${escapeHtml(name)}</span>
-                    <i class="fa-solid fa-chevron-down text-[9px] opacity-60 shrink-0" aria-hidden="true"></i>
+                    <i class="discord-auth-chevron fa-solid fa-chevron-down text-[9px] opacity-60 shrink-0" aria-hidden="true"></i>
                 </button>
                 <div
                     id="discord-profile-menu"
-                    class="discord-auth-menu dropdown-closed absolute right-0 top-full mt-1 w-56 bg-matte-900 border border-matte-800 rounded-lg overflow-hidden z-50"
+                    class="discord-auth-menu dropdown-closed absolute right-0 top-full mt-1 w-56 bg-matte-900 border border-matte-800 rounded-lg overflow-hidden"
                     role="menu"
-                    hidden
                 >
                     <div class="px-4 py-3 border-b border-matte-800">
                         <p class="text-sm font-bold tracking-wide text-white truncate">${escapeHtml(name)}</p>
@@ -121,31 +194,15 @@
         const menu = byId('discord-profile-menu');
         const signOut = byId('discord-sign-out-btn');
 
-        const closeMenu = () => {
-            if (!menu || !btn) return;
-            menu.classList.remove('dropdown-open');
-            menu.classList.add('dropdown-closed');
-            menu.hidden = true;
-            btn.setAttribute('aria-expanded', 'false');
-        };
-
-        const openMenu = () => {
-            if (!menu || !btn) return;
-            menu.hidden = false;
-            menu.classList.remove('dropdown-closed');
-            menu.classList.add('dropdown-open');
-            btn.setAttribute('aria-expanded', 'true');
-        };
-
         btn?.addEventListener('click', (event) => {
             event.stopPropagation();
-            const open = btn.getAttribute('aria-expanded') === 'true';
-            if (open) closeMenu();
-            else openMenu();
+            window.closeNotificationDropdown?.();
+            const isOpen = menu.classList.contains('dropdown-open');
+            window.setDiscordProfileMenuOpen(!isOpen);
         });
 
         signOut?.addEventListener('click', async () => {
-            closeMenu();
+            window.closeDiscordProfileMenu();
             try {
                 await fetch(apiUrl(authBase, '/api/auth/logout'), { method: 'POST', credentials: 'include' });
             } catch {
@@ -154,19 +211,7 @@
             await refreshDiscordAuthUi();
         });
 
-        if (!window.__discordProfileDocBound) {
-            window.__discordProfileDocBound = true;
-            document.addEventListener('click', (event) => {
-                const liveBtn = byId('discord-profile-btn');
-                const liveMenu = byId('discord-profile-menu');
-                if (!liveBtn || !liveMenu || liveMenu.hidden) return;
-                if (liveBtn.contains(event.target) || liveMenu.contains(event.target)) return;
-                liveMenu.classList.remove('dropdown-open');
-                liveMenu.classList.add('dropdown-closed');
-                liveMenu.hidden = true;
-                liveBtn.setAttribute('aria-expanded', 'false');
-            });
-        }
+        portalDiscordProfileMenu();
     }
 
     async function loadAuthConfig(authBaseGuess) {
@@ -180,6 +225,13 @@
             } catch {
                 /* try next base */
             }
+        }
+        if (authBaseGuess) {
+            return {
+                configured: true,
+                authOrigin: authBaseGuess,
+                loginPath: '/auth/discord/login',
+            };
         }
         return { configured: false, loginPath: '/auth/discord/login' };
     }

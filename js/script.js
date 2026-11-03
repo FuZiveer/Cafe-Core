@@ -5365,6 +5365,7 @@ function setNotificationDropdownOpen(open) {
     bindNotificationDropdownPositionListeners();
 
     if (open) {
+        window.closeDiscordProfileMenu?.();
         layoutNotificationDropdown();
         dropdown.classList.remove('dropdown-open');
         dropdown.classList.add('dropdown-closed');
@@ -5387,6 +5388,10 @@ function setNotificationDropdownOpen(open) {
         stopNotificationTimeRefresh();
     }
 }
+
+window.closeNotificationDropdown = function closeNotificationDropdown() {
+    setNotificationDropdownOpen(false);
+};
 
 function initNotifications() {
     const notificationBtn = document.getElementById('notification-btn');
@@ -5431,12 +5436,32 @@ function initNotifications() {
         });
     }
 
-    document.addEventListener('click', (e) => {
-        if (!notificationBtn || !notificationDropdown) return;
-        if (!notificationBtn.contains(e.target) && !notificationDropdown.contains(e.target)) {
-            setNotificationDropdownOpen(false);
+    function dismissTopbarOverlaysOnOutsideClick(e) {
+        if (notificationDropdown?.classList.contains('dropdown-open')) {
+            if (
+                notificationBtn
+                && notificationDropdown
+                && !notificationBtn.contains(e.target)
+                && !notificationDropdown.contains(e.target)
+            ) {
+                setNotificationDropdownOpen(false);
+            }
         }
-    });
+        const discordBtn = document.getElementById('discord-profile-btn');
+        const discordMenu = document.getElementById('discord-profile-menu');
+        if (discordMenu?.classList.contains('dropdown-open')) {
+            if (
+                discordBtn
+                && !discordBtn.contains(e.target)
+                && !discordMenu.contains(e.target)
+            ) {
+                window.closeDiscordProfileMenu?.();
+            }
+        }
+    }
+
+    /* Capture runs before topbar buttons call stopPropagation(). */
+    document.addEventListener('click', dismissTopbarOverlaysOnOutsideClick, true);
 }
 
 function isTypingTarget(el) {

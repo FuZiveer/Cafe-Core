@@ -1,7 +1,10 @@
 (function () {
     'use strict';
-    /** When the static site is on GitHub Pages, OAuth runs on Render (edit URL if yours changes). */
-    if (window.location.hostname === 'fuziveer.github.io') {
-        window.__CAFE_AUTH_ORIGIN = 'https://cafe-core.onrender.com';
+    /** OAuth runs on Render when the page is not served by that server (edit if your Render URL changes). */
+    var REMOTE_AUTH = 'https://cafe-core.onrender.com';
+    var host = window.location.hostname;
+    var proto = window.location.protocol;
+    if (host === 'fuziveer.github.io' || proto === 'file:') {
+        window.__CAFE_AUTH_ORIGIN = REMOTE_AUTH;
     }
 })();
