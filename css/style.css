@@ -978,9 +978,9 @@ html.reduce-motion *::after {
     .bl-roster-igl-ornament--right .bl-roster-igl-ornament-line:last-child {
         background: linear-gradient(
             90deg,
-            rgba(255, 30, 67, 0.55) 0%,
-            rgba(255, 30, 67, 0.12) 78%,
-            transparent 100%
+            transparent 0%,
+            rgba(255, 30, 67, 0.12) 22%,
+            rgba(255, 30, 67, 0.55) 100%
         );
     }
     .bl-roster-igl-ornament-mark {
