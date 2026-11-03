@@ -4059,6 +4059,10 @@ function showCopyToast(message) {
     window.CafeCore?.Toast?.show(message || 'Copied to clipboard');
 }
 
+function showErrorToast(message) {
+    window.CafeCore?.Toast?.show(message || 'Something went wrong');
+}
+
 function copyTextToClipboard(text, { onSuccess, onFailure } = {}) {
     const succeed = () => {
         onSuccess?.();
@@ -4091,6 +4095,7 @@ function copyTextWithToast(text, toastMessage) {
     const toast = toastMessage ?? (copiedValue ? `${copiedValue} copied` : 'Copied to clipboard');
     copyTextToClipboard(text, {
         onSuccess: () => showCopyToast(toast),
+        onFailure: () => showErrorToast('Could not copy to clipboard'),
     });
 }
 
@@ -4107,6 +4112,7 @@ function copyTextWithButtonFeedback(text, buttonEl, toastMessage) {
         onFailure: () => {
             window.clearTimeout(resetTimer);
             setBrandCopyBtnCopied(buttonEl, false);
+            showErrorToast('Could not copy to clipboard');
         },
     });
 }
@@ -5603,7 +5609,6 @@ window.syncVerticalTabGlider = syncVerticalTabGlider;
 window.shouldUseGliderWrapAnimation = shouldUseGliderWrapAnimation;
 
 window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('cafe-toast-host')?.remove();
     initToolPicklistDismiss();
     initKeyboardRestrictions();
     appSettings = loadAppSettings();

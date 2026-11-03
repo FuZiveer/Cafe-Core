@@ -716,8 +716,10 @@
             if (!blob) throw new Error('no blob');
             await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
             flashShareButton('Copied');
+            window.CafeCore?.Toast?.show('Result copied');
         } catch {
             flashShareButton('Copy failed');
+            window.CafeCore?.Toast?.show('Could not copy result');
         }
     }
 

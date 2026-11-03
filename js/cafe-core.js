@@ -542,10 +542,179 @@
         });
     })();
 
-    const Toast = freeze({
-        DEFAULT_MS: 4000,
-        show() {},
-    });
+    const Toast = (() => {
+        const DEFAULT_MS = 4000;
+        const MAX_STACK = 6;
+        const activeToasts = new Set();
+
+        function ensureHost() {
+            let host = document.getElementById('cafe-toast-host');
+            if (!host) {
+                host = document.createElement('div');
+                host.id = 'cafe-toast-host';
+                host.className = 'cafe-toast-host';
+                host.setAttribute('aria-live', 'polite');
+                host.setAttribute('aria-atomic', 'true');
+                document.body.appendChild(host);
+            }
+            return host;
+        }
+
+        function getToastSlots(host) {
+            return [...host.children].filter((node) => node.classList?.contains('cafe-toast-slot'));
+        }
+
+        function animateStackReflow(host, mutate) {
+            if (!host || typeof mutate !== 'function') return;
+            const reduceMotion = document.documentElement.classList.contains('reduce-motion');
+            if (reduceMotion) {
+                mutate();
+                return;
+            }
+            const beforeRects = new Map(
+                getToastSlots(host).map((slot) => [slot, slot.getBoundingClientRect()])
+            );
+            mutate();
+            requestAnimationFrame(() => {
+                getToastSlots(host).forEach((slot) => {
+                    const before = beforeRects.get(slot);
+                    if (!before) return;
+                    const after = slot.getBoundingClientRect();
+                    const deltaY = before.top - after.top;
+                    if (Math.abs(deltaY) < 0.5) return;
+                    slot.style.transition = 'none';
+                    slot.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+                    void slot.offsetHeight;
+                    slot.style.transition = '';
+                    slot.style.transform = 'translate3d(0, 0, 0)';
+                });
+            });
+        }
+
+        function dismissToast(state) {
+            if (!state || state.dismissed) return;
+            state.dismissed = true;
+            activeToasts.delete(state);
+            if (state.stopTick) state.stopTick();
+            else if (state.rafId) cancelAnimationFrame(state.rafId);
+            state.el.classList.remove('cafe-toast--visible');
+            state.el.classList.add('cafe-toast--leaving');
+            const host = state.slot?.parentElement;
+            const remove = () => {
+                if (host && state.slot) {
+                    animateStackReflow(host, () => state.slot.remove());
+                } else {
+                    state.slot?.remove();
+                    state.el.remove();
+                }
+            };
+            state.el.addEventListener('transitionend', remove, { once: true });
+            window.setTimeout(remove, 300);
+        }
+
+        function trimStack(host) {
+            while (getToastSlots(host).length > MAX_STACK) {
+                const oldest = host.firstElementChild;
+                if (!oldest) break;
+                const stale = [...activeToasts].find((entry) => entry.slot === oldest);
+                if (stale) dismissToast(stale);
+                else animateStackReflow(host, () => oldest.remove());
+            }
+        }
+
+        function show(message, options = {}) {
+            const text = String(message || '').trim();
+            if (!text) return;
+
+            const duration = Math.max(1500, options.duration ?? DEFAULT_MS);
+            const host = ensureHost();
+            const el = document.createElement('button');
+            el.type = 'button';
+            el.className = 'cafe-toast ui-interactive';
+            el.innerHTML = `
+                <span class="cafe-toast-body">
+                    <span class="cafe-toast-indicator" aria-hidden="true">
+                        <svg class="cafe-toast-ring" viewBox="0 0 24 24" focusable="false">
+                            <circle class="cafe-toast-ring-track" cx="12" cy="12" r="7.75" />
+                            <circle class="cafe-toast-ring-progress" cx="12" cy="12" r="7.75" />
+                        </svg>
+                    </span>
+                    <span class="cafe-toast-message"></span>
+                </span>`;
+            el.querySelector('.cafe-toast-message').textContent = text;
+
+            const progressRing = el.querySelector('.cafe-toast-ring-progress');
+            const RING_R = 7.75;
+            const RING_LEN = 2 * Math.PI * RING_R;
+            progressRing.style.strokeDasharray = `${RING_LEN}`;
+            progressRing.style.strokeDashoffset = '0';
+
+            function setRingProgress(ratio) {
+                const clamped = Math.max(0, Math.min(1, ratio));
+                progressRing.style.strokeDashoffset = `${RING_LEN * (1 - clamped)}`;
+            }
+            const slot = document.createElement('div');
+            slot.className = 'cafe-toast-slot';
+            slot.appendChild(el);
+            const state = {
+                el,
+                slot,
+                dismissed: false,
+                duration,
+                remaining: duration,
+                paused: false,
+                lastTick: 0,
+                rafId: 0,
+                stopTick: null,
+            };
+            activeToasts.add(state);
+
+            const startTickLoop = () => {
+                if (state.stopTick) state.stopTick();
+                state.stopTick = UiRefresh.loop((now) => {
+                    if (state.dismissed) return false;
+                    if (!state.lastTick) state.lastTick = now;
+                    if (!state.paused) {
+                        const delta = now - state.lastTick;
+                        state.remaining -= delta;
+                        const ratio = Math.max(0, state.remaining / duration);
+                        setRingProgress(ratio);
+                        if (state.remaining <= 0) {
+                            dismissToast(state);
+                            return false;
+                        }
+                    }
+                    state.lastTick = now;
+                    return true;
+                });
+            };
+
+            el.addEventListener('mouseenter', () => {
+                state.paused = true;
+            });
+            el.addEventListener('mouseleave', () => {
+                state.paused = false;
+                state.lastTick = performance.now();
+            });
+            el.addEventListener('click', () => dismissToast(state));
+
+            animateStackReflow(host, () => {
+                host.appendChild(slot);
+                trimStack(host);
+            });
+            requestAnimationFrame(() => {
+                void el.offsetHeight;
+                requestAnimationFrame(() => {
+                    el.classList.add('cafe-toast--visible');
+                    setRingProgress(1);
+                    state.lastTick = performance.now();
+                    startTickLoop();
+                });
+            });
+        }
+
+        return freeze({ show, DEFAULT_MS });
+    })();
 
     global.CafeCore = freeze({
         Motion,

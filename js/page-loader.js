@@ -21,20 +21,29 @@
     const preparePromises = new Map();
     const chunkLoadPromises = new Map();
     const loadedScripts = new Set();
+    const scriptLoadPromises = new Map();
 
     function loadScript(src) {
         if (loadedScripts.has(src)) return Promise.resolve();
-        return new Promise((resolve, reject) => {
+        const inFlight = scriptLoadPromises.get(src);
+        if (inFlight) return inFlight;
+        const promise = new Promise((resolve, reject) => {
             const s = document.createElement('script');
             s.src = src;
             s.defer = true;
             s.onload = () => {
                 loadedScripts.add(src);
+                scriptLoadPromises.delete(src);
                 resolve();
             };
-            s.onerror = () => reject(new Error('Failed to load ' + src));
+            s.onerror = () => {
+                scriptLoadPromises.delete(src);
+                reject(new Error('Failed to load ' + src));
+            };
             document.body.appendChild(s);
         });
+        scriptLoadPromises.set(src, promise);
+        return promise;
     }
 
     async function ensureSensitivityScripts() {
