@@ -1,16 +1,14 @@
 (function () {
-    const { Async, Dom, freeze } = window.CafeCore;
+    const { Dom, freeze } = window.CafeCore;
 
     const mainPagePaths = freeze({
         default: 'pages/default.html',
         apps: 'pages/apps.html',
-        'find-team': 'pages/find-team.html',
         branding: 'pages/branding.html',
         fuziveer: 'pages/fuziveer.html',
         'black-listed': 'pages/black-listed.html',
         privacy: 'pages/privacy.html',
         terms: 'pages/terms.html',
-        notes: 'pages/notes.html',
         bottleneck: 'pages/bottleneck.html',
         sensitivity: 'pages/sensitivity.html',
         edpi: 'pages/edpi.html',
@@ -19,7 +17,8 @@
     });
 
     const htmlCache = new Map();
-    const loadPromises = new Map();
+    const mountPromises = new Map();
+    const chunkLoadPromises = new Map();
     const loadedScripts = new Set();
 
     function loadScript(src) {
@@ -53,9 +52,27 @@
         return typeof html === 'string' && html.length ? html : null;
     }
 
+    async function ensureOfflinePageChunk(pageKey) {
+        const cached = getEmbeddedPageHtml(pageKey);
+        if (cached) return cached;
+
+        if (chunkLoadPromises.has(pageKey)) {
+            await chunkLoadPromises.get(pageKey);
+            return getEmbeddedPageHtml(pageKey);
+        }
+
+        const src = `js/page-chunks/${pageKey}.js`;
+        const promise = loadScript(src).finally(() => {
+            chunkLoadPromises.delete(pageKey);
+        });
+        chunkLoadPromises.set(pageKey, promise);
+        await promise;
+        return getEmbeddedPageHtml(pageKey);
+    }
+
     /**
-     * On http(s), prefer live pages/*.html so edits show without rebuilding.
-     * On file:// (or if fetch fails), use the embedded offline bundle.
+     * On http(s), fetch only the requested pages/*.html.
+     * On file:// (or if fetch fails), load one offline chunk at a time.
      */
     async function fetchPageHtml(pageKey) {
         if (htmlCache.has(pageKey)) return htmlCache.get(pageKey);
@@ -71,22 +88,19 @@
                     return text;
                 }
             } catch {
-                /* fall through to embedded bundle */
+                /* fall through to offline chunk */
             }
         }
 
-        const embedded = getEmbeddedPageHtml(pageKey);
+        const embedded = await ensureOfflinePageChunk(pageKey);
         if (embedded) {
             htmlCache.set(pageKey, embedded);
             return embedded;
         }
 
-        throw new Error('Failed to load ' + path + ' (offline bundle missing — run node tools/embed-offline-assets.mjs)');
-    }
-
-    async function ensureFindTeamScripts() {
-        await loadScript('data/find-team-games.js');
-        await loadScript('js/find-team.js');
+        throw new Error(
+            'Failed to load ' + path + ' (offline chunk missing — run node tools/embed-offline-assets.mjs)'
+        );
     }
 
     async function ensureBlackListedScripts() {
@@ -97,9 +111,6 @@
     async function preparePageDependencies(pageKey) {
         if (pageKey === 'sensitivity' || pageKey === 'edpi') {
             await ensureSensitivityScripts();
-        }
-        if (pageKey === 'find-team') {
-            await ensureFindTeamScripts();
         }
         if (pageKey === 'black-listed') {
             await ensureBlackListedScripts();
@@ -155,7 +166,7 @@
         const existing = document.getElementById(id);
         if (existing) return existing;
 
-        if (loadPromises.has(pageKey)) return loadPromises.get(pageKey);
+        if (mountPromises.has(pageKey)) return mountPromises.get(pageKey);
 
         const promise = (async () => {
             await preparePageDependencies(pageKey);
@@ -175,11 +186,11 @@
             return el;
         })();
 
-        loadPromises.set(pageKey, promise);
+        mountPromises.set(pageKey, promise);
         try {
             return await promise;
         } finally {
-            loadPromises.delete(pageKey);
+            mountPromises.delete(pageKey);
         }
     }
 
@@ -218,7 +229,6 @@
         const next = hashForPageKey(pageKey);
         const current = location.hash || '';
         if (next === current) return;
-        // file:// URLs need a full path base; pathname alone can break hash updates on Windows.
         const base = `${location.pathname}${location.search}` || location.href.split('#')[0];
         try {
             if (!next) {
@@ -231,36 +241,12 @@
         }
     }
 
-    function prefetchAllPageHtml() {
-        return Promise.all(
-            Object.keys(mainPagePaths).map((key) => fetchPageHtml(key).catch(() => {}))
-        );
-    }
-
-    function scheduleWarmup() {
-        const warmAssets = () => {
-            void prefetchAllPageHtml();
-            void ensureSensitivityScripts().catch(() => {});
-        };
-        Async.runWhenIdle(() => {
-            void fetchPageHtml('default').catch(() => {});
-            Async.runWhenIdle(warmAssets, { timeout: 8000 });
-        }, { timeout: 4000 });
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', scheduleWarmup);
-    } else {
-        scheduleWarmup();
-    }
-
     const pageLoader = freeze({
         mountMainPageElement,
         unmountMainPageElement,
         pageKeyFromHash,
         syncLocationHash,
         mainPagePaths,
-        prefetchAllPageHtml,
     });
 
     window.pageLoader = pageLoader;

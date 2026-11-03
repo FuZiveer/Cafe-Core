@@ -81,6 +81,19 @@
     /** Head Level (flick): fixed horizontal spawn width in meters. */
     const AIM_FLICK_SPREAD_M = 10;
     const AIM_PLACE_ATTEMPTS = 60;
+    /** Walk bounds from spawn: ±1 m left/right, up to 1 m forward (toward targets). */
+    const AIM_MOVE_LIMIT_M = 1;
+    const AIM_MOVE_SPEED = 4.5;
+    const AIM_MOVE_KEYS = new Set([
+        'KeyW',
+        'KeyA',
+        'KeyS',
+        'KeyD',
+        'ArrowUp',
+        'ArrowLeft',
+        'ArrowDown',
+        'ArrowRight',
+    ]);
 
     let activeTrainingId = null;
     let aimSessionHits = [];
@@ -119,6 +132,9 @@
     let sessionPhase = null;
     let countdownEnd = 0;
     let lastCountdownLabel = '';
+    /** Spawn X/Z for clamping movement (Y comes from `aimEyeHeight()`). */
+    let cameraSpawn = { x: 0, z: 0 };
+    const moveKeys = new Set();
 
     const pointer = { locked: false, rawMovement: false };
     const boundCanvas = {
@@ -130,6 +146,7 @@
         mousemove: null,
         pointerlockchange: null,
         keydown: null,
+        keyup: null,
         contextmenu: null,
     };
 
@@ -261,6 +278,54 @@
 
     function aimCameraInset() {
         return aimRoom().depth * 0.1;
+    }
+
+    function aimCameraSpawnZ() {
+        return aimRoom().depth / 2 - aimCameraInset();
+    }
+
+    function syncCameraSpawn() {
+        cameraSpawn.x = 0;
+        cameraSpawn.z = aimCameraSpawnZ();
+    }
+
+    function resetCameraPosition() {
+        if (!camera) return;
+        syncCameraSpawn();
+        camera.position.set(cameraSpawn.x, aimEyeHeight(), cameraSpawn.z);
+    }
+
+    function clampCameraToMoveBounds() {
+        if (!camera) return;
+        const minZ = cameraSpawn.z - AIM_MOVE_LIMIT_M;
+        camera.position.x = Math.max(
+            cameraSpawn.x - AIM_MOVE_LIMIT_M,
+            Math.min(cameraSpawn.x + AIM_MOVE_LIMIT_M, camera.position.x),
+        );
+        camera.position.z = Math.max(minZ, Math.min(cameraSpawn.z, camera.position.z));
+        camera.position.y = aimEyeHeight();
+    }
+
+    function updateCameraMovement(dt) {
+        if (!camera || sessionPhase !== 'playing' || moveKeys.size === 0) return;
+        let forward = 0;
+        let strafe = 0;
+        if (moveKeys.has('KeyW') || moveKeys.has('ArrowUp')) forward += 1;
+        if (moveKeys.has('KeyS') || moveKeys.has('ArrowDown')) forward -= 1;
+        if (moveKeys.has('KeyA') || moveKeys.has('ArrowLeft')) strafe -= 1;
+        if (moveKeys.has('KeyD') || moveKeys.has('ArrowRight')) strafe += 1;
+        if (forward === 0 && strafe === 0) return;
+
+        const len = Math.hypot(forward, strafe);
+        forward /= len;
+        strafe /= len;
+
+        const sin = Math.sin(yaw);
+        const cos = Math.cos(yaw);
+        const step = AIM_MOVE_SPEED * dt;
+        camera.position.x += (-sin * forward + cos * strafe) * step;
+        camera.position.z += (-cos * forward - sin * strafe) * step;
+        clampCameraToMoveBounds();
     }
 
     function aimTargetZ() {
@@ -1048,7 +1113,8 @@
      */
     function aimTrackMouseWorldFromYaw(yaw) {
         const dims = aimRoom();
-        const camZ = dims.depth / 2 - aimCameraInset();
+        const camX = camera?.position.x ?? 0;
+        const camZ = camera?.position.z ?? aimCameraSpawnZ();
         const eye = aimEyeHeight();
         const inset = Math.max(0.45, aimTargetRadius() + 0.12);
         const dx = Math.sin(yaw);
@@ -1073,18 +1139,22 @@
 
         if (Math.abs(dz) > 1e-6) {
             const t = (minZ - camZ) / dz;
-            consider(t, dx * t, minZ);
+            consider(t, camX + dx * t, minZ);
         }
         if (Math.abs(dx) > 1e-6) {
-            const tRight = (maxX - 0) / dx;
+            const tRight = (maxX - camX) / dx;
             consider(tRight, maxX, camZ + dz * tRight);
-            const tLeft = (minX - 0) / dx;
+            const tLeft = (minX - camX) / dx;
             consider(tLeft, minX, camZ + dz * tLeft);
         }
 
         if (!Number.isFinite(bestT)) {
             const dist = aimTrackDepth();
-            return { x: Math.sin(yaw) * dist, y: eye, z: camZ - Math.cos(yaw) * dist };
+            return {
+                x: camX + Math.sin(yaw) * dist,
+                y: eye,
+                z: camZ - Math.cos(yaw) * dist,
+            };
         }
         return { x: hitX, y: eye, z: hitZ };
     }
@@ -1423,6 +1493,7 @@
         } else if (sessionPhase === 'playing') {
             const dt = Math.min(0.1, (now - (lastAnimTime || now)) / 1000);
             lastAnimTime = now;
+            updateCameraMovement(dt);
             if (aimIsMovingTrack()) {
                 updateTrackTargets(dt);
                 if (aimIsHoldFireTrack() && fireHeld) {
@@ -1469,6 +1540,7 @@
         sessionPhase = null;
         fireHeld = false;
         lastFireAt = 0;
+        moveKeys.clear();
         setCountdownVisible(false);
         setStartOverlayVisible(false);
         setCrosshairVisible(false);
@@ -1505,6 +1577,9 @@
         }
         if (boundCanvas.keydown) {
             document.removeEventListener('keydown', boundCanvas.keydown);
+        }
+        if (boundCanvas.keyup) {
+            document.removeEventListener('keyup', boundCanvas.keyup);
         }
         Object.keys(boundCanvas).forEach((k) => { boundCanvas[k] = null; });
 
@@ -1586,10 +1661,11 @@
             setTargetsVisible(false);
         }
         if (camera) {
-            camera.position.y = aimEyeHeight();
+            resetCameraPosition();
             camera.rotation.order = 'YXZ';
             camera.rotation.set(0, 0, 0);
         }
+        moveKeys.clear();
         enterReadyPhase();
     }
 
@@ -1658,7 +1734,7 @@
 
         camera = new THREE.PerspectiveCamera(75, 1, 0.1, 80);
         camera.rotation.order = 'YXZ';
-        camera.position.set(0, aimEyeHeight(), aimRoom().depth / 2 - aimCameraInset());
+        resetCameraPosition();
         camera.rotation.set(0, 0, 0);
 
         scene.add(buildRoom(THREE));
@@ -1731,6 +1807,7 @@
             if (document.pointerLockElement !== canvas) {
                 pointer.rawMovement = false;
                 fireHeld = false;
+                moveKeys.clear();
             }
         };
         boundCanvas.keydown = (event) => {
@@ -1740,6 +1817,20 @@
             }
             if (event.key === 'Escape' && document.pointerLockElement === canvas) {
                 document.exitPointerLock();
+                return;
+            }
+            if (
+                sessionPhase === 'playing'
+                && document.pointerLockElement === canvas
+                && AIM_MOVE_KEYS.has(event.code)
+            ) {
+                event.preventDefault();
+                moveKeys.add(event.code);
+            }
+        };
+        boundCanvas.keyup = (event) => {
+            if (AIM_MOVE_KEYS.has(event.code)) {
+                moveKeys.delete(event.code);
             }
         };
         boundCanvas.contextmenu = (event) => event.preventDefault();
@@ -1751,6 +1842,7 @@
         canvas.addEventListener('contextmenu', boundCanvas.contextmenu);
         document.addEventListener('pointerlockchange', boundCanvas.pointerlockchange);
         document.addEventListener('keydown', boundCanvas.keydown);
+        document.addEventListener('keyup', boundCanvas.keyup);
 
         if (typeof ResizeObserver !== 'undefined') {
             const viewport = canvas.parentElement;

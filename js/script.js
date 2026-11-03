@@ -20,8 +20,7 @@ const flyoutData = coreFreeze({
             { id: 'tool-sens', name: 'Sensitivity Converter', icon: 'fa-bolt' },
             { id: 'tool-edpi', name: 'EDPI Calculator', icon: 'fa-calculator' },
             { id: 'tool-aim', name: 'Aim Trainer', icon: 'fa-crosshairs' },
-            { id: 'tool-bottleneck', name: 'Bottleneck Checker', icon: 'fa-microchip' },
-            { id: 'tool-notes', name: 'Note Creator', icon: 'fa-pen-to-square' }
+            { id: 'tool-bottleneck', name: 'Bottleneck Checker', icon: 'fa-microchip' }
         ]
     },
     strats: {
@@ -42,7 +41,6 @@ const flyoutData = coreFreeze({
 
 const topBarLabels = coreFreeze({
     home: 'Home',
-    'find-team': 'Find a team',
     apps: 'Apps',
     tools: 'Tools',
     strats: 'Strats',
@@ -57,7 +55,7 @@ let isCollapsed = false;
 
 const brandColors = [
     { name: 'Raven', hex: '#0a0a0c', usage: 'App background' },
-    { name: 'Cursed Black', hex: '#121215', usage: 'Sidebar, header, panels' },
+    { name: 'Cursed Black', hex: '#141418', usage: 'Sidebar, header, panels' },
     { name: 'Gluon Grey', hex: '#1a1a1e', usage: 'Borders, hover surfaces' },
     { name: 'Closed Shutter', hex: '#26262b', usage: 'Strong borders, controls' },
     { name: 'Future Fuchsia', hex: '#ff1e43', usage: 'Primary accent' },
@@ -71,7 +69,7 @@ const BRAND_LOGO_FALLBACK = '';
 
 const brandLogoBackgrounds = [
     { name: 'Raven', hex: '#0a0a0c' },
-    { name: 'Cursed Black', hex: '#121215' },
+    { name: 'Cursed Black', hex: '#141418' },
     { name: 'Blue Blouse', hex: '#94a3b8' },
 ];
 
@@ -117,13 +115,11 @@ const appsCatalog = [
 const mainPageIds = coreFreeze({
     default: 'page-default',
     apps: 'page-apps',
-    'find-team': 'page-find-team',
     branding: 'page-branding',
     fuziveer: 'page-fuziveer',
     'black-listed': 'page-black-listed',
     privacy: 'page-privacy-policy',
     terms: 'page-terms-of-service',
-    notes: 'page-notes',
     bottleneck: 'page-bottleneck',
     sensitivity: 'page-sensitivity',
     edpi: 'page-edpi',
@@ -135,7 +131,6 @@ window.mainPageIds = mainPageIds;
 
 function normalizeMainPageKey(pageKey) {
     if (pageKey === 'lineups' && !TIPS_AND_TRICKS_PAGE_ENABLED) return 'default';
-    if (pageKey === 'find-team' && isMainPageNavDisabled('find-team')) return 'default';
     return pageKey in mainPageIds ? pageKey : 'default';
 }
 
@@ -462,15 +457,12 @@ function resetMainPageMotion(pageEl) {
 
 function applyMainPageInstant(nextPage) {
     mainPageAnimToken += 1;
-    document.querySelectorAll('.main-page').forEach((el) => {
-        if (mainPageTransitionHandler) {
-            el.removeEventListener('transitionend', mainPageTransitionHandler);
-        }
-        resetMainPageMotion(el);
-        el.classList.remove('main-page-active');
-    });
+    if (mainPageTransitionHandler && nextPage) {
+        nextPage.removeEventListener('transitionend', mainPageTransitionHandler);
+    }
     mainPageTransitionHandler = null;
     resetMainContentScrollAfterSwap();
+    resetMainPageMotion(nextPage);
     nextPage.classList.add('main-page-active');
 }
 
@@ -495,10 +487,9 @@ function waitForMainPageExit(prevPage, token) {
     });
 }
 
-function revealMainPage(prevPage, nextPage, nextKey, token) {
+function revealMainPage(nextPage, nextKey, token) {
     if (token !== mainPageAnimToken) return;
     resetMainPageMotion(nextPage);
-    prevPage.classList.remove('main-page-active', 'main-page-exit');
     resetMainContentScrollAfterSwap();
     nextPage.classList.add('main-page-active', 'main-page-enter-prep');
     requestAnimationFrame(() => {
@@ -591,10 +582,14 @@ async function setMainPageInternal(pageKey, options = {}) {
         destroyHomeFeatureCardTilt();
     }
 
-    const mountPromise = window.pageLoader.mountMainPageElement(nextKey);
+    const animateExit = prevPage && !isReducedMotionEnabled();
 
-    if (isReducedMotionEnabled() || !prevPage) {
-        const nextPage = await mountPromise;
+    if (!animateExit) {
+        if (prevPage) {
+            resetMainPageMotion(prevPage);
+            window.pageLoader.unmountMainPageElement(prevPage);
+        }
+        const nextPage = await window.pageLoader.mountMainPageElement(nextKey);
         if (!nextPage) return;
         applyMainPageInstant(nextPage);
         currentMainPageKey = nextKey;
@@ -615,25 +610,15 @@ async function setMainPageInternal(pageKey, options = {}) {
     resetMainPageMotion(prevPage);
     void prevPage.offsetHeight;
     prevPage.classList.add('main-page-exit');
+    await waitForMainPageExit(prevPage, token);
+    if (token !== mainPageAnimToken) return;
 
-    const exitPromise = waitForMainPageExit(prevPage, token);
-    const nextPage = await mountPromise;
+    window.pageLoader.unmountMainPageElement(prevPage);
+
+    const nextPage = await window.pageLoader.mountMainPageElement(nextKey);
     if (!nextPage) return;
 
-    if (prevPage === nextPage) {
-        resetMainPageMotion(prevPage);
-        prevPage.classList.remove('main-page-exit');
-        currentMainPageKey = nextKey;
-        window.pageLoader.syncLocationHash(nextKey);
-        syncPlaceholderPageView(nextKey);
-        resetMainContentScrollAfterSwap();
-        if (nextKey === 'default') initHomeFeatureCardTilt();
-        return;
-    }
-
-    resetMainPageMotion(nextPage);
-    await exitPromise;
-    revealMainPage(prevPage, nextPage, nextKey, token);
+    revealMainPage(nextPage, nextKey, token);
 }
 
 const mainPageInitOnce = new Set();
@@ -643,14 +628,15 @@ window.clearMainPageInitState = function clearMainPageInitState(pageKey) {
     if (pageKey === 'sensitivity') window.__sensitivityConverterMounted = false;
     if (pageKey === 'edpi') window.__edpiCalculatorMounted = false;
     if (pageKey === 'bottleneck') window.__bottleneckPicklistsMounted = false;
-    if (pageKey === 'find-team' && typeof window.teardownFindTeamPage === 'function') {
-        window.teardownFindTeamPage();
-    }
     if (pageKey === 'black-listed' && typeof window.teardownBlackListedPage === 'function') {
         window.teardownBlackListedPage();
     }
     if (pageKey === 'aim-trainer' && typeof window.teardownAimTrainerPage === 'function') {
         window.teardownAimTrainerPage();
+    }
+    if (pageKey === 'lineups') {
+        closeLineupsVideoModal();
+        pauseLineupsVideos();
     }
 };
 
@@ -660,6 +646,28 @@ function destroyHomeFeatureCardTilt() {
     root.querySelectorAll('.home-feature-card').forEach((card) => {
         if (card.vanillaTilt && typeof card.vanillaTilt.destroy === 'function') {
             card.vanillaTilt.destroy();
+        }
+    });
+}
+
+function resetHomeFeatureCardTiltIdle() {
+    if (document.body.classList.contains('settings-modal-open')) return;
+    const root = document.getElementById('page-default');
+    if (!root?.classList.contains('main-page-active')) return;
+    root.querySelectorAll('.home-feature-card').forEach((card) => {
+        const tilt = card.vanillaTilt;
+        if (tilt && typeof tilt.resetToIdle === 'function') {
+            tilt.resetToIdle({ immediate: true });
+        }
+    });
+}
+
+function bindHomeFeatureCardTiltLifecycle() {
+    if (window.__cafeHomeTiltLifecycleBound) return;
+    window.__cafeHomeTiltLifecycleBound = true;
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            resetHomeFeatureCardTiltIdle();
         }
     });
 }
@@ -751,6 +759,7 @@ function ensureVanillaTiltScript() {
 function initHomeFeatureCardTilt() {
     const root = document.getElementById('page-default');
     if (root) initHomeHeroMarquees(root);
+    bindHomeFeatureCardTiltLifecycle();
 
     void ensureVanillaTiltScript().then(() => {
         if (typeof window.VanillaTilt === 'undefined') return;
@@ -761,6 +770,8 @@ function initHomeFeatureCardTilt() {
             destroyHomeFeatureCardTilt();
             return;
         }
+
+        destroyHomeFeatureCardTilt();
 
         const cards = root.querySelectorAll('.home-feature-card');
         window.VanillaTilt.init(cards, {
@@ -802,9 +813,6 @@ window.initMainPage = async function initMainPage(pageKey) {
         case 'lineups':
             initLineupsPage();
             break;
-        case 'find-team':
-            if (typeof window.initFindTeamPage === 'function') window.initFindTeamPage();
-            break;
         case 'black-listed':
             if (typeof window.initBlackListedPage === 'function') window.initBlackListedPage();
             break;
@@ -827,7 +835,6 @@ function mainPageKeyForFlyoutItem(itemId) {
     if (itemId === 'more-black-listed') return 'black-listed';
     if (itemId === 'more-privacy-policy') return 'privacy';
     if (itemId === 'more-terms-of-service') return 'terms';
-    if (itemId === 'tool-notes') return 'notes';
     if (itemId === 'tool-bottleneck') return 'bottleneck';
     if (itemId === 'tool-sens') return 'sensitivity';
     if (itemId === 'tool-edpi') return 'edpi';
@@ -839,7 +846,6 @@ function mainPageKeyForFlyoutItem(itemId) {
 }
 
 function isFlyoutItemNavDisabled(itemId) {
-    if (itemId === 'tool-notes') return true;
     if ((itemId === 'strat-tips' || itemId === 'strat-lineups') && !TIPS_AND_TRICKS_PAGE_ENABLED) {
         return true;
     }
@@ -847,8 +853,6 @@ function isFlyoutItemNavDisabled(itemId) {
 }
 
 function isMainPageNavDisabled(pageKey) {
-    if (pageKey === 'notes') return true;
-    if (pageKey === 'find-team') return true;
     if (pageKey === 'lineups' && !TIPS_AND_TRICKS_PAGE_ENABLED) return true;
     return false;
 }
@@ -896,7 +900,6 @@ const mainPageKeyToFlyoutItemId = {
     sensitivity: 'tool-sens',
     bottleneck: 'tool-bottleneck',
     'aim-trainer': 'tool-aim',
-    notes: 'tool-notes',
     branding: 'more-branding',
     fuziveer: 'more-fuziveer',
     'black-listed': 'more-black-listed',
@@ -942,7 +945,6 @@ function findFlyoutItemDefinition(itemId) {
 }
 
 function resolveComingSoonLabel(pageKey) {
-    if (pageKey === 'notes') return 'Note Creator';
     if (pageKey !== 'default') return null;
     if (selectedFlyoutItem) {
         const found = findFlyoutItemDefinition(selectedFlyoutItem);
@@ -989,7 +991,6 @@ function syncDefaultPageView() {
 
 function syncPlaceholderPageView(pageKey) {
     if (pageKey === 'default') syncDefaultPageView();
-    else if (pageKey === 'notes') updateComingSoonMessage('notes');
 }
 
 function navigateToMainPage(pageKey) {
@@ -1075,17 +1076,6 @@ function syncNavUiForMainPage(pageKey, { animate = false } = {}) {
         setTopBarTitle(topBarLabels.apps, {
             animate,
             iconClasses: getTopBarIconClassesFromEl(appsBtn),
-        });
-        return;
-    }
-
-    if (pageKey === 'find-team') {
-        selectedFlyoutItem = null;
-        const findTeamBtn = findNavBtnForSidebarTab('find-team');
-        setSidebarNavActive(findTeamBtn, { animate });
-        setTopBarTitle(topBarLabels['find-team'], {
-            animate,
-            iconClasses: getTopBarIconClassesFromEl(findTeamBtn),
         });
         return;
     }
@@ -1268,7 +1258,24 @@ function updateBottleneckRecommendation(cpu, gpu, bottleneckResult) {
     detailEl.textContent = rec.detail;
 }
 
-let glideSelectorAnimToken = 0;
+/** Wrap-around slide when the circular path is shorter than sliding through every tab in between. */
+function shouldUseGliderWrapAnimation(prevIndex, activeIndex, count) {
+    if (prevIndex === activeIndex || count < 2) return false;
+    const direct = Math.abs(activeIndex - prevIndex);
+    const wrap = count - direct;
+    return wrap < direct;
+}
+
+function glideSelectorAnimToken(root) {
+    if (!root) return 0;
+    return parseInt(root.dataset.glideAnimToken || '0', 10) || 0;
+}
+
+function nextGlideSelectorAnimToken(root) {
+    const token = glideSelectorAnimToken(root) + 1;
+    if (root) root.dataset.glideAnimToken = String(token);
+    return token;
+}
 
 function getGlideGapPx(track) {
     const raw = getComputedStyle(track).columnGap || getComputedStyle(track).gap || '0';
@@ -1307,8 +1314,8 @@ function finishManualGlide(track, thumb, toIndex) {
     track.style.setProperty('--glide-index', String(toIndex));
 }
 
-function animateGlideCross(track, thumb, fromIndex, toIndex, count) {
-    const token = ++glideSelectorAnimToken;
+function animateGlideCross(root, track, thumb, fromIndex, toIndex, count) {
+    const token = nextGlideSelectorAnimToken(root);
     const step = getGlideThumbStepPx(track);
     if (!step) {
         track.style.setProperty('--glide-index', String(toIndex));
@@ -1326,6 +1333,14 @@ function animateGlideCross(track, thumb, fromIndex, toIndex, count) {
         ? getGlideThumbXForIndex(track, count, count, step)
         : getGlideThumbXForIndex(track, -1, count, step);
 
+    const settleGlide = () => {
+        if (glideSelectorAnimToken(root) !== token) return;
+        finishManualGlide(track, thumb, toIndex);
+    };
+
+    const fallbackMs = motionTimeoutMs(MOTION_MS * 3 + 80);
+    const fallbackTimer = setTimeout(settleGlide, fallbackMs);
+
     track.classList.add('glide-selector-track--manual-thumb');
     thumb.style.transition = 'none';
     thumb.style.transform = `translateX(${fromX}px)`;
@@ -1335,7 +1350,7 @@ function animateGlideCross(track, thumb, fromIndex, toIndex, count) {
 
     const onExitEnd = (e) => {
         if (e.propertyName !== 'transform') return;
-        if (token !== glideSelectorAnimToken) return;
+        if (token !== glideSelectorAnimToken(root)) return;
         thumb.removeEventListener('transitionend', onExitEnd);
 
         thumb.style.transition = 'none';
@@ -1343,14 +1358,15 @@ function animateGlideCross(track, thumb, fromIndex, toIndex, count) {
         void thumb.offsetHeight;
 
         requestAnimationFrame(() => {
-            if (token !== glideSelectorAnimToken) return;
+            if (token !== glideSelectorAnimToken(root)) return;
             thumb.style.transition = transition;
             thumb.style.transform = `translateX(${toX}px)`;
 
             const onEnterEnd = (e2) => {
                 if (e2.propertyName !== 'transform') return;
-                if (token !== glideSelectorAnimToken) return;
+                if (token !== glideSelectorAnimToken(root)) return;
                 thumb.removeEventListener('transitionend', onEnterEnd);
+                clearTimeout(fallbackTimer);
                 finishManualGlide(track, thumb, toIndex);
             };
             thumb.addEventListener('transitionend', onEnterEnd);
@@ -1388,7 +1404,7 @@ function applyGlideSelection(root, activeIndex, options) {
     root.dataset.glideIndex = String(activeIndex);
 }
 
-function syncGlideSelector(root, { fromIndex } = {}) {
+function syncGlideSelector(root, { fromIndex, instant = false } = {}) {
     if (!root) return;
     const track = root.querySelector('.glide-selector-track');
     const thumb = track?.querySelector('.glide-selector-thumb');
@@ -1405,31 +1421,54 @@ function syncGlideSelector(root, { fromIndex } = {}) {
     const prevIndex = fromIndex ?? parseInt(root.dataset.glideIndex ?? String(activeIndex), 10);
     applyGlideSelection(root, activeIndex, options);
 
-    const delta = Math.abs(activeIndex - prevIndex);
-    const shouldWrap = delta > 1;
-    if (shouldWrap && !isReducedMotionEnabled() && thumb && prevIndex !== activeIndex) {
-        animateGlideCross(track, thumb, prevIndex, activeIndex, options.length);
+    if (instant || isReducedMotionEnabled()) {
+        nextGlideSelectorAnimToken(root);
+        finishManualGlide(track, thumb, activeIndex);
         return;
     }
 
-    if (prevIndex !== activeIndex) glideSelectorAnimToken += 1;
+    if (
+        shouldUseGliderWrapAnimation(prevIndex, activeIndex, options.length)
+        && thumb
+    ) {
+        animateGlideCross(root, track, thumb, prevIndex, activeIndex, options.length);
+        return;
+    }
+
+    if (prevIndex !== activeIndex) nextGlideSelectorAnimToken(root);
     finishManualGlide(track, thumb, activeIndex);
 }
 
+function unbindGlideSelectorRoot(root) {
+    if (!root) return;
+    root._glideClickAbort?.abort();
+    root._glideClickAbort = null;
+    delete root.dataset.glideBound;
+}
+
 function initGlideSelectorRoot(root, { onChange, valueKey = 'resolution' } = {}) {
-    if (!root || root.dataset.glideBound === '1') return;
+    if (!root) return;
+    if (root.dataset.glideBound === '1') return;
+    root._glideClickAbort?.abort();
+    const clickAbort = new AbortController();
+    root._glideClickAbort = clickAbort;
     root.dataset.glideBound = '1';
     root.dataset.glideValueKey = valueKey;
 
     syncGlideSelector(root);
 
     root.querySelectorAll('.glide-selector-option').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const prevIndex = parseInt(root.dataset.glideIndex ?? '0', 10);
-            root.dataset.value = getGlideOptionValue(btn, valueKey) || '';
-            syncGlideSelector(root, { fromIndex: prevIndex });
-            if (onChange) onChange();
-        });
+        btn.addEventListener(
+            'click',
+            () => {
+                if (btn.disabled) return;
+                const prevIndex = parseInt(root.dataset.glideIndex ?? '0', 10);
+                root.dataset.value = getGlideOptionValue(btn, valueKey) || '';
+                syncGlideSelector(root, { fromIndex: prevIndex });
+                if (onChange) onChange();
+            },
+            { signal: clickAbort.signal },
+        );
     });
 }
 
@@ -2744,18 +2783,12 @@ function updateLineupsGamePanel({ resetFilters = false, syncFilters = true } = {
 
 function initLineupsGameGlide() {
     const root = document.getElementById('lineups-game-glide');
-    if (!root || root.dataset.glideBound === '1') return;
-    root.dataset.glideBound = '1';
-
-    syncGlideSelector(root);
-
-    root.querySelectorAll('.glide-selector-option').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const prevIndex = parseInt(root.dataset.glideIndex ?? '0', 10);
-            root.dataset.value = btn.dataset.resolution || LINEUPS_DEFAULT_GAME;
-            syncGlideSelector(root, { fromIndex: prevIndex });
+    if (!root) return;
+    initGlideSelectorRoot(root, {
+        valueKey: 'resolution',
+        onChange: () => {
             updateLineupsGamePanel({ resetFilters: true });
-        });
+        },
     });
 }
 
@@ -2856,20 +2889,28 @@ function clearToolPicklistMenuFixedLayout(root, menu) {
     if (root) restoreToolPicklistMenuHome(root, el);
 }
 
+function getToolPicklistFixedLayoutContext(root) {
+    if (!root) return null;
+    const aimModal = root.closest('#aim-trainer-settings-modal');
+    if (aimModal) {
+        return { portal: aimModal, zIndex: '110', scrollRoot: aimModal.querySelector('.aim-trainer-settings-body') };
+    }
+    return null;
+}
+
 function syncToolPicklistMenuLayout(root) {
     const menu = getToolPicklistMenu(root);
     const control = root?.querySelector('.tool-picklist-control') || root;
     if (!menu || !root?.classList.contains('is-open')) return;
-    const modal = root.closest('#aim-trainer-settings-modal');
-    if (!modal) {
+    const ctx = getToolPicklistFixedLayoutContext(root);
+    if (!ctx) {
         clearToolPicklistMenuFixedLayout(root, menu);
         return;
     }
-    // Portal outside the transformed shell so position:fixed uses the viewport
-    // (shell transform would otherwise offset getBoundingClientRect coords).
+    // Portal outside clipping/transform ancestors so position:fixed aligns to the viewport.
     if (!root._picklistMenuHome) root._picklistMenuHome = menu.parentElement;
     root._picklistMenuEl = menu;
-    if (menu.parentElement !== modal) modal.appendChild(menu);
+    if (menu.parentElement !== ctx.portal) ctx.portal.appendChild(menu);
 
     const anchor = control.getBoundingClientRect();
     const gap = 4;
@@ -2878,22 +2919,21 @@ function syncToolPicklistMenuLayout(root) {
     menu.style.left = `${anchor.left}px`;
     menu.style.width = `${anchor.width}px`;
     menu.style.right = 'auto';
-    menu.style.zIndex = '110';
-    // Always open below the field, same as page picklists — may extend past the panel.
+    menu.style.zIndex = ctx.zIndex;
     menu.style.top = `${anchor.bottom + gap}px`;
 }
 
 function bindToolPicklistModalLayout(root) {
-    if (!root?.closest('#aim-trainer-settings-modal')) return;
+    const ctx = getToolPicklistFixedLayoutContext(root);
+    if (!ctx) return;
     if (root.dataset.picklistLayoutBound === '1') return;
     root.dataset.picklistLayoutBound = '1';
     const reposition = () => {
         if (root.classList.contains('is-open')) syncToolPicklistMenuLayout(root);
     };
     window.addEventListener('resize', reposition);
-    root.closest('#aim-trainer-settings-modal')
-        ?.querySelector('.aim-trainer-settings-body')
-        ?.addEventListener('scroll', reposition, { passive: true });
+    window.addEventListener('scroll', reposition, { passive: true, capture: true });
+    ctx.scrollRoot?.addEventListener('scroll', reposition, { passive: true });
 }
 
 function setToolPicklistMenuOpen(root, menu, open) {
@@ -3636,7 +3676,6 @@ async function initBottleneckChecker() {
 
 function mainPageKeyForSidebarTab(tabType) {
     if (tabType === 'apps') return 'apps';
-    if (tabType === 'find-team') return 'find-team';
     return 'default';
 }
 
@@ -4549,7 +4588,7 @@ function syncSettingsUiSoundGlide() {
     if (!root) return;
     root.dataset.value = appSettings.uiSoundPreset;
     if (root.dataset.glideBound === '1') {
-        syncGlideSelector(root);
+        syncGlideSelector(root, { instant: true });
     }
     const locked = !appSettings.systemSounds;
     root.classList.toggle('glide-selector--locked', locked);
@@ -4763,7 +4802,17 @@ function handleSettingsClick() {
 }
 
 let settingsTabId = 'system';
-let settingsTabGliderAnimToken = 0;
+
+function verticalTabGliderAnimToken(row) {
+    if (!row) return 0;
+    return parseInt(row.dataset.tabGliderAnimToken || '0', 10) || 0;
+}
+
+function nextVerticalTabGliderAnimToken(row) {
+    const token = verticalTabGliderAnimToken(row) + 1;
+    row.dataset.tabGliderAnimToken = String(token);
+    return token;
+}
 
 function finishVerticalTabGlider(glider, top, height) {
     if (!glider) return;
@@ -4773,7 +4822,7 @@ function finishVerticalTabGlider(glider, top, height) {
 }
 
 function animateVerticalTabGliderCross(row, glider, fromBtn, toBtn, fromIndex, toIndex) {
-    const token = ++settingsTabGliderAnimToken;
+    const token = nextVerticalTabGliderAnimToken(row);
     const transition = `top ${MOTION_MS}ms ${MOTION_EASE}, height ${MOTION_MS}ms ${MOTION_EASE}`;
     const fromTop = fromBtn.offsetTop;
     const fromH = fromBtn.offsetHeight;
@@ -4782,6 +4831,14 @@ function animateVerticalTabGliderCross(row, glider, fromBtn, toBtn, fromIndex, t
     const goingDown = toIndex > fromIndex;
     const exitTop = goingDown ? -(fromH + 4) : row.clientHeight + 4;
     const enterTop = goingDown ? row.clientHeight + 4 : -(toH + 4);
+
+    const settleGlider = () => {
+        if (verticalTabGliderAnimToken(row) !== token) return;
+        finishVerticalTabGlider(glider, toTop, toH);
+    };
+
+    const fallbackMs = motionTimeoutMs(MOTION_MS * 3 + 80);
+    const fallbackTimer = setTimeout(settleGlider, fallbackMs);
 
     row.classList.remove('is-instant');
     glider.style.transition = 'none';
@@ -4793,7 +4850,7 @@ function animateVerticalTabGliderCross(row, glider, fromBtn, toBtn, fromIndex, t
 
     const onExitEnd = (e) => {
         if (e.propertyName !== 'top') return;
-        if (token !== settingsTabGliderAnimToken) return;
+        if (token !== verticalTabGliderAnimToken(row)) return;
         glider.removeEventListener('transitionend', onExitEnd);
 
         glider.style.transition = 'none';
@@ -4802,14 +4859,15 @@ function animateVerticalTabGliderCross(row, glider, fromBtn, toBtn, fromIndex, t
         void glider.offsetHeight;
 
         requestAnimationFrame(() => {
-            if (token !== settingsTabGliderAnimToken) return;
+            if (token !== verticalTabGliderAnimToken(row)) return;
             glider.style.transition = transition;
             glider.style.top = `${toTop}px`;
 
             const onEnterEnd = (e2) => {
                 if (e2.propertyName !== 'top') return;
-                if (token !== settingsTabGliderAnimToken) return;
+                if (token !== verticalTabGliderAnimToken(row)) return;
                 glider.removeEventListener('transitionend', onEnterEnd);
+                clearTimeout(fallbackTimer);
                 finishVerticalTabGlider(glider, toTop, toH);
             };
             glider.addEventListener('transitionend', onEnterEnd);
@@ -4835,20 +4893,22 @@ function syncVerticalTabGlider(row, glider, { instant = false, fromIndex } = {})
     const reduceMotion = isReducedMotionEnabled();
 
     if (instant || reduceMotion) {
-        settingsTabGliderAnimToken += 1;
+        nextVerticalTabGliderAnimToken(row);
         row.classList.add('is-instant');
         finishVerticalTabGlider(glider, toTop, toH);
         requestAnimationFrame(() => row.classList.remove('is-instant'));
         return;
     }
 
-    const skipJump = Math.abs(activeIndex - prevIndex) > 1;
-    if (skipJump && prevIndex !== activeIndex && buttons[prevIndex]) {
+    if (
+        shouldUseGliderWrapAnimation(prevIndex, activeIndex, buttons.length)
+        && buttons[prevIndex]
+    ) {
         animateVerticalTabGliderCross(row, glider, buttons[prevIndex], activeBtn, prevIndex, activeIndex);
         return;
     }
 
-    if (prevIndex !== activeIndex) settingsTabGliderAnimToken += 1;
+    if (prevIndex !== activeIndex) nextVerticalTabGliderAnimToken(row);
     glider.style.transition = '';
     glider.style.top = `${toTop}px`;
     glider.style.height = `${toH}px`;
@@ -5188,13 +5248,73 @@ function markAllNotificationsRead() {
     renderNotifications();
 }
 
+let notificationDropdownPortaled = false;
+let notificationDropdownPositionBound = false;
+
+function portalNotificationDropdown() {
+    const dropdown = document.getElementById('notification-dropdown');
+    if (!dropdown || notificationDropdownPortaled) return;
+    if (dropdown.parentElement !== document.body) {
+        document.body.appendChild(dropdown);
+    }
+    dropdown.dataset.notificationPortaled = '1';
+    notificationDropdownPortaled = true;
+}
+
+function layoutNotificationDropdown() {
+    const dropdown = document.getElementById('notification-dropdown');
+    const btn = document.getElementById('notification-btn');
+    if (!dropdown || !btn) return;
+
+    const rect = btn.getBoundingClientRect();
+    const gap = 4;
+    dropdown.style.top = `${Math.round(rect.bottom + gap)}px`;
+    dropdown.style.right = `${Math.round(window.innerWidth - rect.right)}px`;
+    dropdown.style.left = 'auto';
+    dropdown.style.bottom = 'auto';
+}
+
+function positionNotificationDropdown() {
+    const dropdown = document.getElementById('notification-dropdown');
+    if (!dropdown || !dropdown.classList.contains('dropdown-open')) return;
+    layoutNotificationDropdown();
+}
+
+function bindNotificationDropdownPositionListeners() {
+    if (notificationDropdownPositionBound) return;
+    notificationDropdownPositionBound = true;
+    window.addEventListener('resize', positionNotificationDropdown);
+    window.addEventListener('scroll', positionNotificationDropdown, true);
+    document.getElementById('main-content')?.addEventListener('scroll', positionNotificationDropdown, {
+        passive: true,
+    });
+}
+
 function setNotificationDropdownOpen(open) {
     const dropdown = document.getElementById('notification-dropdown');
     const btn = document.getElementById('notification-btn');
     if (!dropdown || !btn) return;
-    dropdown.classList.toggle('dropdown-open', open);
-    dropdown.classList.toggle('dropdown-closed', !open);
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+    portalNotificationDropdown();
+    bindNotificationDropdownPositionListeners();
+
+    if (open) {
+        layoutNotificationDropdown();
+        dropdown.classList.remove('dropdown-open');
+        dropdown.classList.add('dropdown-closed');
+        void dropdown.offsetHeight;
+        requestAnimationFrame(() => {
+            dropdown.classList.remove('dropdown-closed');
+            dropdown.classList.add('dropdown-open');
+            btn.setAttribute('aria-expanded', 'true');
+            layoutNotificationDropdown();
+        });
+    } else {
+        dropdown.classList.remove('dropdown-open');
+        dropdown.classList.add('dropdown-closed');
+        btn.setAttribute('aria-expanded', 'false');
+    }
+
     if (open && notifications.length > 0) {
         startNotificationTimeRefresh();
     } else {
@@ -5210,6 +5330,8 @@ function initNotifications() {
     const listEl = document.getElementById('notification-list');
 
     renderNotifications();
+    portalNotificationDropdown();
+    bindNotificationDropdownPositionListeners();
 
     listEl?.addEventListener('click', (event) => {
         const btn = event.target.closest('.notification-item[data-notification-id]');
@@ -5330,9 +5452,11 @@ window.__cafeCorePicklist = {
 window.__cafeCoreGlide = {
     init: initGlideSelectorRoot,
     sync: syncGlideSelector,
+    unbind: unbindGlideSelectorRoot,
 };
 
 window.syncVerticalTabGlider = syncVerticalTabGlider;
+window.shouldUseGliderWrapAnimation = shouldUseGliderWrapAnimation;
 
 window.addEventListener('DOMContentLoaded', () => {
     initToolPicklistDismiss();

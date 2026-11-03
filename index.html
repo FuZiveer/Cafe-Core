@@ -18,7 +18,7 @@
                     colors: {
                         matte: {
                             950: '#0a0a0c',
-                            900: '#121215',
+                            900: '#141418',
                             800: '#1a1a1e',
                             700: '#26262b',
                         },
@@ -89,10 +89,6 @@
                     </div>
                     <i class="fa-solid fa-chevron-right text-xs opacity-70 transition-transform motion-standard chevron-icon"></i>
                 </button>
-                <button type="button" data-nav-page="find-team" onclick="handleSidebarClick(this, 'find-team')" class="nav-btn direct-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left" disabled aria-disabled="true">
-                    <i class="fa-solid fa-user-group w-5 text-center flex-shrink-0"></i>
-                    <span class="btn-label sidebar-slide-fade whitespace-nowrap">Find a team</span>
-                </button>
                 <button onclick="handleSidebarClick(this, 'apps')" class="nav-btn direct-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left">
                     <i class="fa-solid fa-cubes w-5 text-center flex-shrink-0"></i>
                     <span class="btn-label sidebar-slide-fade whitespace-nowrap">Apps</span>
@@ -137,7 +133,7 @@
                         <i class="fa-solid fa-bell text-sm"></i>
                         <span id="notification-dot" class="absolute top-2 right-2 w-1.5 h-1.5 rounded-lg bg-redneon-500 hidden"></span>
                     </button>
-                    <div id="notification-dropdown" class="dropdown-closed absolute right-0 top-full mt-1 w-80 bg-matte-900 border border-matte-800 rounded-lg z-50 overflow-hidden">
+                    <div id="notification-dropdown" class="dropdown-closed absolute right-0 top-full mt-1 w-80 bg-matte-900 border border-matte-800 rounded-lg overflow-hidden">
                         <div class="flex items-center justify-between px-4 py-3 border-b border-matte-800 gap-2">
                             <span class="text-sm font-bold tracking-widest uppercase text-white shrink-0">Notifications</span>
                             <div id="notification-actions" class="flex items-center gap-2 shrink-0">
@@ -373,7 +369,6 @@
     <div id="cafe-toast-host" class="cafe-toast-host" aria-live="polite" aria-atomic="true"></div>
 
     <script src="js/cafe-core.js" defer></script>
-    <script src="js/page-html-bundle.js" defer></script>
     <script src="js/page-loader.js" defer></script>
     <script src="js/script.js" defer></script>
 </body>

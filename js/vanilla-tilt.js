@@ -86,10 +86,17 @@ class VanillaTilt {
     this.onMouseLeaveBind = this.onMouseLeave.bind(this);
     this.onWindowResizeBind = this.onWindowResize.bind(this);
     this.onDeviceOrientationBind = this.onDeviceOrientation.bind(this);
+    this.onScrollBind = this.onScroll.bind(this);
+    this.onVisibilityChangeBind = this.onVisibilityChange.bind(this);
+    this.onWindowBlurBind = this.onWindowBlur.bind(this);
 
     this.elementListener.addEventListener("mouseenter", this.onMouseEnterBind);
     this.elementListener.addEventListener("mouseleave", this.onMouseLeaveBind);
     this.elementListener.addEventListener("mousemove", this.onMouseMoveBind);
+
+    window.addEventListener("scroll", this.onScrollBind, true);
+    document.addEventListener("visibilitychange", this.onVisibilityChangeBind);
+    window.addEventListener("blur", this.onWindowBlurBind);
 
     if (this.glare || this.fullPageListening) {
       window.addEventListener("resize", this.onWindowResizeBind);
@@ -108,6 +115,10 @@ class VanillaTilt {
     if (this.gyroscope) {
       window.removeEventListener("deviceorientation", this.onDeviceOrientationBind);
     }
+
+    window.removeEventListener("scroll", this.onScrollBind, true);
+    document.removeEventListener("visibilitychange", this.onVisibilityChangeBind);
+    window.removeEventListener("blur", this.onWindowBlurBind);
 
     if (this.glare || this.fullPageListening) {
       window.removeEventListener("resize", this.onWindowResizeBind);
@@ -180,6 +191,9 @@ class VanillaTilt {
 
   onMouseEnter() {
     this.updateElementPosition();
+    if (this.glare) {
+      this.updateGlareSize();
+    }
     this.element.style.willChange = "transform";
     this.setTransition();
   }
@@ -194,33 +208,97 @@ class VanillaTilt {
   }
 
   onMouseLeave() {
-    this.setTransition();
+    this.resetToIdle({ animate: true });
+  }
 
-    if (this.settings.reset) {
-      requestAnimationFrame(this.resetBind);
+  onVisibilityChange() {
+    if (document.visibilityState === "hidden" && this.settings.reset) {
+      this.resetToIdle({ immediate: true });
     }
   }
 
-  reset() {
-    this.onMouseEnter();
+  onWindowBlur() {
+    if (this.settings.reset) {
+      this.resetToIdle({ immediate: true });
+    }
+  }
 
-    if (this.fullPageListening) {
-      this.event = {
-        clientX: (this.settings.startX + this.settings.max) / (2 * this.settings.max) * this.clientWidth,
-        clientY: (this.settings.startY + this.settings.max) / (2 * this.settings.max) * this.clientHeight
-      };
-    } else {
-      this.event = {
-        clientX: this.left + ((this.settings.startX + this.settings.max) / (2 * this.settings.max) * this.width),
-        clientY: this.top + ((this.settings.startY + this.settings.max) / (2 * this.settings.max) * this.height)
-      };
+  isPointerOverElement(clientX, clientY) {
+    if (!this.element || typeof clientX !== "number" || typeof clientY !== "number") {
+      return false;
+    }
+    const rect = this.element.getBoundingClientRect();
+    return (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    );
+  }
+
+  shouldTrackPointer() {
+    if (!this.element || !this.element.matches(":hover")) {
+      return false;
+    }
+    if (!this.event || typeof this.event.clientX !== "number") {
+      return true;
+    }
+    return this.isPointerOverElement(this.event.clientX, this.event.clientY);
+  }
+
+  onScroll() {
+    if (!this.element) return;
+
+    this.updateElementPosition();
+
+    if (!this.shouldTrackPointer()) {
+      if (this.settings.reset && (this.event || this.element.style.transform)) {
+        this.resetToIdle({ immediate: true });
+      }
+      return;
     }
 
-    let backupScale = this.settings.scale;
-    this.settings.scale = 1;
-    this.update();
-    this.settings.scale = backupScale;
+    if (this.updateCall !== null) {
+      cancelAnimationFrame(this.updateCall);
+    }
+
+    this.updateCall = requestAnimationFrame(this.updateBind);
+  }
+
+  resetToIdle(options = {}) {
+    const immediate = options.immediate === true;
+    const animate = options.animate === true && !immediate;
+
+    if (this.updateCall !== null) {
+      cancelAnimationFrame(this.updateCall);
+      this.updateCall = null;
+    }
+
+    this.event = null;
+
+    if (!this.settings.reset) {
+      this.element.style.willChange = "";
+      this.resetGlare();
+      return;
+    }
+
+    if (animate) {
+      this.setTransition();
+    } else {
+      clearTimeout(this.transitionTimeout);
+      this.element.style.transition = "";
+      if (this.glare && this.glareElement) {
+        this.glareElement.style.transition = "";
+      }
+    }
+
+    this.element.style.willChange = "";
+    this.element.style.transform = "";
     this.resetGlare();
+  }
+
+  reset() {
+    this.resetToIdle({ immediate: true });
   }
 
   resetGlare() {
@@ -267,6 +345,7 @@ class VanillaTilt {
   }
 
   update() {
+    this.updateElementPosition();
     let values = this.getValues();
 
     this.element.style.transform = "perspective(" + this.settings.perspective + "px) " +
@@ -377,9 +456,9 @@ class VanillaTilt {
       startX: 0,
       startY: 0,
       perspective: 1000,
-      easing: "cubic-bezier(.03,.98,.52,.99)",
+      easing: "ease-out",
       scale: 1,
-      speed: 300,
+      speed: 150,
       transition: true,
       axis: null,
       glare: false,

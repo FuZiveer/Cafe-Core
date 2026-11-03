@@ -97,10 +97,24 @@
         return `<span class="bl-roster-role-part${slugClass}">${escapeHtml(text)}</span>`;
     }
 
+    /** Left-to-right on cards; Intel always after Support when both are present. */
+    const ROLE_PART_DISPLAY_ORDER = ['fragger', 'flex', 'support', 'intel', 'roamer'];
+
+    function sortRolePartsForDisplay(parts) {
+        return [...parts].sort((a, b) => {
+            const ia = ROLE_PART_DISPLAY_ORDER.indexOf(rolePartSlug(a));
+            const ib = ROLE_PART_DISPLAY_ORDER.indexOf(rolePartSlug(b));
+            const oa = ia === -1 ? ROLE_PART_DISPLAY_ORDER.length : ia;
+            const ob = ib === -1 ? ROLE_PART_DISPLAY_ORDER.length : ib;
+            if (oa !== ob) return oa - ob;
+            return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
+        });
+    }
+
     function formatRoleDisplay(role) {
         const raw = String(role || '').trim();
         if (!raw) return '';
-        const parts = raw.split(/\s*\/\s*/).filter(Boolean);
+        const parts = sortRolePartsForDisplay(raw.split(/\s*\/\s*/).filter(Boolean));
         if (!parts.length) return '';
         if (parts.length === 1) return formatRolePart(parts[0]);
         return parts
@@ -116,7 +130,9 @@
     }
 
     function renderOperatorPills(operators, side) {
-        const list = Array.isArray(operators) ? operators.filter(Boolean) : [];
+        const list = (Array.isArray(operators) ? operators.filter(Boolean) : [])
+            .slice()
+            .sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
         if (!list.length) {
             return '<span class="bl-roster-op-empty">—</span>';
         }
@@ -173,22 +189,7 @@
                     </div>
                     <button type="button" class="bl-roster-more-btn ui-interactive" data-bl-member-id="${escapeHtml(member.id || '')}" aria-haspopup="dialog">More</button>
                 </header>
-                <div class="bl-roster-ops">
-                    <div class="bl-roster-ops-side bl-roster-ops-side--atk">
-                        <p class="bl-roster-ops-label bl-roster-ops-label--atk">
-                            <i class="fa-solid fa-crosshairs" aria-hidden="true"></i>
-                            Attack
-                        </p>
-                        <div class="bl-roster-op-list">${renderOperatorPills(member.attackers, 'atk')}</div>
-                    </div>
-                    <div class="bl-roster-ops-side bl-roster-ops-side--def">
-                        <p class="bl-roster-ops-label bl-roster-ops-label--def">
-                            <i class="fa-solid fa-shield" aria-hidden="true"></i>
-                            Defense
-                        </p>
-                        <div class="bl-roster-op-list">${renderOperatorPills(member.defenders, 'def')}</div>
-                    </div>
-                </div>
+                ${renderMemberOps(member)}
             </div>
         </article>`;
 
@@ -221,52 +222,24 @@
         return getRoster().find((entry) => entry.id === memberId) || null;
     }
 
-    function renderModalOperatorBlock(label, operators, side) {
+    function renderMemberOps(member) {
         return `
-            <div class="bl-roster-modal-ops-block">
-                <p class="bl-roster-ops-label bl-roster-ops-label--${side === 'atk' ? 'atk' : 'def'}">${escapeHtml(label)}</p>
-                <div class="bl-roster-op-list">${renderOperatorPills(operators, side)}</div>
-            </div>`;
-    }
-
-    function normalizeTraitList(value) {
-        if (Array.isArray(value)) return value.filter(Boolean);
-        if (typeof value === 'string' && value.trim()) return [value.trim()];
-        return [];
-    }
-
-    function renderTraitList(items) {
-        const list = normalizeTraitList(items);
-        if (!list.length) {
-            return '<li class="bl-roster-trait-item bl-roster-trait-item--empty">—</li>';
-        }
-        return list
-            .map((item) => `<li class="bl-roster-trait-item">${escapeHtml(item)}</li>`)
-            .join('');
-    }
-
-    function renderProsConsSection(member) {
-        const strengths = normalizeTraitList(member.strengths);
-        const weaknesses = normalizeTraitList(member.weaknesses);
-        if (!strengths.length && !weaknesses.length) return '';
-
-        return `
-            <div class="bl-roster-modal-traits grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                <section class="bl-roster-trait-panel bl-roster-trait-panel--pro">
-                    <h4 class="bl-roster-trait-heading">
-                        <i class="fa-solid fa-circle-plus" aria-hidden="true"></i>
-                        Strengths
-                    </h4>
-                    <ul class="bl-roster-trait-list">${renderTraitList(strengths)}</ul>
-                </section>
-                <section class="bl-roster-trait-panel bl-roster-trait-panel--con">
-                    <h4 class="bl-roster-trait-heading">
-                        <i class="fa-solid fa-circle-minus" aria-hidden="true"></i>
-                        Weaknesses
-                    </h4>
-                    <ul class="bl-roster-trait-list">${renderTraitList(weaknesses)}</ul>
-                </section>
-            </div>`;
+                <div class="bl-roster-ops">
+                    <div class="bl-roster-ops-side bl-roster-ops-side--atk">
+                        <p class="bl-roster-ops-label bl-roster-ops-label--atk">
+                            <i class="fa-solid fa-crosshairs" aria-hidden="true"></i>
+                            Attack
+                        </p>
+                        <div class="bl-roster-op-list">${renderOperatorPills(member.attackers, 'atk')}</div>
+                    </div>
+                    <div class="bl-roster-ops-side bl-roster-ops-side--def">
+                        <p class="bl-roster-ops-label bl-roster-ops-label--def">
+                            <i class="fa-solid fa-shield" aria-hidden="true"></i>
+                            Defense
+                        </p>
+                        <div class="bl-roster-op-list">${renderOperatorPills(member.defenders, 'def')}</div>
+                    </div>
+                </div>`;
     }
 
     /** Rank badge PNGs — Kaapo38/r6ranks (Ubisoft-style rank IDs 0–36) */
@@ -357,6 +330,25 @@
         });
     }
 
+    function renderTeamRankRail(member) {
+        const railEl = document.getElementById('bl-roster-player-modal-team-rank');
+        if (!railEl) return;
+
+        const n = Number(member.teamRank);
+        if (!Number.isFinite(n) || n < 1) {
+            railEl.hidden = true;
+            railEl.innerHTML = '';
+            return;
+        }
+
+        railEl.hidden = false;
+        railEl.innerHTML = `
+            <div class="bl-roster-modal-peak-rail-inner">
+                <p class="bl-roster-modal-peak-label">Team rank</p>
+                <p class="bl-roster-modal-peak-value"><span class="text-redneon-500">#${escapeHtml(String(n))}</span></p>
+            </div>`;
+    }
+
     function renderPeakRankRail(member) {
         const peakEl = document.getElementById('bl-roster-player-modal-peak');
         if (!peakEl) return;
@@ -384,26 +376,13 @@
     }
 
     function renderPlayerModalContent(member) {
-        const role = member.role || '—';
         const notes = member.notes || member.more || '';
         const notesBlock = notes
             ? `<div class="bl-roster-modal-notes mt-4 pt-4 border-t border-matte-800 text-slate-400 text-xs tracking-wide leading-relaxed">${escapeHtml(notes)}</div>`
             : '';
 
-        const rankLine = member.teamRank
-            ? `<p class="bl-roster-modal-rank text-xs font-bold tracking-widest uppercase text-slate-500 shrink-0">Team rank <span class="text-redneon-500">#${escapeHtml(String(member.teamRank))}</span></p>`
-            : '';
-
         return `
-            <div class="bl-roster-modal-role-row">
-                <p class="bl-roster-modal-role text-xs font-bold tracking-widest uppercase min-w-0">${formatRoleDisplay(role)}</p>
-                ${rankLine}
-            </div>
-            ${renderProsConsSection(member)}
-            <div class="bl-roster-modal-ops grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-4 border-t border-matte-800">
-                ${renderModalOperatorBlock('Attack', member.attackers, 'atk')}
-                ${renderModalOperatorBlock('Defense', member.defenders, 'def')}
-            </div>
+            ${renderMemberOps(member)}
             ${notesBlock}`;
     }
 
@@ -451,11 +430,18 @@
 
         const modal = document.getElementById('bl-roster-player-modal');
         const title = document.getElementById('bl-roster-player-modal-title');
+        const roleEl = document.getElementById('bl-roster-player-modal-role');
         const body = document.getElementById('bl-roster-player-modal-body');
         if (!modal || !title || !body) return;
 
         title.innerHTML = formatPlayerName(member.name || 'Player');
+        if (roleEl) {
+            const role = member.role || '';
+            roleEl.innerHTML = role ? formatRoleDisplay(role) : '';
+            roleEl.hidden = !role;
+        }
         body.innerHTML = renderPlayerModalContent(member);
+        renderTeamRankRail(member);
         renderPeakRankRail(member);
         bindOperatorIconFallback(body);
         setBlRosterPlayerModalOpen(true);

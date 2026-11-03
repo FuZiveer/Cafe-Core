@@ -1,6 +1,6 @@
 /**
  * Edit this list to update the Black-Listed roster on the site.
- * teamRank (#1 = strongest overall on listed pros/cons): TrustGod, Dis, Zofia, FuZiveer, KK, Horde
+ * teamRank (#1 = strongest overall): TrustGod, KK, Zofia, FuZiveer, Dis, Horde
  * peakRank — optional string (e.g. "Diamond 1", "Champion") + icon in More popup rail
  * peakRankIconId — optional 0–36 to override auto icon from peakRank label
  */
@@ -8,30 +8,20 @@ window.BLACK_LISTED_ROSTER = [
     {
         id: 'fuziveer',
         name: 'FuZiveer.BL',
-        role: 'Fragger / Flex',
+        role: 'Fragger / Intel',
         teamRank: 4,
         peakRank: 'Diamond 1',
-        attackers: ['Ash', 'Buck'],
+        attackers: ['Solid Snake', 'Twitch'],
         defenders: ['Solis', 'Lesion'],
-        strengths: ['Strong aim', 'Strong positioning', 'Strong map knowledge'],
-        weaknesses: [
-            'Weak communication',
-            'Weak decision-making',
-            'Weak teamwork',
-            'Inconsistent game sense',
-        ],
     },
     {
-        id: 'kk',
-        name: 'KK.BL',
-        role: 'Intel / Support',
-        coIgl: true,
+        id: 'dis',
+        name: 'Dis.BL',
+        role: 'Support / Intel',
         teamRank: 5,
-        peakRank: 'Emerald 4',
-        attackers: ['Thermite', 'Nomad'],
-        defenders: ['Castle', 'Azami'],
-        strengths: ['Strong communication', 'Strong map knowledge', 'Strong game sense'],
-        weaknesses: ['Weak decision-making', 'Weak mechanics'],
+        peakRank: 'Platinum 1',
+        attackers: ['Thatcher', 'Lion'],
+        defenders: ['Thorn', 'Lesion'],
     },
     {
         id: 'trustgod',
@@ -43,45 +33,25 @@ window.BLACK_LISTED_ROSTER = [
         defenders: ['Vigil', 'Solis'],
         igl: true,
         gridCenter: true,
-        strengths: [
-            'Strong aim',
-            'Strong game sense',
-            'Strong map knowledge',
-            'Strong positioning',
-        ],
-        weaknesses: ['Weak decision-making', 'Excessive aggression'],
+    },
+    {
+        id: 'kk',
+        name: 'KK.BL',
+        role: 'Support',
+        coIgl: true,
+        teamRank: 2,
+        peakRank: 'Emerald 4',
+        attackers: ['Thermite', 'Nomad'],
+        defenders: ['Castle', 'Azami'],
     },
     {
         id: 'zofia',
         name: 'Zofia.BL',
-        role: 'Fragger / Flex / Support',
+        role: 'Flex / Support',
         teamRank: 3,
         peakRank: 'Diamond 2',
-        attackers: ['Blackbeard', 'Zofia'],
-        defenders: ['Mute', 'Azami'],
-        strengths: [
-            'Strong aim',
-            'Strong map knowledge',
-            'Strong game sense',
-            'Disciplined playstyle',
-        ],
-        weaknesses: [
-            'Weak positioning',
-            'Weak decision-making',
-            'Weak communication',
-            'Excessive team dependency',
-        ],
-    },
-    {
-        id: 'dis',
-        name: 'Dis.BL',
-        role: 'Intel / Support',
-        teamRank: 2,
-        peakRank: 'Platinum 1',
-        attackers: ['Thatcher', 'Lion'],
-        defenders: ['Thorn', 'Lesion'],
-        strengths: ['Strong decision-making', 'Strong aim', 'Strong positioning'],
-        weaknesses: ['Weak communication', 'Weak teamwork', 'Weak game sense'],
+        attackers: ['Blitz', 'Zofia'],
+        defenders: ['Smoke', 'Ela'],
     },
     {
         id: 'horde',
@@ -92,7 +62,5 @@ window.BLACK_LISTED_ROSTER = [
         attackers: ['Ace', 'Thermite'],
         defenders: ['Kapkan', 'Frost'],
         substitute: true,
-        strengths: ['Strong communication', 'Strong map knowledge', 'Strong teamwork'],
-        weaknesses: ['Weak aim', 'Weak decision-making', 'Weak positioning'],
     },
 ];

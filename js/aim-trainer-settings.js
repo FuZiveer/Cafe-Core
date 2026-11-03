@@ -44,7 +44,7 @@
     function settingsModalCloseDelayMs() {
         if (typeof isReducedMotionEnabled === 'function' && isReducedMotionEnabled()) return 0;
         if (typeof MOTION_MS === 'number') return MOTION_MS;
-        return 300;
+        return 150;
     }
 
     function portalSettingsModal(modal) {
@@ -203,10 +203,15 @@
         return settings.section === 'crosshair';
     }
 
-    function syncChColorUi() {
+    function syncChColorUi({ syncGlideThumb = true } = {}) {
         const root = byId('aim-trainer-settings-chcolor-glide');
         const glideValue = settings.chcolorcustom ? AIM_CH_CUSTOM : settings.chcolor;
-        syncGlide(root, glideValue);
+        if (syncGlideThumb && root) {
+            const current = root.dataset.value ?? '';
+            if (String(glideValue) !== String(current)) {
+                syncGlide(root, glideValue);
+            }
+        }
         if (settings.chcolorcustom) {
             chPickerHsv = hexToHsv(settings.chcustom);
             // Custom selected → keep picker open while on the Crosshair tab.
@@ -361,6 +366,15 @@
         if (active === 'crosshair') {
             drawCrosshairPreview();
             if (settings.chcolorcustom) setChColorPickerOpen(true);
+            requestAnimationFrame(() => {
+                const chGlide = byId('aim-trainer-settings-chcolor-glide');
+                if (chGlide && typeof syncGlideSelector === 'function') {
+                    syncGlideSelector(chGlide, {
+                        fromIndex: parseInt(chGlide.dataset.glideIndex ?? '0', 10),
+                        instant: true,
+                    });
+                }
+            });
         } else {
             setChColorPickerOpen(false);
         }
@@ -399,7 +413,7 @@
     function syncSettingsToUi() {
         syncGlide(byId('aim-trainer-settings-timer-glide'), String(settings.timer));
         syncGlide(byId('aim-trainer-settings-tcolor-glide'), settings.tcolor);
-        syncChColorUi();
+        syncChColorUi({ syncGlideThumb: true });
         syncGlide(byId('aim-trainer-settings-chlines-glide'), settings.chlines ? 'true' : 'false');
         syncGlide(byId('aim-trainer-settings-chdot-glide'), settings.chdot ? 'true' : 'false');
         syncGlide(byId('aim-trainer-settings-choutline-glide'), settings.choutline ? 'true' : 'false');
@@ -597,7 +611,6 @@
                         settings.chcolorcustom = false;
                         settings.chcolor = normalizeHexColor(value, DEFAULTS.chcolor);
                         setChColorPickerOpen(false);
-                        syncChColorUi();
                         notifyChange();
                     },
                 });
@@ -679,7 +692,13 @@
                     showSettingsSection(btn.dataset.aimSection, { fromIndex });
                 });
             });
-            window.addEventListener('resize', () => syncAimTrainerTabGlider({ instant: true }));
+            window.addEventListener('resize', () => {
+                syncAimTrainerTabGlider({ instant: true });
+                if (typeof syncGlideSelector !== 'function') return;
+                document.querySelectorAll('#aim-trainer-settings-modal .glide-selector').forEach((root) => {
+                    syncGlideSelector(root, { instant: true });
+                });
+            });
         }
         bindGlide(byId('aim-trainer-settings-timer-glide'), 'aimTimer', (value) => {
             settings.timer = Number(value);
@@ -732,7 +751,7 @@
                 syncAimTrainerTabGlider({ instant: true });
                 if (typeof syncGlideSelector !== 'function') return;
                 document.querySelectorAll('#aim-trainer-settings-modal .glide-selector').forEach((root) => {
-                    syncGlideSelector(root);
+                    syncGlideSelector(root, { instant: true });
                 });
             });
         };
