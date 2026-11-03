@@ -579,6 +579,8 @@ async function setMainPageInternal(pageKey, options = {}) {
         return;
     }
 
+    const pageReady = window.pageLoader.preparePageForMountWarm(nextKey);
+
     const prevKey = currentMainPageKey;
     const prevPage = document.querySelector('.main-page.main-page-active')
         || document.getElementById(mainPageIds[prevKey]);
@@ -594,6 +596,7 @@ async function setMainPageInternal(pageKey, options = {}) {
             resetMainPageMotion(prevPage);
             window.pageLoader.unmountMainPageElement(prevPage);
         }
+        await pageReady;
         const nextPage = await window.pageLoader.mountMainPageElement(nextKey);
         if (!nextPage) return;
         applyMainPageInstant(nextPage);
@@ -615,7 +618,7 @@ async function setMainPageInternal(pageKey, options = {}) {
     resetMainPageMotion(prevPage);
     void prevPage.offsetHeight;
     prevPage.classList.add('main-page-exit');
-    await waitForMainPageExit(prevPage, token);
+    await Promise.all([waitForMainPageExit(prevPage, token), pageReady]);
     if (token !== mainPageAnimToken) return;
 
     window.pageLoader.unmountMainPageElement(prevPage);
@@ -998,10 +1001,75 @@ function syncPlaceholderPageView(pageKey) {
     if (pageKey === 'default') syncDefaultPageView();
 }
 
+function warmMainPageCache(pageKey) {
+    const key = normalizeMainPageKey(pageKey);
+    if (!(key in mainPageIds) || key === currentMainPageKey) return;
+    window.pageLoader?.preparePageForMountWarm?.(key);
+}
+
+const SIDEBAR_PREFETCH_PAGES = {
+    home: ['default'],
+    apps: ['apps'],
+    tools: ['bottleneck', 'sensitivity', 'edpi', 'aim-trainer'],
+    strats: ['lineups'],
+    more: ['branding', 'fuziveer', 'black-listed', 'privacy', 'terms'],
+};
+
+function warmPagesForSidebarTab(tabType) {
+    const keys = SIDEBAR_PREFETCH_PAGES[tabType];
+    if (!keys) return;
+    keys.forEach((key) => warmMainPageCache(key));
+}
+
+function initMainPagePrefetch() {
+    if (!window.pageLoader?.preparePageForMountWarm) return;
+
+    const allKeys = Object.keys(mainPageIds);
+    let index = 0;
+    const schedule = (fn) => {
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(fn, { timeout: 2500 });
+        } else {
+            setTimeout(fn, 120);
+        }
+    };
+    const step = () => {
+        if (index >= allKeys.length) return;
+        const key = allKeys[index++];
+        if (key !== currentMainPageKey) {
+            window.pageLoader.preparePageForMountWarm(key);
+        }
+        schedule(step);
+    };
+    schedule(step);
+
+    document.getElementById('sidebar-primary-nav')?.addEventListener('pointerenter', (event) => {
+        const btn = event.target.closest('.nav-btn');
+        if (!btn || !btn.getAttribute('onclick')) return;
+        const match = btn.getAttribute('onclick').match(/handleSidebarClick\([^,]+,\s*'([^']+)'/);
+        if (match) warmPagesForSidebarTab(match[1]);
+    }, true);
+
+    document.getElementById('flyout-panel')?.addEventListener('pointerenter', (event) => {
+        const item = event.target.closest('.flyout-item');
+        if (!item || item.classList.contains('is-nav-disabled')) return;
+        const match = item.getAttribute('onclick')?.match(/selectFlyoutItem\('([^']+)'/);
+        if (match) warmMainPageCache(mainPageKeyForFlyoutItem(match[1]));
+    }, true);
+
+    document.getElementById('main-content')?.addEventListener('pointerenter', (event) => {
+        const card = event.target.closest('[onclick*="navigateToMainPage"]');
+        if (!card) return;
+        const match = card.getAttribute('onclick')?.match(/navigateToMainPage\('([^']+)'/);
+        if (match) warmMainPageCache(match[1]);
+    }, true);
+}
+
 function navigateToMainPage(pageKey) {
     pageKey = normalizeMainPageKey(pageKey);
     if (isMainPageNavDisabled(pageKey)) return;
     if (!(pageKey in mainPageIds)) return;
+    warmMainPageCache(pageKey);
     closeFlyout();
     closeMobileNav();
     const defaultStubToHub = pageKey === 'default'
@@ -5597,6 +5665,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     initNotifications();
+    initMainPagePrefetch();
 });
 
 window.CafeCore.mount('App', {

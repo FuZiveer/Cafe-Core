@@ -18,6 +18,7 @@
 
     const htmlCache = new Map();
     const mountPromises = new Map();
+    const preparePromises = new Map();
     const chunkLoadPromises = new Map();
     const loadedScripts = new Set();
 
@@ -118,6 +119,24 @@
         if (pageKey === 'aim-trainer') {
             await ensureAimTrainerScripts();
         }
+    }
+
+    /** Fetch HTML + scripts ahead of mount (cached for instant swap). */
+    async function preparePageForMount(pageKey) {
+        if (!mainPagePaths[pageKey]) return;
+        await preparePageDependencies(pageKey);
+        await fetchPageHtml(pageKey);
+    }
+
+    function preparePageForMountWarm(pageKey) {
+        if (!mainPagePaths[pageKey]) return Promise.resolve();
+        if (htmlCache.has(pageKey)) return Promise.resolve();
+        if (preparePromises.has(pageKey)) return preparePromises.get(pageKey);
+        const promise = preparePageForMount(pageKey).catch(() => {}).finally(() => {
+            preparePromises.delete(pageKey);
+        });
+        preparePromises.set(pageKey, promise);
+        return promise;
     }
 
     async function ensureAimTrainerScripts() {
@@ -244,6 +263,8 @@
     const pageLoader = freeze({
         mountMainPageElement,
         unmountMainPageElement,
+        preparePageForMount,
+        preparePageForMountWarm,
         pageKeyFromHash,
         syncLocationHash,
         mainPagePaths,
