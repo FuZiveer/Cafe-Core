@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { handleDiscordAuthRequest } from './discord-auth.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -30,8 +31,8 @@ function safePath(urlPath) {
     return resolved;
 }
 
-const server = http.createServer((req, res) => {
-    const filePath = safePath(req.url || '/');
+function serveFile(req, res, url) {
+    const filePath = safePath(url.pathname);
     if (!filePath) {
         res.writeHead(403);
         res.end('Forbidden');
@@ -47,6 +48,22 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
         res.end(data);
     });
+}
+
+const server = http.createServer(async (req, res) => {
+    const url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
+
+    try {
+        const handled = await handleDiscordAuthRequest(req, res, url);
+        if (handled) return;
+    } catch (err) {
+        console.error('[auth]', err);
+        res.writeHead(500);
+        res.end('Auth error');
+        return;
+    }
+
+    serveFile(req, res, url);
 });
 
 server.on('error', (err) => {
@@ -62,6 +79,10 @@ server.on('error', (err) => {
     throw err;
 });
 
-server.listen(PORT, () => {
-    console.log(`Café Core dev server: http://127.0.0.1:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+    const origin = process.env.PUBLIC_ORIGIN?.trim() || `http://127.0.0.1:${PORT}`;
+    console.log(`Café Core server listening on port ${PORT}`);
+    console.log(`  Local:  http://127.0.0.1:${PORT}`);
+    if (origin !== `http://127.0.0.1:${PORT}`) console.log(`  Public: ${origin}`);
+    console.log('Discord sign-in: see DISCORD_AUTH.md');
 });

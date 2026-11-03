@@ -431,8 +431,12 @@ let currentMainPageKey = 'default';
 let mainPageAnimToken = 0;
 let mainPageTransitionHandler = null;
 
+function getMainContentScrollHost() {
+    return document.getElementById('main-content');
+}
+
 function resetMainContentScroll() {
-    const host = document.getElementById('main-content');
+    const host = getMainContentScrollHost();
     if (host) {
         host.scrollTop = 0;
         if (typeof host.scrollTo === 'function') {
@@ -442,6 +446,7 @@ function resetMainContentScroll() {
     window.scrollTo(0, 0);
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
+    updateScrollToTopButton();
 }
 
 /** Reset #main-content scroll after the outgoing page is hidden (avoids visible snap on exit). */
@@ -3036,7 +3041,7 @@ function setToolPicklistActive(root, menu, optionBtn, { scrollIntoView = false }
     if (!optionBtn) return;
     optionBtn.classList.add('is-active');
     if (scrollIntoView) {
-        optionBtn.scrollIntoView({ block: 'nearest' });
+        optionBtn.scrollIntoView({ block: 'nearest', behavior: scrollBehaviorOption() });
     }
 }
 
@@ -3098,7 +3103,7 @@ function bindToolPicklistMenuScroll(menu) {
         const maxScroll = Math.max(0, (count - visibleSlots) * step);
         const dir = event.deltaY > 0 ? 1 : -1;
         const next = Math.max(0, Math.min(maxScroll, menu.scrollTop + dir * step));
-        menu.scrollTo({ top: next, behavior: 'auto' });
+        menu.scrollTo({ top: next, behavior: scrollBehaviorOption() });
     }, { passive: false });
 }
 
@@ -4546,6 +4551,67 @@ function isReducedMotionEnabled() {
     return !!appSettings.reducedMotion;
 }
 
+function scrollBehaviorOption() {
+    return isReducedMotionEnabled() ? 'auto' : 'smooth';
+}
+
+const SCROLL_TO_TOP_SHOW_PX = 160;
+let scrollToTopBound = false;
+
+function isScrollToTopContextActive() {
+    const host = getMainContentScrollHost();
+    if (!host) return false;
+    if (host.querySelector('.page-aim-trainer--session.main-page-active')) return false;
+    return true;
+}
+
+function mainContentScrollTop() {
+    const host = getMainContentScrollHost();
+    return host ? host.scrollTop : 0;
+}
+
+function updateScrollToTopButton() {
+    const btn = document.getElementById('scroll-to-top-btn');
+    const host = getMainContentScrollHost();
+    if (!btn || !host) return;
+
+    const show = isScrollToTopContextActive() && mainContentScrollTop() > SCROLL_TO_TOP_SHOW_PX;
+    btn.classList.toggle('is-visible', show);
+    btn.setAttribute('aria-hidden', show ? 'false' : 'true');
+    btn.tabIndex = show ? 0 : -1;
+}
+
+function scrollMainContentToTop() {
+    const host = getMainContentScrollHost();
+    if (!host) return;
+    host.scrollTo({ top: 0, left: 0, behavior: scrollBehaviorOption() });
+}
+
+function initScrollToTopButton() {
+    const btn = document.getElementById('scroll-to-top-btn');
+    const host = getMainContentScrollHost();
+    if (!btn || !host || scrollToTopBound) return;
+    scrollToTopBound = true;
+
+    if (btn.parentElement !== document.body) {
+        document.body.appendChild(btn);
+    }
+
+    btn.addEventListener('click', () => {
+        scrollMainContentToTop();
+    });
+
+    const onScroll = () => {
+        updateScrollToTopButton();
+    };
+
+    host.addEventListener('scroll', onScroll, { passive: true });
+    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+
+    window.addEventListener('resize', updateScrollToTopButton, { passive: true });
+    updateScrollToTopButton();
+}
+
 function motionTimeoutMs(fallbackMs = MOTION_MS) {
     return isReducedMotionEnabled() ? 0 : fallbackMs;
 }
@@ -5459,6 +5525,7 @@ window.syncVerticalTabGlider = syncVerticalTabGlider;
 window.shouldUseGliderWrapAnimation = shouldUseGliderWrapAnimation;
 
 window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('cafe-toast-host')?.remove();
     initToolPicklistDismiss();
     initKeyboardRestrictions();
     appSettings = loadAppSettings();
@@ -5468,6 +5535,8 @@ window.addEventListener('DOMContentLoaded', () => {
     window.CafeCore?.UiSound?.initLazerToggleSounds?.();
     initResponsiveLayout();
     initAppModalPortals();
+    initScrollToTopButton();
+    if (typeof window.initDiscordAuth === 'function') window.initDiscordAuth();
     initSettingsModal();
     initLineupsVideoModal();
     initModalEscapeClose();

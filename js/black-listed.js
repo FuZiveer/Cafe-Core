@@ -212,6 +212,27 @@
         </div>`;
     }
 
+    const BL_ROSTER_APPLY_MAIL = 'kyro.demooni@gmail.com';
+
+    function openApplyToJoin() {
+        const subject = encodeURIComponent('Black-Listed roster application');
+        window.location.href = `mailto:${BL_ROSTER_APPLY_MAIL}?subject=${subject}`;
+    }
+
+    function renderApplyToJoinSlot() {
+        return `
+        <button
+            type="button"
+            class="bl-roster-card bl-roster-card--sub bl-roster-card--apply ui-interactive"
+            data-bl-apply-join
+            aria-label="Apply to join Black-Listed roster"
+        >
+            <div class="bl-roster-card-body bl-roster-card-body--apply">
+                <p class="bl-roster-apply-label">Apply to join</p>
+            </div>
+        </button>`;
+    }
+
     function getRoster() {
         const roster = window.BLACK_LISTED_ROSTER;
         return Array.isArray(roster) ? roster : [];
@@ -474,6 +495,11 @@
         if (!page || page.dataset.blMoreBound === '1') return;
         page.dataset.blMoreBound = '1';
         page.addEventListener('click', (event) => {
+            const applyBtn = event.target.closest('[data-bl-apply-join]');
+            if (applyBtn && page.contains(applyBtn)) {
+                openApplyToJoin();
+                return;
+            }
             const btn = event.target.closest('[data-bl-member-id]');
             if (!btn || !page.contains(btn)) return;
             const memberId = btn.getAttribute('data-bl-member-id');
@@ -506,7 +532,8 @@
         if (subsHost && subsSection) {
             if (subs.length) {
                 subsSection.classList.remove('hidden');
-                subsHost.innerHTML = subs.map((member) => renderMemberCard(member)).join('');
+                subsHost.innerHTML =
+                    subs.map((member) => renderMemberCard(member)).join('') + renderApplyToJoinSlot();
             } else {
                 subsSection.classList.add('hidden');
                 subsHost.innerHTML = '';

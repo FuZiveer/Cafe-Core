@@ -148,9 +148,20 @@
                         <div id="notification-list" class="divide-y divide-matte-800 max-h-72 overflow-y-auto"></div>
                     </div>
                 </div>
+                <div id="discord-auth-host" class="discord-auth-host shrink-0" hidden></div>
             </div>
         </header>
         <div id="main-content" class="flex-1 overflow-auto"></div>
+        <button
+            type="button"
+            id="scroll-to-top-btn"
+            class="scroll-to-top-btn topbar-action-btn ui-interactive"
+            aria-label="Scroll to top"
+            aria-hidden="true"
+            tabindex="-1"
+        >
+            <i class="fa-solid fa-arrow-up text-sm" aria-hidden="true"></i>
+        </button>
     </main>
 
     <div id="flyout-panel" class="bg-matte-900 border-r border-matte-800 transform -translate-x-full opacity-0 pointer-events-none transition-all motion-standard p-4 flex flex-col justify-start space-y-4 min-h-0" aria-hidden="true">
@@ -366,10 +377,9 @@
         </div>
     </div>
 
-    <div id="cafe-toast-host" class="cafe-toast-host" aria-live="polite" aria-atomic="true"></div>
-
     <script src="js/cafe-core.js" defer></script>
     <script src="js/page-loader.js" defer></script>
+    <script src="js/discord-auth.js" defer></script>
     <script src="js/script.js" defer></script>
 </body>
 </html>
