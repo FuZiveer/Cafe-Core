@@ -120,9 +120,46 @@
     function clearAuthQueryFromUrl() {
         const params = new URLSearchParams(window.location.search);
         if (!params.has('auth')) return;
+        const auth = params.get('auth');
+        if (auth && auth !== 'discord_ok') {
+            try {
+                sessionStorage.removeItem('cafe_discord_signin_pending');
+            } catch {
+                /* ignore */
+            }
+        }
         params.delete('auth');
         const next = `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash}`;
         window.history.replaceState(null, '', next);
+    }
+
+    function markDiscordSignInPending() {
+        try {
+            sessionStorage.setItem('cafe_discord_signin_pending', '1');
+        } catch {
+            /* ignore */
+        }
+    }
+
+    function notifyDiscordSignInIfPending(user) {
+        if (!user) return;
+        try {
+            if (sessionStorage.getItem('cafe_discord_signin_pending') !== '1') return;
+            sessionStorage.removeItem('cafe_discord_signin_pending');
+        } catch {
+            return;
+        }
+        const name = user.displayName || user.username || 'there';
+        window.pushCafeNotification?.({
+            title: 'Signed in with Discord',
+            body: `Welcome, ${name}. Your profile is linked to Café Core.`,
+        });
+    }
+
+    function bindDiscordSignInPending(linkEl) {
+        if (!linkEl || linkEl.dataset.signinPendingBound === '1') return;
+        linkEl.dataset.signinPendingBound = '1';
+        linkEl.addEventListener('click', () => markDiscordSignInPending());
     }
 
     async function fetchMe(authBase) {
@@ -255,10 +292,16 @@
 
         try {
             const user = await fetchMe(authBase);
-            if (user) renderSignedIn(host, user, authBase);
-            else renderSignedOut(host, loginUrl);
+            if (user) {
+                notifyDiscordSignInIfPending(user);
+                renderSignedIn(host, user, authBase);
+            } else {
+                renderSignedOut(host, loginUrl);
+                bindDiscordSignInPending(byId('discord-sign-in-btn'));
+            }
         } catch {
             renderSignedOut(host, loginUrl);
+            bindDiscordSignInPending(byId('discord-sign-in-btn'));
         }
     }
 

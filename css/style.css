@@ -1251,6 +1251,17 @@ html.reduce-motion .bl-roster-igl-focus-row::before {
 .bl-roster-card--apply:focus-visible .bl-roster-apply-label {
     color: #ff1e43;
 }
+.bl-roster-card--apply-disabled,
+.bl-roster-card--apply:disabled {
+    cursor: not-allowed;
+    pointer-events: none;
+    opacity: 0.45;
+    filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.28));
+}
+.bl-roster-card--apply-disabled .bl-roster-apply-label,
+.bl-roster-card--apply:disabled .bl-roster-apply-label {
+    color: #64748b;
+}
 .bl-roster-card-body--apply {
     position: relative;
     display: flex;

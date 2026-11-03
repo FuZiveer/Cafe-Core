@@ -54,13 +54,50 @@
 
     function restoreSettingsModalToPage(modal) {
         if (!modal) return;
-        const hub = byId('aim-trainer-hub');
+        const hub = activeAimTrainerPage()?.querySelector('#aim-trainer-hub');
         if (!hub || modal.parentElement === hub) return;
         hub.appendChild(modal);
     }
 
     function byId(id) {
         return document.getElementById(id);
+    }
+
+    /** Live aim-trainer page only — avoids stale nodes left on body after a portaled modal. */
+    function activeAimTrainerPage() {
+        return document.getElementById('page-aim-trainer');
+    }
+
+    function getSettingsModal() {
+        const page = activeAimTrainerPage();
+        const inPage = page?.querySelector('#aim-trainer-settings-modal');
+        if (inPage) return inPage;
+        // Modal is portaled to body while aim trainer is active — still the live instance.
+        if (page) {
+            return document.querySelector('body > #aim-trainer-settings-modal');
+        }
+        return null;
+    }
+
+    /** Remove duplicate modals on body only when the page still has its own copy in the hub. */
+    function removeOrphanAimSettingsModals() {
+        const inPage = activeAimTrainerPage()?.querySelector('#aim-trainer-settings-modal');
+        if (!inPage) return;
+        document.querySelectorAll('body > #aim-trainer-settings-modal').forEach((modal) => {
+            if (modal === inPage) return;
+            resetAimGamePicklist(modal);
+            modal.remove();
+        });
+    }
+
+    function resetAimGamePicklist(scope = getSettingsModal()) {
+        const root = scope?.querySelector('#aim-trainer-settings-game-pick');
+        if (!root) return;
+        if (typeof window.__cafeCorePicklist?.resetRoot === 'function') {
+            window.__cafeCorePicklist.resetRoot(root);
+        } else if (typeof closeAllToolPicklists === 'function') {
+            closeAllToolPicklists();
+        }
     }
 
     function parsePositive(value, fallback) {
@@ -348,6 +385,7 @@
     }
 
     function showSettingsSection(name, { skipTabSync = false, instant = false, fromIndex } = {}) {
+        if (typeof closeAllToolPicklists === 'function') closeAllToolPicklists();
         const active = AIM_SECTIONS.includes(name) ? name : DEFAULTS.section;
         settings.section = active;
         document.querySelectorAll('[data-aim-settings-section]').forEach((el) => {
@@ -502,7 +540,7 @@
     }
 
     function syncGamePicklistDisplay() {
-        const root = byId('aim-trainer-settings-game-pick');
+        const root = getSettingsModal()?.querySelector('#aim-trainer-settings-game-pick');
         if (!root) return;
         const catalog = getGamesCatalog();
         const parts = catalog.map((g) => ({ id: g.name, name: g.name }));
@@ -514,7 +552,9 @@
     }
 
     function initGamePicklist() {
-        const root = byId('aim-trainer-settings-game-pick');
+        removeOrphanAimSettingsModals();
+        const modal = getSettingsModal();
+        const root = modal?.querySelector('#aim-trainer-settings-game-pick');
         if (!root) return;
         const catalog = getGamesCatalog();
         if (!catalog.length || typeof initToolPicklist !== 'function') return;
@@ -525,21 +565,14 @@
             notifyChange();
         };
 
-        if (root.dataset.toolPicklistInit === '1') {
-            root._picklistParts = parts;
-            if (typeof renderToolPicklistMenu === 'function') {
-                renderToolPicklistMenu(root, parts, root._picklistEmptyMessage || 'No matching game');
-            }
-            if (typeof bindToolPicklistMenuOptions === 'function') {
-                bindToolPicklistMenuOptions(root, parts, onChange);
-            }
+        if (root.dataset.toolPicklistInit === '1' && typeof updateToolPicklistOptions === 'function') {
+            updateToolPicklistOptions(root, parts, root.dataset.value || settings.game);
             root._picklistOnChange = onChange;
         } else {
             initToolPicklist(root, parts, {
                 emptyMessage: 'No matching game',
                 onChange,
             });
-            root.dataset.aimGamePickBound = '1';
         }
         syncGamePicklistDisplay();
     }
@@ -675,14 +708,15 @@
     }
 
     function bindModal() {
-        const modal = byId('aim-trainer-settings-modal');
+        removeOrphanAimSettingsModals();
+        const modal = getSettingsModal();
         if (!modal || modal.dataset.aimSettingsModalBound === '1') return;
         modal.dataset.aimSettingsModalBound = '1';
-        const openBtn = byId('aim-trainer-settings-open');
-        const closeBtn = byId('aim-trainer-settings-close');
-        const backdrop = byId('aim-trainer-settings-backdrop');
+        const openBtn = activeAimTrainerPage()?.querySelector('#aim-trainer-settings-open');
+        const closeBtn = modal.querySelector('#aim-trainer-settings-close');
+        const backdrop = modal.querySelector('#aim-trainer-settings-backdrop');
 
-        const tabRow = byId('aim-trainer-settings-tab-row');
+        const tabRow = modal.querySelector('#aim-trainer-settings-tab-row');
         if (tabRow && tabRow.dataset.aimTabsBound !== '1') {
             tabRow.dataset.aimTabsBound = '1';
             tabRow.querySelectorAll('.settings-tab-btn[data-aim-section]').forEach((btn) => {
@@ -695,28 +729,28 @@
             window.addEventListener('resize', () => {
                 syncAimTrainerTabGlider({ instant: true });
                 if (typeof syncGlideSelector !== 'function') return;
-                document.querySelectorAll('#aim-trainer-settings-modal .glide-selector').forEach((root) => {
+                modal.querySelectorAll('.glide-selector').forEach((root) => {
                     syncGlideSelector(root, { instant: true });
                 });
             });
         }
-        bindGlide(byId('aim-trainer-settings-timer-glide'), 'aimTimer', (value) => {
+        bindGlide(modal.querySelector('#aim-trainer-settings-timer-glide'), 'aimTimer', (value) => {
             settings.timer = Number(value);
         });
-        bindGlide(byId('aim-trainer-settings-tcolor-glide'), 'aimTcolor', (value) => {
+        bindGlide(modal.querySelector('#aim-trainer-settings-tcolor-glide'), 'aimTcolor', (value) => {
             settings.tcolor = value;
         });
         bindChColorControls();
-        bindGlide(byId('aim-trainer-settings-chlines-glide'), 'aimChlines', (value) => {
+        bindGlide(modal.querySelector('#aim-trainer-settings-chlines-glide'), 'aimChlines', (value) => {
             settings.chlines = value === 'true';
         });
-        bindGlide(byId('aim-trainer-settings-chdot-glide'), 'aimChdot', (value) => {
+        bindGlide(modal.querySelector('#aim-trainer-settings-chdot-glide'), 'aimChdot', (value) => {
             settings.chdot = value === 'true';
         });
-        bindGlide(byId('aim-trainer-settings-choutline-glide'), 'aimChoutline', (value) => {
+        bindGlide(modal.querySelector('#aim-trainer-settings-choutline-glide'), 'aimChoutline', (value) => {
             settings.choutline = value === 'true';
         });
-        bindGlide(byId('aim-trainer-settings-aspect-glide'), 'aimAspect', (value) => {
+        bindGlide(modal.querySelector('#aim-trainer-settings-aspect-glide'), 'aimAspect', (value) => {
             settings.aspect = AIM_ASPECTS.includes(value) ? value : DEFAULTS.aspect;
         });
         bindSensInputs();
@@ -750,7 +784,7 @@
             requestAnimationFrame(() => {
                 syncAimTrainerTabGlider({ instant: true });
                 if (typeof syncGlideSelector !== 'function') return;
-                document.querySelectorAll('#aim-trainer-settings-modal .glide-selector').forEach((root) => {
+                modal.querySelectorAll('.glide-selector').forEach((root) => {
                     syncGlideSelector(root, { instant: true });
                 });
             });
@@ -790,7 +824,15 @@
         if (typeof closeSettingsModalFn === 'function') closeSettingsModalFn();
         clearTimeout(settingsModalCloseTimer);
         settingsModalCloseTimer = null;
-        restoreSettingsModalToPage(byId('aim-trainer-settings-modal'));
+        closeSettingsModalFn = null;
+
+        const modal = getSettingsModal()
+            || document.querySelector('body > #aim-trainer-settings-modal');
+        if (modal) {
+            resetAimGamePicklist(modal);
+            restoreSettingsModalToPage(modal);
+        }
+        removeOrphanAimSettingsModals();
     }
 
     window.AimTrainerSettings = Object.freeze({

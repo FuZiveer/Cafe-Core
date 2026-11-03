@@ -212,20 +212,14 @@
         </div>`;
     }
 
-    const BL_ROSTER_APPLY_MAIL = 'kyro.demooni@gmail.com';
-
-    function openApplyToJoin() {
-        const subject = encodeURIComponent('Black-Listed roster application');
-        window.location.href = `mailto:${BL_ROSTER_APPLY_MAIL}?subject=${subject}`;
-    }
-
     function renderApplyToJoinSlot() {
         return `
         <button
             type="button"
-            class="bl-roster-card bl-roster-card--sub bl-roster-card--apply ui-interactive"
-            data-bl-apply-join
-            aria-label="Apply to join Black-Listed roster"
+            class="bl-roster-card bl-roster-card--sub bl-roster-card--apply bl-roster-card--apply-disabled"
+            disabled
+            aria-disabled="true"
+            aria-label="Apply to join Black-Listed roster (currently unavailable)"
         >
             <div class="bl-roster-card-body bl-roster-card-body--apply">
                 <p class="bl-roster-apply-label">Apply to join</p>
@@ -495,11 +489,6 @@
         if (!page || page.dataset.blMoreBound === '1') return;
         page.dataset.blMoreBound = '1';
         page.addEventListener('click', (event) => {
-            const applyBtn = event.target.closest('[data-bl-apply-join]');
-            if (applyBtn && page.contains(applyBtn)) {
-                openApplyToJoin();
-                return;
-            }
             const btn = event.target.closest('[data-bl-member-id]');
             if (!btn || !page.contains(btn)) return;
             const memberId = btn.getAttribute('data-bl-member-id');

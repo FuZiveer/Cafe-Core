@@ -224,12 +224,12 @@
                 }
             }
         }
-        pageEl.remove();
         if (pageKey) {
             if (typeof window.clearMainPageInitState === 'function') {
                 window.clearMainPageInitState(pageKey);
             }
         }
+        pageEl.remove();
     }
 
     function pageKeyFromHash() {

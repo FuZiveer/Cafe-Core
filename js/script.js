@@ -632,6 +632,7 @@ async function setMainPageInternal(pageKey, options = {}) {
 const mainPageInitOnce = new Set();
 
 window.clearMainPageInitState = function clearMainPageInitState(pageKey) {
+    if (typeof closeAllToolPicklists === 'function') closeAllToolPicklists();
     mainPageInitOnce.delete(pageKey);
     if (pageKey === 'sensitivity') window.__sensitivityConverterMounted = false;
     if (pageKey === 'edpi') window.__edpiCalculatorMounted = false;
@@ -3198,6 +3199,23 @@ function closeAllToolPicklists(exceptRoot = null) {
     });
 }
 
+/** Drop listeners/state so a picklist can be re-inited after page swap (avoids stale portaled menus). */
+function resetToolPicklistRoot(root) {
+    if (!root) return;
+    closeAllToolPicklists();
+    const menu = getToolPicklistMenu(root);
+    clearToolPicklistMenuFixedLayout(root, menu);
+    if (menu) delete menu.dataset.picklistOptionsBound;
+    delete root.dataset.toolPicklistInit;
+    delete root.dataset.picklistLayoutBound;
+    root._picklistParts = null;
+    root._picklistOnChange = null;
+    root._picklistMenuEl = null;
+    root._picklistMenuHome = null;
+    root._picklistRevertId = '';
+    root._picklistEditing = false;
+}
+
 function setToolPicklistValue(root, part) {
     if (!root) return;
     const input = root.querySelector('.tool-picklist-input');
@@ -3215,16 +3233,21 @@ function setToolPicklistValue(root, part) {
 
 function bindToolPicklistMenuOptions(root, parts, onChange) {
     const menu = getToolPicklistMenu(root);
-    if (!menu) return;
-    menu.querySelectorAll('.tool-picklist-option').forEach((btn) => {
-        btn.addEventListener('mouseenter', () => {
-            if (!root.classList.contains('is-open')) return;
-            setToolPicklistActive(root, menu, btn);
-        });
-        btn.addEventListener('click', (event) => {
-            event.stopPropagation();
-            commitToolPicklistOption(root, parts, btn, onChange);
-        });
+    if (!menu || menu.dataset.picklistOptionsBound === '1') return;
+    menu.dataset.picklistOptionsBound = '1';
+    menu.addEventListener('click', (event) => {
+        const btn = event.target.closest('.tool-picklist-option');
+        if (!btn || !menu.contains(btn) || btn.classList.contains('is-filtered-out')) return;
+        event.stopPropagation();
+        const activeParts = root._picklistParts || parts;
+        const activeOnChange = root._picklistOnChange || onChange;
+        commitToolPicklistOption(root, activeParts, btn, activeOnChange);
+    });
+    menu.addEventListener('mouseover', (event) => {
+        const btn = event.target.closest('.tool-picklist-option:not(.is-filtered-out)');
+        if (!btn || !menu.contains(btn)) return;
+        if (!root.classList.contains('is-open')) return;
+        setToolPicklistActive(root, menu, btn);
     });
 }
 
@@ -5282,50 +5305,20 @@ function selectFlyoutItem(itemId, itemName) {
 }
 
 let notifications = [];
-let notificationTimeRefreshTimer = null;
 
-function formatTimeAgo(createdAt) {
-    const then = typeof createdAt === 'number' ? createdAt : Date.parse(createdAt);
-    if (!then || Number.isNaN(then)) return '0s';
-    const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h`;
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}d`;
-    const months = Math.floor(days / 30);
-    if (months < 12) return `${months}mo`;
-    const years = Math.floor(months / 12);
-    return `${years}y`;
-}
-
-function ensureNotificationCreatedAt(n) {
-    if (typeof n.createdAt !== 'number' || Number.isNaN(n.createdAt)) {
-        n.createdAt = Date.now();
-    }
-}
-
-function updateNotificationRelativeTimes() {
-    document.querySelectorAll('.notification-time[data-created-at]').forEach((el) => {
-        const createdAt = Number(el.getAttribute('data-created-at'));
-        el.textContent = formatTimeAgo(createdAt);
+function pushCafeNotification({ title, body, id } = {}) {
+    if (!title) return;
+    notifications.unshift({
+        id: id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title: String(title),
+        body: body ? String(body) : '',
+        read: false,
+        createdAt: Date.now(),
     });
+    renderNotifications();
 }
 
-function stopNotificationTimeRefresh() {
-    if (notificationTimeRefreshTimer) {
-        clearInterval(notificationTimeRefreshTimer);
-        notificationTimeRefreshTimer = null;
-    }
-}
-
-function startNotificationTimeRefresh() {
-    stopNotificationTimeRefresh();
-    updateNotificationRelativeTimes();
-    notificationTimeRefreshTimer = setInterval(updateNotificationRelativeTimes, 1000);
-}
+window.pushCafeNotification = pushCafeNotification;
 
 function hasUnreadNotifications() {
     return notifications.some((n) => !n.read);
@@ -5360,16 +5353,12 @@ function renderNotifications() {
         return;
     }
 
-    listEl.innerHTML = notifications.map((n) => {
-        ensureNotificationCreatedAt(n);
-        return `
+    listEl.innerHTML = notifications.map((n) => `
         <button type="button" data-notification-id="${n.id}" class="notification-item ui-interactive w-full text-left px-4 py-3 hover:bg-matte-800 ${n.read ? 'opacity-60' : ''}">
             <p class="text-sm font-semibold ${n.read ? 'text-slate-400' : 'text-white'}">${n.title}</p>
             <p class="text-xs text-slate-400 mt-1 leading-relaxed">${n.body}</p>
-            <p class="notification-time text-[10px] text-slate-500 mt-2 tracking-wide" data-created-at="${n.createdAt}">${formatTimeAgo(n.createdAt)}</p>
         </button>
-    `;
-    }).join('');
+    `).join('');
 
     updateNotificationDot();
     updateMarkAllReadButton();
@@ -5450,11 +5439,6 @@ function setNotificationDropdownOpen(open) {
         btn.setAttribute('aria-expanded', 'false');
     }
 
-    if (open && notifications.length > 0) {
-        startNotificationTimeRefresh();
-    } else {
-        stopNotificationTimeRefresh();
-    }
 }
 
 window.closeNotificationDropdown = function closeNotificationDropdown() {
@@ -5606,6 +5590,7 @@ window.__cafeCorePicklist = {
     updateOptions: updateToolPicklistOptions,
     ensureDismiss: initToolPicklistDismiss,
     closeAll: closeAllToolPicklists,
+    resetRoot: resetToolPicklistRoot,
 };
 
 window.__cafeCoreGlide = {
