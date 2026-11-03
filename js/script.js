@@ -31,10 +31,11 @@ const flyoutData = coreFreeze({
     more: {
         title: 'More Menu',
         items: [
-            { id: 'more-connect', name: 'Connect', icon: 'fa-envelope', href: 'mailto:svitserk.morningstar@gmail.com' },
+            { id: 'more-connect', name: 'Connect', icon: 'fa-envelope', href: 'mailto:kyro.demooni@gmail.com' },
             { id: 'more-discord', name: 'Discord', icon: 'fa-discord', iconFamily: 'fa-brands', href: 'https://discord.gg/3r2sMRq4Jy' },
             { id: 'more-branding', name: 'Branding', icon: 'fa-paintbrush' },
             { id: 'more-fuziveer', name: 'FuZiveer', icon: 'fa-user' },
+            { id: 'more-black-listed', name: 'Black-Listed', icon: 'fa-person-rifle' },
         ]
     }
 });
@@ -119,6 +120,7 @@ const mainPageIds = coreFreeze({
     'find-team': 'page-find-team',
     branding: 'page-branding',
     fuziveer: 'page-fuziveer',
+    'black-listed': 'page-black-listed',
     privacy: 'page-privacy-policy',
     terms: 'page-terms-of-service',
     notes: 'page-notes',
@@ -434,6 +436,25 @@ let currentMainPageKey = 'default';
 let mainPageAnimToken = 0;
 let mainPageTransitionHandler = null;
 
+function resetMainContentScroll() {
+    const host = document.getElementById('main-content');
+    if (host) {
+        host.scrollTop = 0;
+        if (typeof host.scrollTo === 'function') {
+            host.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }
+    }
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+}
+
+/** Reset #main-content scroll after the outgoing page is hidden (avoids visible snap on exit). */
+function resetMainContentScrollAfterSwap() {
+    resetMainContentScroll();
+    requestAnimationFrame(resetMainContentScroll);
+}
+
 function resetMainPageMotion(pageEl) {
     if (!pageEl) return;
     pageEl.classList.remove('main-page-exit', 'main-page-enter-prep');
@@ -449,6 +470,7 @@ function applyMainPageInstant(nextPage) {
         el.classList.remove('main-page-active');
     });
     mainPageTransitionHandler = null;
+    resetMainContentScrollAfterSwap();
     nextPage.classList.add('main-page-active');
 }
 
@@ -477,6 +499,7 @@ function revealMainPage(prevPage, nextPage, nextKey, token) {
     if (token !== mainPageAnimToken) return;
     resetMainPageMotion(nextPage);
     prevPage.classList.remove('main-page-active', 'main-page-exit');
+    resetMainContentScrollAfterSwap();
     nextPage.classList.add('main-page-active', 'main-page-enter-prep');
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -547,6 +570,7 @@ async function setMainPageInternal(pageKey, options = {}) {
         if (defaultStubToHub) {
             await animateDefaultPageInPlace();
             if (window.pageLoader) window.pageLoader.syncLocationHash(nextKey);
+            resetMainContentScrollAfterSwap();
         } else {
             syncPlaceholderPageView(nextKey);
             if (nextKey === 'default') initHomeFeatureCardTilt();
@@ -602,6 +626,7 @@ async function setMainPageInternal(pageKey, options = {}) {
         currentMainPageKey = nextKey;
         window.pageLoader.syncLocationHash(nextKey);
         syncPlaceholderPageView(nextKey);
+        resetMainContentScrollAfterSwap();
         if (nextKey === 'default') initHomeFeatureCardTilt();
         return;
     }
@@ -620,6 +645,9 @@ window.clearMainPageInitState = function clearMainPageInitState(pageKey) {
     if (pageKey === 'bottleneck') window.__bottleneckPicklistsMounted = false;
     if (pageKey === 'find-team' && typeof window.teardownFindTeamPage === 'function') {
         window.teardownFindTeamPage();
+    }
+    if (pageKey === 'black-listed' && typeof window.teardownBlackListedPage === 'function') {
+        window.teardownBlackListedPage();
     }
     if (pageKey === 'aim-trainer' && typeof window.teardownAimTrainerPage === 'function') {
         window.teardownAimTrainerPage();
@@ -777,6 +805,9 @@ window.initMainPage = async function initMainPage(pageKey) {
         case 'find-team':
             if (typeof window.initFindTeamPage === 'function') window.initFindTeamPage();
             break;
+        case 'black-listed':
+            if (typeof window.initBlackListedPage === 'function') window.initBlackListedPage();
+            break;
         case 'aim-trainer':
             if (typeof window.initAimTrainerPage === 'function') window.initAimTrainerPage();
             break;
@@ -793,6 +824,7 @@ window.initMainPage = async function initMainPage(pageKey) {
 function mainPageKeyForFlyoutItem(itemId) {
     if (itemId === 'more-branding') return 'branding';
     if (itemId === 'more-fuziveer') return 'fuziveer';
+    if (itemId === 'more-black-listed') return 'black-listed';
     if (itemId === 'more-privacy-policy') return 'privacy';
     if (itemId === 'more-terms-of-service') return 'terms';
     if (itemId === 'tool-notes') return 'notes';
@@ -867,6 +899,7 @@ const mainPageKeyToFlyoutItemId = {
     notes: 'tool-notes',
     branding: 'more-branding',
     fuziveer: 'more-fuziveer',
+    'black-listed': 'more-black-listed',
     privacy: 'more-privacy-policy',
     terms: 'more-terms-of-service',
     lineups: 'strat-tips',
@@ -1453,9 +1486,9 @@ const LINEUPS_SIEGE_MAPS = [
 const LINEUPS_VIDEO_LIBRARY = {
     siege: [
         {
-            title: 'Oregon Garage Window Spawn Peek',
+            title: 'Oregon Spawn Peek (Defense)',
             src: 'videos/siege/oregon-garage-spawnpeek-1.mp4',
-            difficulty: 2,
+            difficulty: 1,
             requirements: {
                 map: 'Oregon',
                 spot: 'Garage window',
@@ -2198,7 +2231,7 @@ function openLineupsVideoModal({ title, src, requirements }) {
         requirements: reqPayload,
     };
 
-    if (titleEl) titleEl.textContent = lineupsPendingClip.title;
+    if (titleEl) titleEl.innerHTML = formatLineupsClipTitleHtml(lineupsPendingClip.title, '');
     renderLineupsRequirementsList(lineupsPendingClip.requirements);
     setLineupsModalStep('requirements');
 
@@ -2414,6 +2447,10 @@ function getLineupsClipMap(clip) {
     return String(clip?.map ?? '').trim();
 }
 
+function getLineupsClipSpot(clip) {
+    return normalizeLineupsRequirementsPayload(clip?.requirements).spot;
+}
+
 function clampLineupsDifficultyStars(value) {
     const n = typeof value === 'number' ? value : parseInt(String(value ?? '').trim(), 10);
     if (!Number.isFinite(n)) return LINEUPS_DIFFICULTY_MIN;
@@ -2473,6 +2510,29 @@ function clipMatchesLineupsSearch(clip, terms) {
     if (!terms.length) return true;
     const haystack = String(clip.title ?? '').toLowerCase();
     return terms.every((term) => haystack.includes(term));
+}
+
+function parseLineupsTitleSide(title) {
+    const raw = String(title ?? '').trim();
+    const match = raw.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+    if (!match) return { main: raw, side: '', sideLabel: '' };
+    const side = match[2].trim();
+    return { main: match[1].trim(), side, sideLabel: `(${side})` };
+}
+
+function getLineupsTitleSideModifier(side) {
+    const key = String(side ?? '').trim().toLowerCase();
+    if (key === 'defense' || key === 'defence') return 'defense';
+    if (key === 'attack') return 'attack';
+    return 'default';
+}
+
+function formatLineupsClipTitleHtml(title, query) {
+    const { main, side, sideLabel } = parseLineupsTitleSide(title);
+    const mainHtml = highlightLineupsTitleHtml(main, query);
+    if (!sideLabel) return mainHtml;
+    const mod = getLineupsTitleSideModifier(side);
+    return `${mainHtml}<span class="lineups-video-title-side lineups-video-title-side--${mod}">${escapeHtmlText(sideLabel)}</span>`;
 }
 
 function highlightLineupsTitleHtml(title, query) {
@@ -2637,35 +2697,38 @@ function renderLineupsVideoGrid(gameKey) {
     grid.innerHTML = clips.map((clip, index) => {
         const title = clip.title || `Lineup ${index + 1}`;
         const safeTitle = escapeHtmlAttr(title);
-        const titleHtml = highlightLineupsTitleHtml(title, searchQuery);
+        const titleHtml = formatLineupsClipTitleHtml(title, searchQuery);
         const src = clip.src ? String(clip.src) : '';
         const titleAttr = escapeHtmlAttr(title);
-        const mapName = escapeHtmlAttr(getLineupsClipMap(clip));
+        const spotRaw = getLineupsClipSpot(clip);
+        const spotHtml = spotRaw
+            ? highlightLineupsTitleHtml(spotRaw, searchQuery)
+            : 'View requirements and watch the clip.';
         const difficultyHtml = formatLineupsDifficultyHtml(getLineupsClipDifficulty(clip));
-        const actionInner = src
-            ? `<button type="button" class="lineups-video-open topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 shrink-0" data-src="${escapeHtmlAttr(src)}" data-title="${titleAttr}" data-requirements="${escapeHtmlAttr(JSON.stringify(clip.requirements || {}))}" aria-label="Open video: ${safeTitle}">
-                    <i class="fa-solid fa-circle-play text-sm" aria-hidden="true"></i>
-               </button>`
-            : `<button type="button" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 shrink-0 opacity-40 pointer-events-none" disabled aria-disabled="true" aria-label="No video yet">
-                    <i class="fa-solid fa-circle-play text-sm" aria-hidden="true"></i>
-               </button>`;
+        const cardClasses = 'lineups-video-card aim-trainer-card ui-interactive bg-matte-950 rounded-lg border border-matte-800 p-5 text-left flex flex-col gap-3 min-h-[140px] min-w-0 w-full';
+        const openClass = src ? ' lineups-video-open' : '';
+        const dataAttrs = src
+            ? ` data-src="${escapeHtmlAttr(src)}" data-title="${titleAttr}" data-requirements="${escapeHtmlAttr(JSON.stringify(clip.requirements || {}))}"`
+            : '';
+        const disabledAttrs = src ? '' : ' disabled aria-disabled="true"';
+        const ariaLabel = src
+            ? ` aria-label="Open clip: ${safeTitle}"`
+            : ` aria-label="Clip unavailable: ${safeTitle}"`;
         return `
-            <article class="lineups-video-card min-w-0">
-                <div class="lineups-video-card-surface">
-                    <div class="lineups-video-card-body">
-                        <header class="lineups-video-card-head">
-                            <h3 class="lineups-video-card-title">${titleHtml}</h3>
-                            <div class="lineups-video-card-meta">
-                                ${mapName ? `<span class="lineups-video-card-map"><i class="fa-solid fa-map" aria-hidden="true"></i>${mapName}</span>` : ''}
-                                <span class="lineups-video-card-difficulty">${difficultyHtml}</span>
-                            </div>
-                        </header>
-                        <div class="lineups-video-card-actions">
-                            ${actionInner}
-                        </div>
-                    </div>
+            <button type="button" class="${cardClasses}${openClass}"${dataAttrs}${disabledAttrs}${ariaLabel} role="listitem">
+                <div class="lineups-video-card-header w-full min-h-10">
+                    <span class="w-10 h-10 rounded-lg bg-matte-900 border border-matte-800 flex items-center justify-center text-redneon-500 shrink-0">
+                        <i class="fa-solid fa-circle-play text-sm" aria-hidden="true"></i>
+                    </span>
+                    <span class="lineups-video-card-difficulty shrink-0">${difficultyHtml}</span>
                 </div>
-            </article>
+                <div class="min-w-0 mt-auto lineups-video-card-copy">
+                    <div class="aim-trainer-card-title-row flex items-center gap-2 min-w-0 flex-wrap">
+                        <h3 class="text-sm font-bold tracking-widest uppercase text-white min-w-0">${titleHtml}</h3>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">${spotHtml}</p>
+                </div>
+            </button>
         `;
     }).join('');
 }

@@ -16,6 +16,7 @@ const PAGE_FILES = {
     'find-team': 'pages/find-team.html',
     branding: 'pages/branding.html',
     fuziveer: 'pages/fuziveer.html',
+    'black-listed': 'pages/black-listed.html',
     privacy: 'pages/privacy.html',
     terms: 'pages/terms.html',
     notes: 'pages/notes.html',
