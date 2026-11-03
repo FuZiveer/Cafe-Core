@@ -12,6 +12,7 @@ const DISCORD_USER = 'https://discord.com/api/users/@me';
 
 const SESSION_COOKIE = 'cafe_core_session';
 const STATE_COOKIE = 'cafe_oauth_state';
+const RETURN_COOKIE = 'cafe_oauth_return';
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 30;
 
 let envLoaded = false;
@@ -48,8 +49,10 @@ function config() {
     const redirectUri =
         process.env.DISCORD_REDIRECT_URI?.trim()
         || `http://127.0.0.1:${port}/auth/discord/callback`;
-    const publicOrigin = process.env.PUBLIC_ORIGIN?.trim() || `http://127.0.0.1:${port}`;
+    const publicOrigin = process.env.PUBLIC_ORIGIN?.trim().replace(/\/$/, '') || `http://127.0.0.1:${port}`;
     const cookieSecure = publicOrigin.startsWith('https://');
+    const { corsOrigins, extraOrigins } = parseCorsOrigins(process.env.CORS_ORIGINS, publicOrigin);
+    const crossSiteCookies = cookieSecure && extraOrigins.length > 0;
     return {
         clientId,
         clientSecret,
@@ -57,8 +60,83 @@ function config() {
         redirectUri,
         publicOrigin,
         cookieSecure,
+        corsOrigins,
+        crossSiteCookies,
         configured: Boolean(clientId && clientSecret && sessionSecret),
     };
+}
+
+function parseCorsOrigins(raw, publicOrigin) {
+    const extraOrigins = [];
+    for (const part of (raw || '').split(',')) {
+        const trimmed = part.trim().replace(/\/$/, '');
+        if (!trimmed) continue;
+        try {
+            extraOrigins.push(new URL(trimmed).origin);
+        } catch {
+            /* ignore bad entries */
+        }
+    }
+    const set = new Set(extraOrigins);
+    if (publicOrigin) {
+        try {
+            set.add(new URL(publicOrigin).origin);
+        } catch {
+            /* ignore */
+        }
+    }
+    return { corsOrigins: [...set], extraOrigins };
+}
+
+function appendAuthQuery(url, code) {
+    try {
+        const u = new URL(url);
+        u.searchParams.set('auth', code);
+        return u.toString();
+    } catch {
+        return url;
+    }
+}
+
+function isAllowedReturnTo(returnTo, cfg) {
+    if (!returnTo) return false;
+    let target;
+    try {
+        target = new URL(returnTo);
+    } catch {
+        return false;
+    }
+    if (target.protocol !== 'https:' && target.protocol !== 'http:') return false;
+    return cfg.corsOrigins.includes(target.origin);
+}
+
+function corsOriginForRequest(req, cfg) {
+    const origin = req.headers.origin;
+    if (!origin || !cfg.corsOrigins.includes(origin)) return null;
+    return origin;
+}
+
+function applyCors(req, res, cfg) {
+    const origin = corsOriginForRequest(req, cfg);
+    if (!origin) return false;
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
+    return true;
+}
+
+function handleAuthOptions(req, res, cfg) {
+    if (req.method !== 'OPTIONS') return false;
+    const origin = corsOriginForRequest(req, cfg);
+    if (!origin) return false;
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Vary', 'Origin');
+    res.writeHead(204);
+    res.end();
+    return true;
 }
 
 function parseCookies(header) {
@@ -100,8 +178,8 @@ function verifySession(token, secret) {
     }
 }
 
-function setCookie(res, name, value, { maxAge, httpOnly = true, path = '/', secure = false } = {}) {
-    const parts = [`${name}=${encodeURIComponent(value)}`, `Path=${path}`, 'SameSite=Lax'];
+function setCookie(res, name, value, { maxAge, httpOnly = true, path = '/', secure = false, sameSite = 'Lax' } = {}) {
+    const parts = [`${name}=${encodeURIComponent(value)}`, `Path=${path}`, `SameSite=${sameSite}`];
     if (httpOnly) parts.push('HttpOnly');
     if (secure) parts.push('Secure');
     if (typeof maxAge === 'number') parts.push(`Max-Age=${maxAge}`);
@@ -110,8 +188,22 @@ function setCookie(res, name, value, { maxAge, httpOnly = true, path = '/', secu
     res.setHeader('Set-Cookie', next);
 }
 
-function clearCookie(res, name, { secure = false } = {}) {
-    setCookie(res, name, '', { maxAge: 0, secure });
+function clearCookie(res, name, { secure = false, sameSite = 'Lax' } = {}) {
+    setCookie(res, name, '', { maxAge: 0, secure, sameSite });
+}
+
+function cookieOpts(cfg) {
+    return {
+        secure: cfg.cookieSecure,
+        sameSite: cfg.crossSiteCookies ? 'None' : 'Lax',
+    };
+}
+
+function postLoginRedirect(req, cfg) {
+    const cookies = parseCookies(req.headers.cookie);
+    const returnTo = cookies[RETURN_COOKIE];
+    if (returnTo && isAllowedReturnTo(returnTo, cfg)) return returnTo;
+    return `${cfg.publicOrigin}/`;
 }
 
 function sendJson(res, status, data) {
@@ -199,7 +291,9 @@ export function getSessionUser(req) {
 export async function handleDiscordAuthRequest(req, res, url) {
     const cfg = config();
     const pathname = url.pathname;
-    const secureCookie = cfg.cookieSecure;
+    const cOpts = cookieOpts(cfg);
+
+    if (handleAuthOptions(req, res, cfg)) return true;
 
     if (pathname === '/api/health') {
         sendJson(res, 200, { ok: true, discord: cfg.configured });
@@ -207,14 +301,17 @@ export async function handleDiscordAuthRequest(req, res, url) {
     }
 
     if (pathname === '/api/auth/discord/config') {
+        applyCors(req, res, cfg);
         sendJson(res, 200, {
             configured: cfg.configured,
+            authOrigin: cfg.publicOrigin,
             loginPath: '/auth/discord/login',
         });
         return true;
     }
 
     if (pathname === '/api/auth/me') {
+        applyCors(req, res, cfg);
         const user = getSessionUser(req);
         if (!user) {
             sendJson(res, 401, { user: null });
@@ -225,7 +322,8 @@ export async function handleDiscordAuthRequest(req, res, url) {
     }
 
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
-        clearCookie(res, SESSION_COOKIE, { secure: secureCookie });
+        applyCors(req, res, cfg);
+        clearCookie(res, SESSION_COOKIE, cOpts);
         sendJson(res, 200, { ok: true });
         return true;
     }
@@ -240,7 +338,11 @@ export async function handleDiscordAuthRequest(req, res, url) {
 
     if (pathname === '/auth/discord/login' && req.method === 'GET') {
         const state = crypto.randomBytes(16).toString('hex');
-        setCookie(res, STATE_COOKIE, state, { maxAge: 600, httpOnly: true, secure: secureCookie });
+        const returnTo = url.searchParams.get('return_to')?.trim() || '';
+        setCookie(res, STATE_COOKIE, state, { maxAge: 600, httpOnly: true, ...cOpts });
+        if (returnTo && isAllowedReturnTo(returnTo, cfg)) {
+            setCookie(res, RETURN_COOKIE, returnTo, { maxAge: 600, httpOnly: true, ...cOpts });
+        }
         redirect(res, buildAuthorizeUrl(cfg, state));
         return true;
     }
@@ -248,18 +350,20 @@ export async function handleDiscordAuthRequest(req, res, url) {
     if (pathname === '/auth/discord/callback' && req.method === 'GET') {
         const cookies = parseCookies(req.headers.cookie);
         const expectedState = cookies[STATE_COOKIE];
-        clearCookie(res, STATE_COOKIE, { secure: secureCookie });
+        clearCookie(res, STATE_COOKIE, cOpts);
+        const afterLogin = postLoginRedirect(req, cfg);
+        clearCookie(res, RETURN_COOKIE, cOpts);
 
         const err = url.searchParams.get('error');
         if (err) {
-            redirect(res, `${cfg.publicOrigin}/?auth=discord_denied`);
+            redirect(res, appendAuthQuery(afterLogin, 'discord_denied'));
             return true;
         }
 
         const code = url.searchParams.get('code');
         const state = url.searchParams.get('state');
         if (!code || !state || state !== expectedState) {
-            redirect(res, `${cfg.publicOrigin}/?auth=discord_invalid`);
+            redirect(res, appendAuthQuery(afterLogin, 'discord_invalid'));
             return true;
         }
 
@@ -279,11 +383,11 @@ export async function handleDiscordAuthRequest(req, res, url) {
             setCookie(res, SESSION_COOKIE, session, {
                 maxAge: SESSION_MAX_AGE_SEC,
                 httpOnly: true,
-                secure: secureCookie,
+                ...cOpts,
             });
-            redirect(res, `${cfg.publicOrigin}/`);
+            redirect(res, afterLogin);
         } catch {
-            redirect(res, `${cfg.publicOrigin}/?auth=discord_error`);
+            redirect(res, appendAuthQuery(afterLogin, 'discord_error'));
         }
         return true;
     }

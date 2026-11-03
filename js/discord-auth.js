@@ -13,6 +13,36 @@
             .replace(/"/g, '&quot;');
     }
 
+    function authOriginOverride() {
+        const o = window.__CAFE_AUTH_ORIGIN;
+        return typeof o === 'string' && o.trim() ? o.trim().replace(/\/$/, '') : '';
+    }
+
+    function resolveAuthBase(configAuthOrigin) {
+        const override = authOriginOverride();
+        if (override) return override;
+        const fromConfig = configAuthOrigin?.trim?.().replace(/\/$/, '');
+        if (fromConfig && fromConfig !== window.location.origin) return fromConfig;
+        return '';
+    }
+
+    function apiUrl(authBase, path) {
+        const p = path.startsWith('/') ? path : `/${path}`;
+        return authBase ? `${authBase}${p}` : p;
+    }
+
+    function currentReturnTo() {
+        return `${window.location.origin}${window.location.pathname}${window.location.search}${window.location.hash}`;
+    }
+
+    function buildLoginUrl(authBase, loginPath) {
+        const base = authBase || window.location.origin;
+        const path = loginPath || '/auth/discord/login';
+        const url = new URL(path, `${base}/`);
+        url.searchParams.set('return_to', currentReturnTo());
+        return url.toString();
+    }
+
     function clearAuthQueryFromUrl() {
         const params = new URLSearchParams(window.location.search);
         if (!params.has('auth')) return;
@@ -21,18 +51,18 @@
         window.history.replaceState(null, '', next);
     }
 
-    async function fetchMe() {
-        const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+    async function fetchMe(authBase) {
+        const res = await fetch(apiUrl(authBase, '/api/auth/me'), { credentials: 'include' });
         if (res.status === 401) return null;
         if (!res.ok) throw new Error('auth_me_failed');
         const data = await res.json();
         return data?.user ?? null;
     }
 
-    function renderSignedOut(host, loginPath) {
+    function renderSignedOut(host, loginUrl) {
         host.innerHTML = `
             <a
-                href="${escapeHtml(loginPath)}"
+                href="${escapeHtml(loginUrl)}"
                 id="discord-sign-in-btn"
                 class="discord-auth-signin topbar-action-btn ui-interactive inline-flex items-center justify-center gap-2 h-9 px-3 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 border border-matte-800 hover:border-matte-700"
                 aria-label="Sign in with Discord"
@@ -42,7 +72,7 @@
             </a>`;
     }
 
-    function renderSignedIn(host, user) {
+    function renderSignedIn(host, user, authBase) {
         const name = user.displayName || user.username || 'Discord';
         host.innerHTML = `
             <div class="discord-auth-profile relative">
@@ -117,7 +147,7 @@
         signOut?.addEventListener('click', async () => {
             closeMenu();
             try {
-                await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+                await fetch(apiUrl(authBase, '/api/auth/logout'), { method: 'POST', credentials: 'include' });
             } catch {
                 /* ignore */
             }
@@ -139,19 +169,28 @@
         }
     }
 
+    async function loadAuthConfig(authBaseGuess) {
+        const bases = [];
+        if (authBaseGuess) bases.push(authBaseGuess);
+        if (!bases.includes('')) bases.push('');
+        for (const base of bases) {
+            try {
+                const res = await fetch(apiUrl(base, '/api/auth/discord/config'), { credentials: 'include' });
+                if (res.ok) return res.json();
+            } catch {
+                /* try next base */
+            }
+        }
+        return { configured: false, loginPath: '/auth/discord/login' };
+    }
+
     async function refreshDiscordAuthUi() {
         const host = byId('discord-auth-host');
         if (!host) return;
 
-        let config = { configured: false, loginPath: '/auth/discord/login' };
-        try {
-            const res = await fetch('/api/auth/discord/config', { credentials: 'same-origin' });
-            if (res.ok) config = await res.json();
-        } catch {
-            host.innerHTML = '';
-            host.hidden = true;
-            return;
-        }
+        const override = authOriginOverride();
+        const config = await loadAuthConfig(override);
+        const authBase = resolveAuthBase(config.authOrigin);
 
         if (!config.configured) {
             host.innerHTML = '';
@@ -160,13 +199,14 @@
         }
 
         host.hidden = false;
+        const loginUrl = buildLoginUrl(authBase, config.loginPath);
 
         try {
-            const user = await fetchMe();
-            if (user) renderSignedIn(host, user);
-            else renderSignedOut(host, config.loginPath || '/auth/discord/login');
+            const user = await fetchMe(authBase);
+            if (user) renderSignedIn(host, user, authBase);
+            else renderSignedOut(host, loginUrl);
         } catch {
-            renderSignedOut(host, config.loginPath || '/auth/discord/login');
+            renderSignedOut(host, loginUrl);
         }
     }
 

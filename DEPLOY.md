@@ -44,6 +44,7 @@ You **cannot** upload only HTML/JS to generic web hosting and keep Discord login
    | `DISCORD_REDIRECT_URI` | `https://YOUR-SERVICE.onrender.com/auth/discord/callback` |
    | `SESSION_SECRET` | long random string (new one for production is fine) |
    | `PUBLIC_ORIGIN` | `https://YOUR-SERVICE.onrender.com` |
+   | `CORS_ORIGINS` | `https://fuziveer.github.io` (if you use GitHub Pages for the static site) |
    | `NODE_ENV` | `production` (optional) |
 
    Render sets **`PORT`** automatically — do not hardcode it.
@@ -81,3 +82,16 @@ Always use **HTTPS** in production (`PUBLIC_ORIGIN` and `DISCORD_REDIRECT_URI` m
 - Sign in → profile appears in the top bar.
 
 Local dev stays: `.env` on your PC + `npm run dev` + `http://127.0.0.1:8787`.
+
+---
+
+## GitHub Pages + Discord (two URLs, one login)
+
+GitHub Pages only hosts files. OAuth still runs on Render.
+
+1. On **Render**, set `CORS_ORIGINS` to `https://fuziveer.github.io` (your Pages origin, no path).
+2. Keep Discord redirect on Render only: `https://YOUR-SERVICE.onrender.com/auth/discord/callback`.
+3. In **`js/auth-config.js`**, set `__CAFE_AUTH_ORIGIN` to your Render URL (already wired for `fuziveer.github.io`).
+4. Push to GitHub so Pages updates; sign in on `https://fuziveer.github.io/Cafe-Core`.
+
+Flow: Pages → Sign in → Render (Discord) → back to your GitHub Pages URL → profile loads via cross-origin API + cookie on Render.
