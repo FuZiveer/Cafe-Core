@@ -3702,33 +3702,106 @@ html.reduce-motion .aim-trainer-start-overlay .aim-countdown span {
     background-color: #141418;
     color: #ff1e43;
 }
+#main-content:has(#page-aim-trainer.main-page-active:not(.page-aim-trainer--session)) {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+#page-aim-trainer.main-page-active:not(.page-aim-trainer--session) {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    align-self: stretch;
+}
+#page-aim-trainer.main-page-active:not(.page-aim-trainer--session) .aim-trainer-hub {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#page-aim-trainer.main-page-active:not(.page-aim-trainer--session) .aim-trainer-hub-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+#page-aim-trainer.main-page-active:not(.page-aim-trainer--session) .aim-trainer-hub-main > .page-intro {
+    flex-shrink: 0;
+}
 .aim-trainer-browser {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
 }
 .aim-trainer-browser-toolbar {
     display: grid;
     grid-template-columns: 1fr;
     gap: 0.75rem;
     align-items: end;
+    flex-shrink: 0;
 }
 @media (min-width: 640px) {
     .aim-trainer-browser-toolbar {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 12.5rem;
     }
 }
 .aim-trainer-browser-search,
-.aim-trainer-browser-types {
+.aim-trainer-browser-types,
+.aim-trainer-browser-view {
+    display: flex;
+    flex-direction: column;
     gap: 0.75rem;
+    min-width: 0;
+}
+.aim-trainer-browser-view {
+    width: 12.5rem;
+    max-width: 12.5rem;
+    flex-shrink: 0;
 }
 .aim-trainer-browser-types,
-#aim-trainer-type-glide {
+#aim-trainer-type-glide,
+#aim-trainer-view-glide {
     width: 100%;
     min-width: 0;
 }
-.aim-trainer-list {
+#aim-trainer-view-glide {
+    width: 100%;
+    max-width: 12.5rem;
+}
+.aim-trainer-browser-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+    align-self: stretch;
+}
+.aim-trainer-browser-pane {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.aim-trainer-browser-pane[hidden] {
+    display: none;
+}
+.aim-trainer-playlist-empty {
+    margin: 0;
+}
+#aim-trainer-list.aim-trainer-list,
+#aim-trainer-playlist.aim-trainer-playlist {
+    align-content: start;
     gap: 0.75rem;
+    padding-bottom: 0.75rem;
 }
 @media (max-width: 639px) {
     #aim-trainer-settings-open.aim-trainer-settings-corner {
@@ -4125,6 +4198,47 @@ html.reduce-motion .aim-trainer-start-overlay .aim-countdown span {
 .aim-trainer-list-empty[hidden] {
     display: none;
 }
+.aim-trainer-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.aim-trainer-card-header-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.375rem;
+    margin-left: auto;
+    flex-shrink: 0;
+    max-width: calc(100% - 3rem);
+}
+.aim-trainer-card-difficulty {
+    flex-shrink: 0;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.125rem 0.375rem;
+    border-radius: var(--radius-ui);
+    border: 1px solid #26262b;
+    background-color: #0f0f12;
+    color: #94a3b8;
+    pointer-events: none;
+}
+.aim-trainer-card-difficulty--easy {
+    color: #86efac;
+    border-color: rgba(134, 239, 172, 0.25);
+}
+.aim-trainer-card-difficulty--medium {
+    color: #fcd34d;
+    border-color: rgba(252, 211, 77, 0.25);
+}
+.aim-trainer-card-difficulty--hard {
+    color: #ff1e43;
+    border-color: rgba(255, 30, 67, 0.35);
+}
 .aim-trainer-card-types {
     display: flex;
     flex-wrap: wrap;
@@ -4136,15 +4250,62 @@ html.reduce-motion .aim-trainer-start-overlay .aim-countdown span {
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #64748b;
     padding: 0.125rem 0.375rem;
     border-radius: var(--radius-ui);
     border: 1px solid #26262b;
     background-color: #0f0f12;
 }
+.aim-trainer-card-type--flick {
+    color: #ff6b85;
+    border-color: rgba(255, 30, 67, 0.4);
+    background-color: rgba(255, 30, 67, 0.1);
+}
+.aim-trainer-card-type--track {
+    color: #7dd3fc;
+    border-color: rgba(56, 189, 248, 0.4);
+    background-color: rgba(56, 189, 248, 0.1);
+}
+.aim-trainer-card-type--react {
+    color: #d4b8f0;
+    border-color: rgba(195, 154, 224, 0.45);
+    background-color: rgba(195, 154, 224, 0.12);
+}
 .aim-trainer-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    min-height: 200px;
+    height: 200px;
+    padding: 1.25rem;
+    box-sizing: border-box;
     transition: border-color var(--motion-duration) var(--motion-ease),
         background-color var(--motion-duration) var(--motion-ease);
+}
+.aim-trainer-card-copy {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    min-height: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+.aim-trainer-card-title-row {
+    align-items: center;
+}
+.aim-trainer-card-title-row h3 {
+    flex: 0 1 auto;
+}
+.aim-trainer-card-title-row .aim-trainer-card-types {
+    flex: 0 0 auto;
+}
+.aim-trainer-card-copy h3 {
+    margin: 0;
+}
+.aim-trainer-card-description {
+    margin: 0;
 }
 .aim-trainer-card:hover {
     border-color: #26262b;

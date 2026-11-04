@@ -2,7 +2,7 @@
     'use strict';
 
     const STORAGE_KEY = 'cafe-aim-trainer-settings';
-    const AIM_SECTIONS = ['session', 'game', 'sensitivity', 'target', 'crosshair', 'aspect'];
+    const AIM_SECTIONS = ['session', 'game', 'target', 'crosshair', 'aspect'];
     const AIM_ASPECTS = Object.freeze(['native', '16:9', '16:10', '5:4', '4:3', '3:2']);
     const AIM_CH_PRESETS = Object.freeze(['#ff0000', '#00ff00', '#0000ff']);
     const AIM_CH_CUSTOM = 'custom';
@@ -182,6 +182,7 @@
         }
         s.sens = parsePositive(s.sens, DEFAULTS.sens);
         s.dpi = parsePositive(s.dpi, DEFAULTS.dpi);
+        if (s.section === 'sensitivity') s.section = 'game';
         if (!AIM_SECTIONS.includes(s.section)) s.section = DEFAULTS.section;
         s.spread = DEFAULTS.spread;
         s.tsize = DEFAULTS.tsize;
@@ -459,9 +460,7 @@
         syncRangeUi();
 
         const sensInput = byId('aim-trainer-settings-sens');
-        const dpiInput = byId('aim-trainer-settings-dpi');
         if (sensInput) sensInput.value = String(settings.sens);
-        if (dpiInput) dpiInput.value = String(settings.dpi);
 
         syncGamePicklistDisplay();
         showSettingsSection(settings.section, { instant: true });
@@ -591,20 +590,15 @@
 
     function bindSensInputs() {
         const sensInput = byId('aim-trainer-settings-sens');
-        const dpiInput = byId('aim-trainer-settings-dpi');
-        const applySens = (input, key, fallback) => {
-            if (!input || input.dataset.aimSensBound === '1') return;
-            input.dataset.aimSensBound = '1';
-            const commit = () => {
-                settings[key] = parsePositive(input.value, fallback);
-                input.value = String(settings[key]);
-                notifyChange();
-            };
-            input.addEventListener('change', commit);
-            input.addEventListener('blur', commit);
+        if (!sensInput || sensInput.dataset.aimSensBound === '1') return;
+        sensInput.dataset.aimSensBound = '1';
+        const commit = () => {
+            settings.sens = parsePositive(sensInput.value, DEFAULTS.sens);
+            sensInput.value = String(settings.sens);
+            notifyChange();
         };
-        applySens(sensInput, 'sens', DEFAULTS.sens);
-        applySens(dpiInput, 'dpi', DEFAULTS.dpi);
+        sensInput.addEventListener('change', commit);
+        sensInput.addEventListener('blur', commit);
     }
 
     function bindCrosshairRanges() {

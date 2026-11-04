@@ -37,9 +37,24 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="aim-trainer-browser-view flex flex-col min-w-0">
+                                <span class="text-sm font-bold tracking-widest uppercase text-white">Browse</span>
+                                <div id="aim-trainer-view-glide" class="glide-selector w-full" role="radiogroup" aria-label="Browse drills or playlists" data-value="sessions">
+                                    <div class="glide-selector-track">
+                                        <div class="glide-selector-viewport" aria-hidden="true">
+                                            <span class="glide-selector-thumb ui-interactive"></span>
+                                        </div>
+                                        <button type="button" class="glide-selector-option ui-interactive is-selected" data-aim-view="sessions" role="radio" aria-checked="true">Sessions</button>
+                                        <button type="button" class="glide-selector-option ui-interactive" data-aim-view="playlist" role="radio" aria-checked="false">Playlist</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div id="aim-trainer-list" class="aim-trainer-list grid grid-cols-1 sm:grid-cols-2" role="list"></div>
-                        <p id="aim-trainer-list-empty" class="aim-trainer-list-empty text-sm text-slate-400 tracking-wide text-center py-8" hidden>No drills match your filters.</p>
+                        <div class="aim-trainer-browser-body">
+                            <div id="aim-trainer-list" class="aim-trainer-list aim-trainer-browser-pane grid grid-cols-1 sm:grid-cols-2" role="list"></div>
+                            <p id="aim-trainer-list-empty" class="aim-trainer-list-empty aim-trainer-browser-pane text-sm text-slate-400 tracking-wide text-center py-8" hidden>No drills match your filters.</p>
+                            <div id="aim-trainer-playlist" class="aim-trainer-playlist aim-trainer-browser-pane grid grid-cols-1 sm:grid-cols-2" role="list" hidden></div>
+                        </div>
                     </section>
                     </div>
                     <div id="aim-trainer-settings-modal" class="aim-trainer-settings-modal settings-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="aim-trainer-settings-title" aria-hidden="true">
@@ -82,21 +97,14 @@
                                             <div id="aim-trainer-settings-game-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Games"></div>
                                         </div>
                                     </div>
-                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col hidden" data-aim-settings-section="sensitivity" hidden>
+                                    <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col hidden" data-aim-settings-section="game" hidden>
                                         <div class="min-w-0">
                                             <p class="text-sm font-bold tracking-widest uppercase text-white">Sensitivity</p>
-                                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">In-game sensitivity and mouse DPI.</p>
+                                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Your in-game sensitivity for the selected game.</p>
                                         </div>
-                                        <div class="grid grid-cols-1 sm:grid-cols-2">
-                                            <label class="flex flex-col min-w-0">
-                                                <span class="text-xs font-bold tracking-widest uppercase text-slate-400">Sensitivity</span>
-                                                <input type="text" inputmode="decimal" id="aim-trainer-settings-sens" class="tool-picklist-input w-full" value="1" autocomplete="off" spellcheck="false">
-                                            </label>
-                                            <label class="flex flex-col min-w-0">
-                                                <span class="text-xs font-bold tracking-widest uppercase text-slate-400">DPI</span>
-                                                <input type="text" inputmode="numeric" id="aim-trainer-settings-dpi" class="tool-picklist-input w-full" value="800" autocomplete="off" spellcheck="false">
-                                            </label>
-                                        </div>
+                                        <label class="flex flex-col min-w-0">
+                                            <input type="text" inputmode="decimal" id="aim-trainer-settings-sens" class="tool-picklist-input w-full" value="1" autocomplete="off" spellcheck="false" aria-label="In-game sensitivity" placeholder="In-game sensitivity">
+                                        </label>
                                     </div>
                                     <div class="aim-trainer-settings-section settings-row bg-matte-950 rounded-lg p-4 flex flex-col hidden" data-aim-settings-section="target" hidden>
                                         <div class="min-w-0">
@@ -232,7 +240,6 @@
                                     <span class="settings-tab-glider" id="aim-trainer-settings-tab-glider" aria-hidden="true"></span>
                                     <button type="button" class="settings-tab-btn ui-interactive active" data-aim-section="session" role="tab" aria-selected="true">Session</button>
                                     <button type="button" class="settings-tab-btn ui-interactive" data-aim-section="game" role="tab" aria-selected="false">Game</button>
-                                    <button type="button" class="settings-tab-btn ui-interactive" data-aim-section="sensitivity" role="tab" aria-selected="false">Sens</button>
                                     <button type="button" class="settings-tab-btn ui-interactive" data-aim-section="target" role="tab" aria-selected="false">Target</button>
                                     <button type="button" class="settings-tab-btn ui-interactive" data-aim-section="crosshair" role="tab" aria-selected="false">Crosshair</button>
                                     <button type="button" class="settings-tab-btn ui-interactive" data-aim-section="aspect" role="tab" aria-selected="false">Aspect</button>

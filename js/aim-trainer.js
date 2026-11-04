@@ -2,56 +2,250 @@
     'use strict';
 
     const AIM_TYPE_LABELS = { flick: 'Flicking', track: 'Tracking', react: 'Reacting' };
+    const AIM_DIFFICULTY_LABELS = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 
     /** Morning Roast `AIM_MODES` (script.js) — hub cards for each training mode. */
     const TRAININGS = [
         {
             id: 'static',
+            mode: 'static',
             name: 'Static',
             description: 'Hit targets that stay still.',
             icon: 'fa-bullseye',
             types: ['flick'],
+            difficulty: 'easy',
+            targetSize: 'easy',
         },
         {
             id: 'wave',
+            mode: 'wave',
             name: 'Wave',
             description: 'Clear every target on the range before they all respawn.',
             icon: 'fa-water',
             types: ['flick'],
+            difficulty: 'easy',
+            targetSize: 'easy',
         },
         {
             id: 'flick',
+            mode: 'flick',
             name: 'Head Level',
             description: 'Camera and targets sit 25% off the floor, with targets lined up in one row.',
             icon: 'fa-bolt',
             types: ['flick'],
+            difficulty: 'easy',
+            targetSize: 'easy',
         },
         {
             id: 'track',
+            mode: 'track',
             name: 'Tracking (small movements)',
             description: 'One target spawns at a random height and slides left and right — click each time you land on it.',
             icon: 'fa-arrows-left-right',
             types: ['track'],
+            difficulty: 'easy',
+            targetSize: 'easy',
         },
         {
             id: 'track-mouse',
+            mode: 'track-mouse',
             name: 'Tracking (mouse control)',
             description: 'Hold fire at 400 RPM while tracking one slow target across ±60° — 25 points per hit.',
             icon: 'fa-computer-mouse',
             types: ['track'],
+            difficulty: 'easy',
+            targetSize: 'easy',
         },
         {
             id: 'react',
+            mode: 'react',
             name: 'Reacting',
-            description: 'Shoot the center target, then chase a straight-line flyer for 1s — miss and the center returns.',
+            description: 'Shoot the center target, then chase a straight-line flyer for 0.5s — miss and the center returns.',
             icon: 'fa-crosshairs',
             types: ['react'],
+            difficulty: 'easy',
+            targetSize: 'easy',
+        },
+        {
+            id: 'shrink',
+            mode: 'shrink',
+            name: 'Shrinking',
+            description: 'One target shrinks on the wall — hit it before it disappears or it counts as a miss.',
+            icon: 'fa-compress',
+            types: ['flick'],
+            difficulty: 'easy',
+            targetSize: 'easy',
+        },
+        {
+            id: 'static-medium',
+            mode: 'static',
+            name: 'Static',
+            description: 'Hit targets that stay still.',
+            icon: 'fa-bullseye',
+            types: ['flick'],
+            difficulty: 'medium',
+            targetSize: 'medium',
+        },
+        {
+            id: 'wave-medium',
+            mode: 'wave',
+            name: 'Wave',
+            description: 'Clear every target on the range before they all respawn.',
+            icon: 'fa-water',
+            types: ['flick'],
+            difficulty: 'medium',
+            targetSize: 'medium',
+        },
+        {
+            id: 'flick-medium',
+            mode: 'flick',
+            name: 'Head Level',
+            description: 'Camera and targets sit 25% off the floor, with targets lined up in one row.',
+            icon: 'fa-bolt',
+            types: ['flick'],
+            difficulty: 'medium',
+            targetSize: 'medium',
+        },
+        {
+            id: 'track-medium',
+            mode: 'track',
+            name: 'Tracking (small movements)',
+            description: 'One target spawns at a random height and slides left and right — click each time you land on it.',
+            icon: 'fa-arrows-left-right',
+            types: ['track'],
+            difficulty: 'medium',
+            targetSize: 'medium',
+        },
+        {
+            id: 'track-mouse-medium',
+            mode: 'track-mouse',
+            name: 'Tracking (mouse control)',
+            description: 'Hold fire at 400 RPM while tracking one slow target across ±60° — 25 points per hit.',
+            icon: 'fa-computer-mouse',
+            types: ['track'],
+            difficulty: 'medium',
+            targetSize: 'medium',
+        },
+        {
+            id: 'react-medium',
+            mode: 'react',
+            name: 'Reacting',
+            description: 'Shoot the center target, then chase a straight-line flyer for 0.5s — miss and the center returns.',
+            icon: 'fa-crosshairs',
+            types: ['react'],
+            difficulty: 'medium',
+            targetSize: 'medium',
+        },
+        {
+            id: 'shrink-medium',
+            mode: 'shrink',
+            name: 'Shrinking',
+            description: 'One target shrinks on the wall — hit it before it disappears or it counts as a miss.',
+            icon: 'fa-compress',
+            types: ['flick'],
+            difficulty: 'medium',
+            targetSize: 'medium',
+        },
+        {
+            id: 'static-hard',
+            mode: 'static',
+            name: 'Static',
+            description: 'Hit targets that stay still.',
+            icon: 'fa-bullseye',
+            types: ['flick'],
+            difficulty: 'hard',
+            targetSize: 'hard',
+        },
+        {
+            id: 'wave-hard',
+            mode: 'wave',
+            name: 'Wave',
+            description: 'Clear every target on the range before they all respawn.',
+            icon: 'fa-water',
+            types: ['flick'],
+            difficulty: 'hard',
+            targetSize: 'hard',
+        },
+        {
+            id: 'flick-hard',
+            mode: 'flick',
+            name: 'Head Level',
+            description: 'Camera and targets sit 25% off the floor, with targets lined up in one row.',
+            icon: 'fa-bolt',
+            types: ['flick'],
+            difficulty: 'hard',
+            targetSize: 'hard',
+        },
+        {
+            id: 'track-hard',
+            mode: 'track',
+            name: 'Tracking (small movements)',
+            description: 'One target spawns at a random height and slides left and right — click each time you land on it.',
+            icon: 'fa-arrows-left-right',
+            types: ['track'],
+            difficulty: 'hard',
+            targetSize: 'hard',
+        },
+        {
+            id: 'track-mouse-hard',
+            mode: 'track-mouse',
+            name: 'Tracking (mouse control)',
+            description: 'Hold fire at 400 RPM while tracking one slow target across ±60° — 25 points per hit.',
+            icon: 'fa-computer-mouse',
+            types: ['track'],
+            difficulty: 'hard',
+            targetSize: 'hard',
+        },
+        {
+            id: 'react-hard',
+            mode: 'react',
+            name: 'Reacting',
+            description: 'Shoot the center target, then chase a straight-line flyer for 0.5s — miss and the center returns.',
+            icon: 'fa-crosshairs',
+            types: ['react'],
+            difficulty: 'hard',
+            targetSize: 'hard',
+        },
+        {
+            id: 'shrink-hard',
+            mode: 'shrink',
+            name: 'Shrinking',
+            description: 'One target shrinks on the wall — hit it before it disappears or it counts as a miss.',
+            icon: 'fa-compress',
+            types: ['flick'],
+            difficulty: 'hard',
+            targetSize: 'hard',
+        },
+    ];
+
+    /** Hub playlists — multi-drill sessions with fixed total time and segment rotation. */
+    const AIM_PLAYLISTS = [
+        {
+            id: 'warmup-5m',
+            name: '5 minute warmup',
+            description: '10 drills, 30 seconds each — switch training automatically for a full 5-minute warmup.',
+            icon: 'fa-stopwatch',
+            totalSeconds: 300,
+            segmentSeconds: 30,
+            trainingIds: [
+                'static',
+                'wave',
+                'flick',
+                'track',
+                'track-mouse',
+                'react',
+                'shrink',
+                'static-medium',
+                'track-medium',
+                'react-medium',
+            ],
         },
     ];
 
     const aimListFilters = {
         query: '',
         type: 'all',
+        hubView: 'sessions',
     };
 
     const ROOM_DEFAULT = Object.freeze({ width: 15, depth: 15, height: 4.5 });
@@ -68,13 +262,28 @@
     const AIM_VIEW_LIMIT = Math.PI / 2;
     const AIM_COUNTDOWN_MS = 3000;
     const AIM_FALLBACK_YAW_DEG = 0.07;
-    const AIM_TARGETS_BY_MODE = { static: 8, wave: 20, flick: 3, track: 1, 'track-mouse': 1, react: 1 };
+    const AIM_TARGETS_BY_MODE = {
+        static: 8,
+        wave: 20,
+        flick: 3,
+        track: 1,
+        'track-mouse': 1,
+        react: 1,
+        shrink: 1,
+    };
+    /** Time from full size to minimum scale before the target expires (ms). */
+    const AIM_SHRINK_DURATION_MS_BY_DIFF = Object.freeze({ easy: 2800, medium: 2200, hard: 1700 });
+    const AIM_SHRINK_MIN_SCALE = 0.12;
     const AIM_TRACK_SPEED = 3.2;
     const AIM_REACT_SPEED = 5.0;
-    const AIM_REACT_MOVE_MS = 1000;
+    const AIM_TRACK_SPEED_BY_DIFF = Object.freeze({ easy: 3.2, medium: 4.0, hard: 5.0 });
+    const AIM_REACT_SPEED_BY_DIFF = Object.freeze({ easy: 5.0, medium: 6.25, hard: 7.75 });
+    /** Hold-fire tracking yaw sweep (deg/s) by drill difficulty. */
+    const AIM_TRACK_MOUSE_YAW_DEG_PER_S_BY_DIFF = Object.freeze({ easy: 18, medium: 24, hard: 30 });
+    const AIM_REACT_MOVE_MS = 500;
     /** Hold-fire tracking: slow ±60° yaw sweep, 400 RPM, 25 points per hit. */
     const AIM_TRACK_MOUSE_YAW_DEG = 60;
-    const AIM_TRACK_MOUSE_YAW_SPEED = (18 * Math.PI) / 180;
+    const AIM_TRACK_MOUSE_YAW_SPEED = (AIM_TRACK_MOUSE_YAW_DEG_PER_S_BY_DIFF.easy * Math.PI) / 180;
     const AIM_TRACK_FIRE_RPM = 400;
     const AIM_TRACK_FIRE_INTERVAL_MS = 60000 / AIM_TRACK_FIRE_RPM;
     const AIM_TRACK_HIT_POINTS = 25;
@@ -118,6 +327,10 @@
     let pitch = 0;
     /** @type {import('three').Group | null} */
     let targetGroup = null;
+    /** @type {import('three').Group | null} */
+    let roomGroup = null;
+    /** @type {{ config: typeof AIM_PLAYLISTS[number], segmentIndex: number, segmentLeft: number } | null} */
+    let activePlaylistSession = null;
     let hits = 0;
     let misses = 0;
     let score = 0;
@@ -227,10 +440,8 @@
             aspect: 'native',
         };
         const sensEl = byId('aim-trainer-settings-sens');
-        const dpiEl = byId('aim-trainer-settings-dpi');
         const gamePick = byId('aim-trainer-settings-game-pick');
         if (sensEl) cfg.sens = aimPositiveNumber(sensEl.value, cfg.sens);
-        if (dpiEl) cfg.dpi = aimPositiveNumber(dpiEl.value, cfg.dpi);
         if (gamePick?.dataset.value) cfg.game = gamePick.dataset.value;
         return cfg;
     }
@@ -240,10 +451,35 @@
         return AIM_SPREAD_WIDTH[spread] ? spread : 'balanced';
     }
 
+    function activeTraining() {
+        if (!activeTrainingId) return null;
+        return TRAININGS.find((t) => t.id === activeTrainingId) || null;
+    }
+
     function aimTargetRadius() {
-        if (aimActiveMode() === 'flick') return AIM_TARGET_RADIUS.medium;
+        const training = activeTraining();
+        if (training?.targetSize && AIM_TARGET_RADIUS[training.targetSize] != null) {
+            return AIM_TARGET_RADIUS[training.targetSize];
+        }
         const tsize = getAimSettings().tsize;
         return AIM_TARGET_RADIUS[tsize] ?? AIM_TARGET_RADIUS.medium;
+    }
+
+    const AIM_TARGET_FLOOR_PAD = 0.08;
+
+    /** Keep sphere targets above the floor and below the ceiling (room floor is y = 0). */
+    function aimTargetCenterYLimits(radius = aimTargetRadius()) {
+        const dims = aimRoom();
+        const r = radius;
+        const pad = AIM_TARGET_FLOOR_PAD;
+        return {
+            minY: r + pad,
+            maxY: Math.max(r + pad, dims.height - r - pad),
+        };
+    }
+
+    function aimMeshCenterYLimits(mesh) {
+        return aimTargetCenterYLimits(meshTargetRadius(mesh));
     }
 
     function aimTargetColorHex() {
@@ -252,7 +488,28 @@
     }
 
     function aimActiveMode() {
+        const training = activeTraining();
+        if (training?.mode) return training.mode;
         return activeTrainingId || 'static';
+    }
+
+    function sessionDifficultyKey() {
+        const key = String(activeTraining()?.difficulty || 'easy').toLowerCase();
+        return AIM_DIFFICULTY_LABELS[key] ? key : 'easy';
+    }
+
+    function aimTrackSpeed() {
+        return AIM_TRACK_SPEED_BY_DIFF[sessionDifficultyKey()] ?? AIM_TRACK_SPEED;
+    }
+
+    function aimReactSpeed() {
+        return AIM_REACT_SPEED_BY_DIFF[sessionDifficultyKey()] ?? AIM_REACT_SPEED;
+    }
+
+    function aimTrackMouseYawSpeedRad() {
+        const degPerS = AIM_TRACK_MOUSE_YAW_DEG_PER_S_BY_DIFF[sessionDifficultyKey()]
+            ?? AIM_TRACK_MOUSE_YAW_DEG_PER_S_BY_DIFF.easy;
+        return (degPerS * Math.PI) / 180;
     }
 
     function aimTargetQuota() {
@@ -270,6 +527,15 @@
 
     function aimIsReactMode() {
         return aimActiveMode() === 'react';
+    }
+
+    function aimIsShrinkMode() {
+        return aimActiveMode() === 'shrink';
+    }
+
+    function aimShrinkDurationMs() {
+        return AIM_SHRINK_DURATION_MS_BY_DIFF[sessionDifficultyKey()]
+            ?? AIM_SHRINK_DURATION_MS_BY_DIFF.easy;
     }
 
     function aimRoom() {
@@ -608,8 +874,12 @@
                 mesh.geometry = new THREE.SphereGeometry(radius, 20, 20);
             }
             if (mesh.material?.color) mesh.material.color.setHex(color);
+            if (aimIsShrinkMode()) {
+                mesh.scale.set(1, 1, 1);
+                mesh.userData.shrinkStartAt = 0;
+            }
         });
-        aimSeparateTargets();
+        aimFinalizeWallTargets();
     }
 
     function buildResultsShareImage() {
@@ -832,10 +1102,26 @@
         return TRAININGS.filter(trainingMatchesFilters);
     }
 
+    function normalizeTrainingDifficulty(value) {
+        const key = String(value || 'easy').toLowerCase();
+        return AIM_DIFFICULTY_LABELS[key] ? key : 'easy';
+    }
+
+    function trainingDifficultyLabel(training) {
+        const key = normalizeTrainingDifficulty(training?.difficulty);
+        return AIM_DIFFICULTY_LABELS[key];
+    }
+
+    function renderTrainingDifficultyBadge(training) {
+        const key = normalizeTrainingDifficulty(training?.difficulty);
+        const label = AIM_DIFFICULTY_LABELS[key];
+        return `<span class="aim-trainer-card-difficulty aim-trainer-card-difficulty--${key}" data-difficulty="${key}">${label}</span>`;
+    }
+
     function renderTrainingTypeBadges(types) {
         if (!types?.length) return '';
         return `<div class="aim-trainer-card-types" aria-hidden="true">${types.map((type) => `
-            <span class="aim-trainer-card-type">${AIM_TYPE_LABELS[type] || type}</span>`).join('')}</div>`;
+            <span class="aim-trainer-card-type aim-trainer-card-type--${type}">${AIM_TYPE_LABELS[type] || type}</span>`).join('')}</div>`;
     }
 
     function syncAimTrainerSearchClear() {
@@ -856,24 +1142,77 @@
             const nameHtml = highlightAimSearchHtml(t.name, searchQuery);
             const descriptionHtml = highlightAimSearchHtml(t.description, searchQuery);
             return `
-            <button type="button" class="aim-trainer-card ui-interactive bg-matte-950 rounded-lg border border-matte-800 p-5 text-left flex flex-col gap-3 min-h-[140px]" data-training-id="${t.id}" role="listitem">
-                <div class="flex items-start gap-3">
-                    <span class="w-10 h-10 rounded-lg bg-matte-900 border border-matte-800 flex items-center justify-center text-redneon-500 shrink-0">
+            <button type="button" class="aim-trainer-card ui-interactive bg-matte-950 rounded-lg border border-matte-800 text-left" data-training-id="${t.id}" data-training-difficulty="${normalizeTrainingDifficulty(t.difficulty)}" role="listitem" aria-label="${t.name}, ${trainingDifficultyLabel(t)}">
+                <div class="aim-trainer-card-header">
+                    <span class="aim-trainer-card-icon w-10 h-10 rounded-lg bg-matte-900 border border-matte-800 flex items-center justify-center text-redneon-500 shrink-0">
                         <i class="fa-solid ${t.icon} text-sm" aria-hidden="true"></i>
                     </span>
+                    <div class="aim-trainer-card-header-tags">
+                        ${renderTrainingDifficultyBadge(t)}
+                    </div>
                 </div>
-                <div class="min-w-0 mt-auto">
+                <div class="aim-trainer-card-copy min-w-0">
                     <div class="aim-trainer-card-title-row flex items-center gap-2 min-w-0 flex-wrap">
-                        <h3 class="text-sm font-bold tracking-widest uppercase text-white shrink-0">${nameHtml}</h3>
+                        <h3 class="text-sm font-bold tracking-widest uppercase text-white min-w-0">${nameHtml}</h3>
                         ${renderTrainingTypeBadges(t.types)}
                     </div>
-                    <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">${descriptionHtml}</p>
+                    <p class="aim-trainer-card-description text-xs text-slate-400 tracking-wide leading-snug">${descriptionHtml}</p>
                 </div>
             </button>`;
         }).join('');
 
-        if (empty) empty.hidden = filtered.length > 0;
-        list.hidden = filtered.length === 0;
+        syncAimTrainerHubView(filtered.length);
+    }
+
+    function renderPlaylistList() {
+        const playlistEl = byId('aim-trainer-playlist');
+        if (!playlistEl) return;
+        playlistEl.innerHTML = AIM_PLAYLISTS.map((pl) => {
+            const segmentCount = pl.trainingIds.length;
+            const minutes = Math.round(pl.totalSeconds / 60);
+            return `
+            <button type="button" class="aim-trainer-card aim-trainer-playlist-card ui-interactive bg-matte-950 rounded-lg border border-matte-800 text-left" data-playlist-id="${pl.id}" role="listitem" aria-label="${pl.name}, ${minutes} minutes, ${segmentCount} drills">
+                <div class="aim-trainer-card-header">
+                    <span class="aim-trainer-card-icon w-10 h-10 rounded-lg bg-matte-900 border border-matte-800 flex items-center justify-center text-redneon-500 shrink-0">
+                        <i class="fa-solid ${pl.icon} text-sm" aria-hidden="true"></i>
+                    </span>
+                    <div class="aim-trainer-card-header-tags">
+                        <span class="aim-trainer-card-difficulty aim-trainer-card-difficulty--medium" data-difficulty="playlist">${pl.totalSeconds}s</span>
+                    </div>
+                </div>
+                <div class="aim-trainer-card-copy min-w-0">
+                    <div class="aim-trainer-card-title-row flex items-center gap-2 min-w-0 flex-wrap">
+                        <h3 class="text-sm font-bold tracking-widest uppercase text-white min-w-0">${pl.name}</h3>
+                    </div>
+                    <p class="aim-trainer-card-description text-xs text-slate-400 tracking-wide leading-snug">${pl.description}</p>
+                </div>
+            </button>`;
+        }).join('');
+    }
+
+    function syncAimTrainerHubView(filteredCount) {
+        const list = byId('aim-trainer-list');
+        const empty = byId('aim-trainer-list-empty');
+        const playlist = byId('aim-trainer-playlist');
+        const typeGlide = byId('aim-trainer-type-glide');
+        const isPlaylist = aimListFilters.hubView === 'playlist';
+        const count = filteredCount ?? getFilteredTrainings().length;
+
+        if (playlist) {
+            playlist.hidden = !isPlaylist;
+        }
+        if (list) {
+            list.hidden = isPlaylist || count === 0;
+        }
+        if (empty) {
+            empty.hidden = isPlaylist || count > 0;
+        }
+        if (typeGlide) {
+            typeGlide.classList.toggle('glide-selector--locked', isPlaylist);
+            typeGlide.querySelectorAll('.glide-selector-option').forEach((btn) => {
+                btn.disabled = isPlaylist;
+            });
+        }
     }
 
     function bindAimTrainerListFilters() {
@@ -884,10 +1223,16 @@
         const searchInput = byId('aim-trainer-search');
         const clearBtn = byId('aim-trainer-search-clear');
         const typeGlide = byId('aim-trainer-type-glide');
+        const viewGlide = byId('aim-trainer-view-glide');
 
         const applyFilters = () => {
             renderTrainingList();
             syncAimTrainerSearchClear();
+        };
+
+        const applyHubView = () => {
+            if (aimListFilters.hubView === 'playlist') renderPlaylistList();
+            syncAimTrainerHubView(getFilteredTrainings().length);
         };
 
         searchInput?.addEventListener('input', () => {
@@ -921,7 +1266,20 @@
             });
         }
 
+        if (viewGlide && typeof initGlideSelectorRoot === 'function') {
+            if (!viewGlide.dataset.value) viewGlide.dataset.value = 'sessions';
+            aimListFilters.hubView = viewGlide.dataset.value || 'sessions';
+            initGlideSelectorRoot(viewGlide, {
+                valueKey: 'aimView',
+                onChange: () => {
+                    aimListFilters.hubView = viewGlide.dataset.value || 'sessions';
+                    applyHubView();
+                },
+            });
+        }
+
         syncAimTrainerSearchClear();
+        applyHubView();
     }
 
     function aimTimerLabel(seconds) {
@@ -1105,6 +1463,53 @@
         return room;
     }
 
+    function disposeObject3D(root) {
+        if (!root) return;
+        root.traverse((obj) => {
+            if (!obj.isMesh) return;
+            obj.geometry?.dispose?.();
+            if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose?.());
+            else obj.material?.dispose?.();
+        });
+    }
+
+    function remountAimRoom(THREE) {
+        if (!scene || !THREE) return;
+        if (roomGroup) {
+            scene.remove(roomGroup);
+            disposeObject3D(roomGroup);
+            roomGroup = null;
+        }
+        roomGroup = buildRoom(THREE);
+        scene.add(roomGroup);
+    }
+
+    function switchActiveTraining(trainingId) {
+        if (!sessionActive || !trainingId || activeTrainingId === trainingId) return;
+        const THREE = window.THREE;
+        if (!THREE || !scene || !targetGroup) return;
+
+        const prevReact = aimIsReactMode();
+        activeTrainingId = trainingId;
+        const nextReact = aimIsReactMode();
+
+        fireHeld = false;
+        lastFireAt = 0;
+        reactPhase = 'center';
+
+        if (prevReact !== nextReact) remountAimRoom(THREE);
+
+        clearTargets();
+        resetCameraPosition();
+        if (camera) {
+            camera.position.y = aimEyeHeight();
+        }
+        fillTargets(THREE);
+        if (sessionPhase === 'countdown' || sessionPhase === 'playing') {
+            setTargetsVisible(true);
+        }
+    }
+
     function aimTrackDepth() {
         return aimRoom().depth / 2 - aimCameraInset() - aimTargetZ();
     }
@@ -1196,11 +1601,15 @@
         const dims = aimRoom();
         const eye = aimBaseEyeHeight();
         const x = Math.min(halfX, dims.width / 2 - 0.5);
+        const yLimits = aimTargetCenterYLimits();
+        let minY = Math.max(yLimits.minY, eye - halfY);
+        let maxY = Math.min(yLimits.maxY, eye + halfY);
+        if (maxY < minY) maxY = minY;
         return {
             minX: -x,
             maxX: x,
-            minY: Math.max(0.35, eye - halfY),
-            maxY: Math.min(dims.height - 0.5, eye + halfY),
+            minY,
+            maxY,
         };
     }
 
@@ -1224,6 +1633,27 @@
         pos.y = Math.max(b.minY, Math.min(b.maxY, pos.y));
     }
 
+    function aimClampMeshToSpread(mesh) {
+        if (!mesh?.position) return;
+        const b = aimSpreadBounds();
+        const yLim = aimMeshCenterYLimits(mesh);
+        let minY = Math.max(b.minY, yLim.minY);
+        let maxY = Math.min(b.maxY, yLim.maxY);
+        if (maxY < minY) maxY = minY;
+        mesh.position.x = Math.max(b.minX, Math.min(b.maxX, mesh.position.x));
+        mesh.position.y = Math.max(minY, Math.min(maxY, mesh.position.y));
+    }
+
+    /** Dense modes (e.g. wave ×20): separate overlaps, then enforce wall + floor limits per sphere. */
+    function aimFinalizeWallTargets() {
+        if (!targetGroup || aimIsMovingTrack()) return;
+        const wallMeshes = targetGroup.children.filter((m) => m.userData?.isTarget && !m.userData.reactMoving);
+        if (!wallMeshes.length) return;
+        const passes = aimTargetQuota() >= 12 ? 4 : 2;
+        for (let i = 0; i < passes; i++) aimSeparateTargets();
+        wallMeshes.forEach((mesh) => aimClampMeshToSpread(mesh));
+    }
+
     function aimClearanceAt(mesh, pos) {
         if (!targetGroup) return Infinity;
         let clearance = Infinity;
@@ -1245,6 +1675,7 @@
             const clearance = aimClearanceAt(mesh, pos);
             if (clearance >= 0) {
                 mesh.position.copy(pos);
+                aimClampMeshToSpread(mesh);
                 return;
             }
             if (clearance > bestClearance) {
@@ -1253,6 +1684,7 @@
             }
         }
         if (best) mesh.position.copy(best);
+        aimClampMeshToSpread(mesh);
     }
 
     function aimSeparateTargets() {
@@ -1279,8 +1711,8 @@
                 a.position.y += ny;
                 b.position.x -= nx;
                 b.position.y -= ny;
-                aimClampToSpread(a.position);
-                aimClampToSpread(b.position);
+                aimClampMeshToSpread(a);
+                aimClampMeshToSpread(b);
             }
         }
     }
@@ -1330,8 +1762,9 @@
         mesh.position.set(pos.x, pos.y, pos.z);
         const angle = Math.random() * Math.PI * 2;
         mesh.userData.reactMoving = true;
-        mesh.userData.vx = Math.cos(angle) * AIM_REACT_SPEED;
-        mesh.userData.vy = Math.sin(angle) * AIM_REACT_SPEED;
+        const reactSpeed = aimReactSpeed();
+        mesh.userData.vx = Math.cos(angle) * reactSpeed;
+        mesh.userData.vy = Math.sin(angle) * reactSpeed;
         mesh.userData.reactSpawnAt = performance.now();
     }
 
@@ -1343,6 +1776,45 @@
         reactPhase = 'center';
         const THREE = window.THREE;
         if (THREE) spawnOneTarget(THREE);
+    }
+
+    function aimInitShrinkTarget(mesh) {
+        aimPlaceTarget(mesh);
+        mesh.scale.set(1, 1, 1);
+        mesh.userData.shrinkStartAt = 0;
+    }
+
+    function aimExpireShrinkTarget(mesh) {
+        if (!targetGroup || !mesh) return;
+        targetGroup.remove(mesh);
+        mesh.geometry?.dispose();
+        mesh.material?.dispose();
+        misses += 1;
+        aimRecordSpatial(false);
+        aimUiSound()?.playAimMiss?.();
+        updateHud();
+        const THREE = window.THREE;
+        if (THREE) spawnOneTarget(THREE);
+    }
+
+    function updateShrinkTargets(now) {
+        if (!aimIsShrinkMode() || !targetGroup) return;
+        const duration = aimShrinkDurationMs();
+        for (const mesh of [...targetGroup.children]) {
+            if (!mesh.userData?.isTarget) continue;
+            let start = Number(mesh.userData.shrinkStartAt) || 0;
+            if (!start) {
+                start = now;
+                mesh.userData.shrinkStartAt = start;
+            }
+            const t = (now - start) / duration;
+            if (t >= 1) {
+                aimExpireShrinkTarget(mesh);
+                continue;
+            }
+            const scale = 1 - t * (1 - AIM_SHRINK_MIN_SCALE);
+            mesh.scale.set(scale, scale, scale);
+        }
     }
 
     function updateReactTargets(dt) {
@@ -1375,7 +1847,7 @@
                 let dir = mesh.userData.trackDir;
                 if (dir !== 1 && dir !== -1) dir = 1;
                 let yaw = Number(mesh.userData.trackYaw) || 0;
-                yaw += dir * AIM_TRACK_MOUSE_YAW_SPEED * dt;
+                yaw += dir * aimTrackMouseYawSpeedRad() * dt;
                 if (yaw >= maxYaw) {
                     yaw = maxYaw;
                     dir = -1;
@@ -1396,7 +1868,7 @@
             if (!mesh.userData?.isTarget) continue;
             let dir = mesh.userData.trackDir;
             if (dir !== 1 && dir !== -1) dir = 1;
-            let x = mesh.position.x + dir * AIM_TRACK_SPEED * dt;
+            let x = mesh.position.x + dir * aimTrackSpeed() * dt;
             if (x >= b.maxX) {
                 x = b.maxX;
                 dir = -1;
@@ -1428,6 +1900,8 @@
         } else if (aimIsReactMode()) {
             if (reactPhase === 'moving') aimInitReactMovingTarget(mesh);
             else aimInitReactCenterTarget(mesh);
+        } else if (aimIsShrinkMode()) {
+            aimInitShrinkTarget(mesh);
         } else {
             aimPlaceTarget(mesh);
         }
@@ -1440,7 +1914,7 @@
         while (targetGroup.children.length < aimTargetQuota()) {
             spawnOneTarget(THREE);
         }
-        if (targetGroup.children.length > 1) aimSeparateTargets();
+        aimFinalizeWallTargets();
     }
 
     function consumeTarget(mesh) {
@@ -1457,7 +1931,7 @@
         } else {
             spawnOneTarget(THREE);
         }
-        if (targetGroup.children.length > 1) aimSeparateTargets();
+        aimFinalizeWallTargets();
     }
 
     const AIM_ASPECT_RATIOS = Object.freeze({
@@ -1507,11 +1981,32 @@
                 }
             } else if (aimIsReactMode()) {
                 updateReactTargets(dt);
-            } else if (targetGroup && targetGroup.children.length > 1) {
+            } else if (aimIsShrinkMode()) {
+                updateShrinkTargets(now);
+            } else if (targetGroup && targetGroup.children.length > 1 && !aimIsShrinkMode()) {
                 aimSeparateTargets();
+                for (const mesh of targetGroup.children) {
+                    if (mesh.userData?.isTarget && !mesh.userData.reactMoving) {
+                        aimClampMeshToSpread(mesh);
+                    }
+                }
             }
             if (Number.isFinite(timeLeft)) {
+                if (activePlaylistSession && sessionPhase === 'playing') {
+                    activePlaylistSession.segmentLeft -= dt;
+                }
                 timeLeft -= dt;
+                if (activePlaylistSession && sessionPhase === 'playing') {
+                    if (activePlaylistSession.segmentLeft <= 0 && timeLeft > 0) {
+                        const pl = activePlaylistSession.config;
+                        const nextIndex = activePlaylistSession.segmentIndex + 1;
+                        if (nextIndex < pl.trainingIds.length) {
+                            activePlaylistSession.segmentIndex = nextIndex;
+                            activePlaylistSession.segmentLeft = pl.segmentSeconds;
+                            switchActiveTraining(pl.trainingIds[nextIndex]);
+                        }
+                    }
+                }
                 updateTimerDisplay();
                 if (timeLeft <= 0) {
                     timeLeft = 0;
@@ -1595,14 +2090,10 @@
             scene.remove(targetGroup);
         }
         targetGroup = null;
+        roomGroup = null;
 
         if (scene) {
-            scene.traverse((obj) => {
-                if (!obj.isMesh) return;
-                obj.geometry?.dispose?.();
-                if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose?.());
-                else obj.material?.dispose?.();
-            });
+            disposeObject3D(scene);
         }
 
         renderer?.dispose?.();
@@ -1643,6 +2134,10 @@
 
     function restartSessionInPlace() {
         if (!sessionActive || !activeTrainingId) return;
+        if (activePlaylistSession?.config?.id) {
+            void startPlaylistSession(activePlaylistSession.config.id);
+            return;
+        }
         setResultsVisible(false);
         hits = 0;
         misses = 0;
@@ -1671,7 +2166,13 @@
         enterReadyPhase();
     }
 
-    async function startSession(trainingId) {
+    async function startPlaylistSession(playlistId) {
+        const playlist = AIM_PLAYLISTS.find((p) => p.id === playlistId);
+        if (!playlist?.trainingIds?.length) return;
+        await startSession(playlist.trainingIds[0], { playlist });
+    }
+
+    async function startSession(trainingId, sessionOpts = {}) {
         const training = TRAININGS.find((t) => t.id === trainingId);
         if (!training) return;
 
@@ -1685,6 +2186,14 @@
 
         disposeSession();
         activeTrainingId = trainingId;
+        const playlist = sessionOpts.playlist || null;
+        activePlaylistSession = playlist
+            ? {
+                config: playlist,
+                segmentIndex: 0,
+                segmentLeft: playlist.segmentSeconds,
+            }
+            : null;
         setResultsVisible(false);
         resetSessionAnalytics();
 
@@ -1694,7 +2203,7 @@
         fireHeld = false;
         lastFireAt = 0;
         reactPhase = 'center';
-        timeLeft = aimSessionSeconds();
+        timeLeft = playlist ? playlist.totalSeconds : aimSessionSeconds();
         sessionElapsed = 0;
         lastAnimTime = 0;
         yaw = 0;
@@ -1739,7 +2248,8 @@
         resetCameraPosition();
         camera.rotation.set(0, 0, 0);
 
-        scene.add(buildRoom(THREE));
+        roomGroup = buildRoom(THREE);
+        scene.add(roomGroup);
         scene.add(new THREE.AmbientLight(0xffffff, 0.6));
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(4, 8, 6);
@@ -1861,6 +2371,7 @@
         const hub = byId('aim-trainer-hub');
         const session = getSessionEl();
         activeTrainingId = null;
+        activePlaylistSession = null;
         setResultsVisible(false);
         disposeSession();
         if (!skipFullscreenExit) exitSessionFullscreen();
@@ -1886,6 +2397,7 @@
 
         bindAimTrainerListFilters();
         renderTrainingList();
+        renderPlaylistList();
 
         const hub = byId('aim-trainer-hub');
         if (hub && hub.dataset.aimResultsBound !== '1') {
@@ -1918,6 +2430,11 @@
             const card = event.target.closest?.('[data-training-id]');
             if (!card) return;
             void startSession(card.dataset.trainingId);
+        });
+        byId('aim-trainer-playlist')?.addEventListener('click', (event) => {
+            const card = event.target.closest?.('[data-playlist-id]');
+            if (!card) return;
+            void startPlaylistSession(card.dataset.playlistId);
         });
         if (!fullscreenListenersBound) {
             fullscreenListenersBound = true;
