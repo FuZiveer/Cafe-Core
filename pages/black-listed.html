@@ -9,6 +9,24 @@
                         <p class="text-sm text-slate-400 mt-2 tracking-wide max-w-md mx-auto">Rainbow Six Siege roster — roles and operator pools</p>
                     </div>
                 </header>
+                <section id="bl-scrim-counter" class="bl-scrim-counter home-hero-panel" data-auth-protected="scrim-edit" aria-label="Scrim record">
+                    <p class="bl-scrim-counter-label text-sm font-bold tracking-widest uppercase text-slate-400">Scrim record</p>
+                    <div class="bl-scrim-counter-score">
+                        <div class="bl-scrim-counter-side bl-scrim-counter-side--wins">
+                            <span class="bl-scrim-counter-tag">W</span>
+                            <div class="bl-scrim-counter-side-controls" data-bl-scrim-side="wins">
+                                <span id="bl-scrim-wins" class="bl-scrim-counter-num">0</span>
+                            </div>
+                        </div>
+                        <span class="bl-scrim-counter-colon" aria-hidden="true">:</span>
+                        <div class="bl-scrim-counter-side bl-scrim-counter-side--losses">
+                            <span class="bl-scrim-counter-tag">L</span>
+                            <div class="bl-scrim-counter-side-controls" data-bl-scrim-side="losses">
+                                <span id="bl-scrim-losses" class="bl-scrim-counter-num">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
                 <section id="black-listed-starters-section" class="bl-roster-starters-section">
                     <h3 class="bl-roster-section-title bl-roster-section-title--starters text-sm font-bold tracking-widest uppercase mb-4">Starters</h3>
                     <div id="black-listed-roster" class="bl-roster-grid grid grid-cols-1 sm:grid-cols-2 gap-4" aria-live="polite"></div>

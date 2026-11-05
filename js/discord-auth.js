@@ -1,9 +1,50 @@
 (function () {
     'use strict';
 
+    /** Discord username (without @) allowed to use BL planner. */
+    const BL_PLANNER_DISCORD_USERNAME = 'fuziveer';
+
+    /** Discord usernames (without @) allowed to edit the Black-Listed scrim record. */
+    const BL_SCRIM_RECORD_EDITORS = new Set(['fuziveer', 'rawenge', 'rjwarrior']);
+
+    let currentDiscordUser = null;
+
     function byId(id) {
         return document.getElementById(id);
     }
+
+    function setCurrentDiscordUser(user) {
+        currentDiscordUser = user && typeof user === 'object' ? user : null;
+        window.dispatchEvent(new CustomEvent('cafe-discord-auth-change', {
+            detail: { user: currentDiscordUser },
+        }));
+    }
+
+    function discordUsernameKey(user) {
+        return String(user?.username || '').trim().toLowerCase();
+    }
+
+    function isBlPlannerAllowedForUser(user) {
+        if (!user) return false;
+        return discordUsernameKey(user) === BL_PLANNER_DISCORD_USERNAME;
+    }
+
+    function canEditBlScrimRecordForUser(user) {
+        if (!user) return false;
+        return BL_SCRIM_RECORD_EDITORS.has(discordUsernameKey(user));
+    }
+
+    window.getDiscordAuthUser = function getDiscordAuthUser() {
+        return currentDiscordUser;
+    };
+
+    window.isBlPlannerAllowed = function isBlPlannerAllowed() {
+        return isBlPlannerAllowedForUser(currentDiscordUser);
+    };
+
+    window.canEditBlScrimRecord = function canEditBlScrimRecord() {
+        return canEditBlScrimRecordForUser(currentDiscordUser);
+    };
 
     let discordMenuPositionBound = false;
 
@@ -284,6 +325,7 @@
         if (!config.configured) {
             host.innerHTML = '';
             host.hidden = true;
+            setCurrentDiscordUser(null);
             return;
         }
 
@@ -293,13 +335,16 @@
         try {
             const user = await fetchMe(authBase);
             if (user) {
+                setCurrentDiscordUser(user);
                 notifyDiscordSignInIfPending(user);
                 renderSignedIn(host, user, authBase);
             } else {
+                setCurrentDiscordUser(null);
                 renderSignedOut(host, loginUrl);
                 bindDiscordSignInPending(byId('discord-sign-in-btn'));
             }
         } catch {
+            setCurrentDiscordUser(null);
             renderSignedOut(host, loginUrl);
             bindDiscordSignInPending(byId('discord-sign-in-btn'));
         }

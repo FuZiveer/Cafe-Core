@@ -1018,6 +1018,156 @@ html.reduce-motion *::after {
 .bl-roster-hero-title {
     letter-spacing: 0.14em;
 }
+.bl-scrim-counter.home-hero-panel {
+    --home-hero-chamfer: 2rem;
+    min-height: 0;
+    margin-bottom: 2.5rem;
+    padding: 1.25rem 1.5rem 1.5rem;
+    background: linear-gradient(180deg, #16161a 0%, #141418 100%);
+    text-align: center;
+}
+.bl-scrim-counter-label {
+    margin: 0 0 1rem;
+}
+.bl-scrim-counter-score {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+}
+.bl-scrim-counter-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    min-width: 5.5rem;
+}
+.bl-scrim-counter-tag {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+.bl-scrim-counter-side--wins .bl-scrim-counter-tag {
+    color: #86efac;
+}
+.bl-scrim-counter-side--losses .bl-scrim-counter-tag {
+    color: #fca5a5;
+}
+.bl-scrim-counter-side-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.bl-scrim-counter-num {
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    min-width: 2ch;
+    text-align: center;
+    color: #fff;
+}
+.bl-scrim-counter-side--wins .bl-scrim-counter-num {
+    color: #ecfdf5;
+}
+.bl-scrim-counter-side--losses .bl-scrim-counter-num {
+    color: #fef2f2;
+}
+.bl-scrim-counter-colon {
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    font-weight: 700;
+    line-height: 1;
+    color: #64748b;
+    padding-bottom: 1.125rem;
+    user-select: none;
+}
+.bl-scrim-counter-adjust {
+    display: none;
+    width: 1.75rem;
+    height: 1.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-ui);
+    border: 1px solid #333338;
+    background: #1a1a1e;
+    color: #94a3b8;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+        color var(--motion-duration) var(--motion-ease),
+        border-color var(--motion-duration) var(--motion-ease),
+        background-color var(--motion-duration) var(--motion-ease);
+}
+.bl-scrim-counter-adjust:hover {
+    color: #fff;
+    border-color: #ff1e43;
+    background: #141418;
+}
+.bl-scrim-counter--editable .bl-scrim-counter-adjust {
+    display: inline-flex;
+}
+.bl-scrim-counter--editable .bl-scrim-counter-adjust[hidden] {
+    display: none;
+}
+.bl-scrim-counter:not(.bl-scrim-counter--editable) .bl-scrim-counter-adjust {
+    display: none !important;
+}
+.auth-restricted-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0.75rem;
+    min-height: 16rem;
+    padding: 2rem 1.5rem;
+    border-radius: var(--radius-ui);
+    border: 1px solid rgba(255, 30, 67, 0.35);
+    background: linear-gradient(180deg, rgba(255, 30, 67, 0.08) 0%, #141418 100%);
+}
+.auth-restricted-panel-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius-ui);
+    border: 1px solid rgba(255, 30, 67, 0.4);
+    color: #ff1e43;
+    font-size: 1.125rem;
+}
+.auth-restricted-panel-title {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #fff;
+}
+.auth-restricted-panel-detail {
+    margin: 0;
+    max-width: 22rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: #94a3b8;
+}
+.auth-restricted-panel-identity {
+    margin: 0.25rem 0 0;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.auth-restricted-panel-identity strong {
+    color: #e2e8f0;
+    font-weight: 700;
+}
 .bl-roster-grid {
     align-items: stretch;
     overflow: visible;
@@ -3174,8 +3324,11 @@ body.mobile-nav-open .mobile-nav-backdrop {
         right: 0;
         transform: rotate(7deg);
     }
-    .bl-roster-hero.home-hero-panel {
+    .bl-roster-hero.home-hero-panel,
+    .bl-scrim-counter.home-hero-panel {
         --home-hero-chamfer: 2rem;
+    }
+    .bl-roster-hero.home-hero-panel {
         padding: 1.75rem 1rem 2rem;
     }
     .home-hub.space-y-12 > * + * {

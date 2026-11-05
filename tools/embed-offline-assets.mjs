@@ -22,6 +22,7 @@ const PAGE_FILES = {
     sensitivity: 'pages/sensitivity.html',
     edpi: 'pages/edpi.html',
     lineups: 'pages/lineups.html',
+    'bl-planner': 'pages/bl-planner.html',
     'aim-trainer': 'pages/aim-trainer.html',
 };
 

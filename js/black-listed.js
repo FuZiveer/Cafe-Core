@@ -533,6 +533,119 @@
         bindOperatorIconFallback(subsHost);
     }
 
+    const BL_SCRIM_STORAGE_KEY = 'cafe-bl-scrim-record';
+
+    function loadBlScrimRecord() {
+        try {
+            const raw = localStorage.getItem(BL_SCRIM_STORAGE_KEY);
+            if (!raw) return { wins: 0, losses: 0 };
+            const parsed = JSON.parse(raw);
+            return {
+                wins: Math.max(0, Math.round(Number(parsed.wins) || 0)),
+                losses: Math.max(0, Math.round(Number(parsed.losses) || 0)),
+            };
+        } catch {
+            return { wins: 0, losses: 0 };
+        }
+    }
+
+    function saveBlScrimRecord(record) {
+        try {
+            localStorage.setItem(BL_SCRIM_STORAGE_KEY, JSON.stringify(record));
+        } catch {
+            /* ignore */
+        }
+    }
+
+    function canEditBlScrimCounter() {
+        return typeof window.canEditBlScrimRecord === 'function' && window.canEditBlScrimRecord();
+    }
+
+    let blScrimRecordState = { wins: 0, losses: 0 };
+
+    function stripScrimAdjustControls() {
+        document.querySelectorAll('.bl-scrim-counter-adjust').forEach((el) => el.remove());
+        document.querySelectorAll('#bl-scrim-counter').forEach((section) => {
+            section.classList.remove('bl-scrim-counter--editable');
+        });
+    }
+
+    function createScrimAdjustButton(key, delta) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bl-scrim-counter-adjust ui-interactive';
+        btn.dataset.scrimDelta = `${key},${delta}`;
+        btn.setAttribute(
+            'aria-label',
+            delta > 0 ? `Increase scrim ${key}` : `Decrease scrim ${key}`,
+        );
+        btn.textContent = delta > 0 ? '+' : '−';
+        return btn;
+    }
+
+    window.syncBlScrimEditControls = function syncBlScrimEditControls() {
+        stripScrimAdjustControls();
+        if (!canEditBlScrimCounter()) return;
+
+        const section = document.getElementById('bl-scrim-counter');
+        if (!section) return;
+
+        section.classList.add('bl-scrim-counter--editable');
+        section.querySelectorAll('[data-bl-scrim-side]').forEach((wrap) => {
+            const key = wrap.dataset.blScrimSide;
+            if (key !== 'wins' && key !== 'losses') return;
+            const num = wrap.querySelector('.bl-scrim-counter-num');
+            if (!num) return;
+            wrap.insertBefore(createScrimAdjustButton(key, -1), num);
+            wrap.appendChild(createScrimAdjustButton(key, 1));
+        });
+    };
+
+    function initBlScrimCounter() {
+        const section = document.getElementById('bl-scrim-counter');
+        if (!section) return;
+
+        const winsEl = document.getElementById('bl-scrim-wins');
+        const lossesEl = document.getElementById('bl-scrim-losses');
+        if (!winsEl || !lossesEl) return;
+
+        blScrimRecordState = loadBlScrimRecord();
+
+        const paint = () => {
+            winsEl.textContent = String(blScrimRecordState.wins);
+            lossesEl.textContent = String(blScrimRecordState.losses);
+        };
+
+        paint();
+        window.syncBlScrimEditControls();
+
+        if (section.dataset.scrimBound !== '1') {
+            section.dataset.scrimBound = '1';
+            section.addEventListener('click', (event) => {
+                const btn = event.target.closest?.('[data-scrim-delta]');
+                if (!btn) return;
+                if (!canEditBlScrimCounter()) return;
+                const parts = String(btn.dataset.scrimDelta || '').split(',');
+                const key = parts[0];
+                const delta = Number(parts[1]);
+                if (key !== 'wins' && key !== 'losses') return;
+                if (!Number.isFinite(delta)) return;
+                blScrimRecordState = {
+                    ...blScrimRecordState,
+                    [key]: Math.max(0, blScrimRecordState[key] + delta),
+                };
+                saveBlScrimRecord(blScrimRecordState);
+                paint();
+            });
+            window.addEventListener('cafe-discord-auth-change', () => {
+                if (!document.getElementById('bl-scrim-counter')) return;
+                blScrimRecordState = loadBlScrimRecord();
+                paint();
+                window.syncBlScrimEditControls();
+            });
+        }
+    }
+
     window.teardownBlackListedPage = function teardownBlackListedPage() {
         clearTimeout(blRosterModalCloseTimer);
         blRosterModalCloseTimer = null;
@@ -544,6 +657,7 @@
     window.initBlackListedPage = function initBlackListedPage() {
         initBlRosterPlayerModal();
         bindBlRosterMoreButtons();
+        initBlScrimCounter();
         renderBlackListedRoster();
     };
 })();

@@ -9,9 +9,28 @@ let indicatorAnimToken = 0;
 
 const TIPS_AND_TRICKS_PAGE_ENABLED = window.CafeCore.Features.tipsAndTricksPage;
 
+const BL_PLANNER_FLYOUT_ITEM_ID = 'strat-bl-planner';
+
 const STRATS_FLYOUT_ITEMS = [
     { id: 'strat-tips', name: 'Tips & tricks', icon: 'fa-lightbulb' },
+    { id: BL_PLANNER_FLYOUT_ITEM_ID, name: 'BL planner', icon: 'fa-calendar-days' },
 ];
+
+function isBlPlannerAccessGranted() {
+    return typeof window.isBlPlannerAllowed === 'function' && window.isBlPlannerAllowed();
+}
+
+function isFlyoutItemVisible(itemId) {
+    if (itemId === BL_PLANNER_FLYOUT_ITEM_ID) return isBlPlannerAccessGranted();
+    return true;
+}
+
+function flyoutItemsForMenu(type) {
+    const items = flyoutData[type]?.items;
+    if (!items) return [];
+    if (type !== 'strats') return items;
+    return items.filter((item) => isFlyoutItemVisible(item.id));
+}
 
 const flyoutData = coreFreeze({
     tools: {
@@ -124,6 +143,7 @@ const mainPageIds = coreFreeze({
     sensitivity: 'page-sensitivity',
     edpi: 'page-edpi',
     lineups: 'page-lineups',
+    'bl-planner': 'page-bl-planner',
     'aim-trainer': 'page-aim-trainer',
 });
 
@@ -131,6 +151,7 @@ window.mainPageIds = mainPageIds;
 
 function normalizeMainPageKey(pageKey) {
     if (pageKey === 'lineups' && !TIPS_AND_TRICKS_PAGE_ENABLED) return 'default';
+    if (pageKey === 'bl-planner' && !isBlPlannerAccessGranted()) return 'default';
     return pageKey in mainPageIds ? pageKey : 'default';
 }
 
@@ -851,6 +872,9 @@ function mainPageKeyForFlyoutItem(itemId) {
     if (itemId === 'strat-tips' || itemId === 'strat-lineups') {
         return TIPS_AND_TRICKS_PAGE_ENABLED ? 'lineups' : 'default';
     }
+    if (itemId === 'strat-bl-planner') {
+        return isBlPlannerAccessGranted() ? 'bl-planner' : 'default';
+    }
     return 'default';
 }
 
@@ -858,11 +882,13 @@ function isFlyoutItemNavDisabled(itemId) {
     if ((itemId === 'strat-tips' || itemId === 'strat-lineups') && !TIPS_AND_TRICKS_PAGE_ENABLED) {
         return true;
     }
+    if (itemId === BL_PLANNER_FLYOUT_ITEM_ID && !isBlPlannerAccessGranted()) return true;
     return false;
 }
 
 function isMainPageNavDisabled(pageKey) {
     if (pageKey === 'lineups' && !TIPS_AND_TRICKS_PAGE_ENABLED) return true;
+    if (pageKey === 'bl-planner' && !isBlPlannerAccessGranted()) return true;
     return false;
 }
 
@@ -915,6 +941,7 @@ const mainPageKeyToFlyoutItemId = {
     privacy: 'more-privacy-policy',
     terms: 'more-terms-of-service',
     lineups: 'strat-tips',
+    'bl-planner': 'strat-bl-planner',
 };
 
 const flyoutNavExtras = {
@@ -944,6 +971,7 @@ function findNavBtnForSidebarTab(tabType) {
 }
 
 function findFlyoutItemDefinition(itemId) {
+    if (!isFlyoutItemVisible(itemId)) return null;
     for (const [flyoutType, menu] of Object.entries(flyoutData)) {
         const item = menu.items.find((entry) => entry.id === itemId);
         if (item) return { flyoutType, item };
@@ -1012,7 +1040,7 @@ const SIDEBAR_PREFETCH_PAGES = {
     home: ['default'],
     apps: ['apps'],
     tools: ['bottleneck', 'sensitivity', 'edpi', 'aim-trainer'],
-    strats: ['lineups'],
+    strats: ['lineups', 'bl-planner'],
     more: ['branding', 'fuziveer', 'black-listed', 'privacy', 'terms'],
 };
 
@@ -4554,7 +4582,7 @@ function openFlyout(type, parentBtn) {
 
     titleEl.textContent = flyoutData[type].title;
     const indicatorMarkup = flyoutIndicator ? flyoutIndicator.outerHTML : '';
-    contentEl.innerHTML = indicatorMarkup + flyoutData[type].items.map(item => {
+    contentEl.innerHTML = indicatorMarkup + flyoutItemsForMenu(type).map(item => {
         const navDisabled = !item.href && isFlyoutItemNavDisabled(item.id);
         const isSelected = !item.href && !navDisabled && selectedFlyoutItem === item.id;
         const iconFamily = item.iconFamily || 'fa-solid';
@@ -5262,7 +5290,7 @@ function handleSidebarClick(clickedBtn, tabType) {
 }
 
 function selectFlyoutItem(itemId, itemName) {
-    if (isFlyoutItemNavDisabled(itemId)) return;
+    if (!isFlyoutItemVisible(itemId) || isFlyoutItemNavDisabled(itemId)) return;
     selectedFlyoutItem = itemId;
 
     if (activeFlyoutParentBtn) {
@@ -5620,6 +5648,22 @@ window.addEventListener('DOMContentLoaded', () => {
     initAppModalPortals();
     initScrollToTopButton();
     if (typeof window.initDiscordAuth === 'function') window.initDiscordAuth();
+    if (typeof window.initCafeAuthUiGuard === 'function') window.initCafeAuthUiGuard();
+    window.addEventListener('cafe-discord-auth-change', () => {
+        if (!isBlPlannerAccessGranted() && selectedFlyoutItem === BL_PLANNER_FLYOUT_ITEM_ID) {
+            selectedFlyoutItem = null;
+        }
+        if (!isBlPlannerAccessGranted() && currentMainPageKey === 'bl-planner') {
+            navigateToMainPage('default');
+        }
+        const flyout = document.getElementById('flyout-panel');
+        const flyoutOpen = flyout
+            && !flyout.classList.contains('-translate-x-full')
+            && flyout.getAttribute('aria-hidden') === 'false';
+        if (activeFlyoutType === 'strats' && flyoutOpen && activeFlyoutParentBtn) {
+            openFlyout('strats', activeFlyoutParentBtn);
+        }
+    });
     initSettingsModal();
     initLineupsVideoModal();
     initModalEscapeClose();

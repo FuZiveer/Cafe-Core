@@ -8,6 +8,14 @@
     const AIM_CH_CUSTOM = 'custom';
     const AIM_CH_THICK_MIN = 2;
     const AIM_CH_THICK_MAX = 6;
+    const AIM_CH_THICK_STEP = 2;
+
+    function snapChThick(value) {
+        const n = Math.round(Number(value) || DEFAULTS.chthick);
+        const steps = Math.round((n - AIM_CH_THICK_MIN) / AIM_CH_THICK_STEP);
+        const snapped = AIM_CH_THICK_MIN + steps * AIM_CH_THICK_STEP;
+        return Math.min(AIM_CH_THICK_MAX, Math.max(AIM_CH_THICK_MIN, snapped));
+    }
 
     const DEFAULTS = Object.freeze({
         section: 'session',
@@ -199,7 +207,7 @@
         s.choutline = s.choutline === true || s.choutline === 'true';
         s.chsize = Math.min(30, Math.max(2, Math.round(Number(s.chsize) || DEFAULTS.chsize)));
         s.chgap = Math.min(20, Math.max(0, Math.round(Number(s.chgap) || DEFAULTS.chgap)));
-        s.chthick = Math.min(AIM_CH_THICK_MAX, Math.max(AIM_CH_THICK_MIN, Math.round(Number(s.chthick) || DEFAULTS.chthick)));
+        s.chthick = snapChThick(s.chthick);
         if (!AIM_ASPECTS.includes(s.aspect)) s.aspect = DEFAULTS.aspect;
         const catalog = getGamesCatalog();
         if (catalog.length && !catalog.some((g) => g.name === s.game)) s.game = DEFAULTS.game;
@@ -614,7 +622,15 @@
         };
         bindRange('aim-trainer-ch-size', 'chsize', 2, 30);
         bindRange('aim-trainer-ch-gap', 'chgap', 0, 20);
-        bindRange('aim-trainer-ch-thick', 'chthick', AIM_CH_THICK_MIN, AIM_CH_THICK_MAX);
+        const thickInput = byId('aim-trainer-ch-thick');
+        if (thickInput && thickInput.dataset.aimRangeBound !== '1') {
+            thickInput.dataset.aimRangeBound = '1';
+            thickInput.addEventListener('input', () => {
+                settings.chthick = snapChThick(thickInput.value);
+                syncRangeUi();
+                notifyChange();
+            });
+        }
     }
 
     function bindChColorControls() {
