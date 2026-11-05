@@ -39,10 +39,12 @@
     };
 
     window.isBlPlannerAllowed = function isBlPlannerAllowed() {
+        if (window.__cafeBlApi?.available) return window.__cafeBlApi.plannerAllowed === true;
         return isBlPlannerAllowedForUser(currentDiscordUser);
     };
 
     window.canEditBlScrimRecord = function canEditBlScrimRecord() {
+        if (window.__cafeBlApi?.available) return window.__cafeBlApi.scrimCanEdit === true;
         return canEditBlScrimRecordForUser(currentDiscordUser);
     };
 
@@ -347,6 +349,10 @@
             setCurrentDiscordUser(null);
             renderSignedOut(host, loginUrl);
             bindDiscordSignInPending(byId('discord-sign-in-btn'));
+        }
+
+        if (typeof window.refreshCafeBlApiState === 'function') {
+            void window.refreshCafeBlApiState();
         }
     }
 

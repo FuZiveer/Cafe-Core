@@ -533,28 +533,22 @@
         bindOperatorIconFallback(subsHost);
     }
 
-    const BL_SCRIM_STORAGE_KEY = 'cafe-bl-scrim-record';
-
     function loadBlScrimRecord() {
-        try {
-            const raw = localStorage.getItem(BL_SCRIM_STORAGE_KEY);
-            if (!raw) return { wins: 0, losses: 0 };
-            const parsed = JSON.parse(raw);
+        if (window.__cafeBlApi?.available) {
             return {
-                wins: Math.max(0, Math.round(Number(parsed.wins) || 0)),
-                losses: Math.max(0, Math.round(Number(parsed.losses) || 0)),
+                wins: window.__cafeBlApi.scrim.wins,
+                losses: window.__cafeBlApi.scrim.losses,
             };
-        } catch {
-            return { wins: 0, losses: 0 };
         }
+        return { wins: 0, losses: 0 };
     }
 
-    function saveBlScrimRecord(record) {
-        try {
-            localStorage.setItem(BL_SCRIM_STORAGE_KEY, JSON.stringify(record));
-        } catch {
-            /* ignore */
+    async function saveBlScrimRecord(record) {
+        if (!window.__cafeBlApi?.available || typeof window.patchCafeScrimRecord !== 'function') {
+            return false;
         }
+        await window.patchCafeScrimRecord(record);
+        return true;
     }
 
     function canEditBlScrimCounter() {
@@ -630,18 +624,36 @@
                 const delta = Number(parts[1]);
                 if (key !== 'wins' && key !== 'losses') return;
                 if (!Number.isFinite(delta)) return;
-                blScrimRecordState = {
+                const next = {
                     ...blScrimRecordState,
                     [key]: Math.max(0, blScrimRecordState[key] + delta),
                 };
-                saveBlScrimRecord(blScrimRecordState);
-                paint();
+                void (async () => {
+                    try {
+                        const ok = await saveBlScrimRecord(next);
+                        if (!ok) throw new Error('save_failed');
+                        blScrimRecordState = loadBlScrimRecord();
+                        paint();
+                    } catch {
+                        window.CafeCore?.Toast?.show?.('Could not update scrim record');
+                    }
+                })();
             });
-            window.addEventListener('cafe-discord-auth-change', () => {
+            const resyncScrimFromAuth = () => {
+                if (!document.getElementById('bl-scrim-counter')) return;
+                void (async () => {
+                    await window.refreshCafeBlApiState?.();
+                    blScrimRecordState = loadBlScrimRecord();
+                    paint();
+                    window.syncBlScrimEditControls?.();
+                })();
+            };
+            window.addEventListener('cafe-discord-auth-change', resyncScrimFromAuth);
+            window.addEventListener('cafe-bl-api-updated', () => {
                 if (!document.getElementById('bl-scrim-counter')) return;
                 blScrimRecordState = loadBlScrimRecord();
                 paint();
-                window.syncBlScrimEditControls();
+                window.syncBlScrimEditControls?.();
             });
         }
     }
@@ -652,12 +664,16 @@
         document.querySelectorAll('#bl-roster-player-modal').forEach((el) => el.remove());
         document.body.classList.remove('bl-roster-player-modal-open');
         blRosterModalBound = false;
+        window.disconnectCafeScrimWebSocket?.();
     };
 
     window.initBlackListedPage = function initBlackListedPage() {
         initBlRosterPlayerModal();
         bindBlRosterMoreButtons();
-        initBlScrimCounter();
-        renderBlackListedRoster();
+        void (async () => {
+            await window.refreshCafeBlApiState?.();
+            initBlScrimCounter();
+            renderBlackListedRoster();
+        })();
     };
 })();

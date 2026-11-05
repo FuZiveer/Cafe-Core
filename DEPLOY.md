@@ -77,7 +77,11 @@ Always use **HTTPS** in production (`PUBLIC_ORIGIN` and `DISCORD_REDIRECT_URI` m
 
 ## Check that it works
 
-- `https://YOUR-SITE/api/health` → `{"ok":true,"discord":true}` when env is set.
+- `https://YOUR-SITE/api/health` → `{"ok":true,"discord":true,"blApi":true}` when env is set.
+- `GET /api/bl/scrim-record` → shared scrim score; `PATCH` only for allowlisted Discord usernames (session cookie). Clients on static GitHub Pages read this from `__CAFE_AUTH_ORIGIN` (Render), not `localStorage`.
+- `WS /ws/bl/scrim` → pushes `{ type: "scrim", wins, losses }` on connect and whenever an editor saves; static pages use `wss://` on the same auth origin.
+- `GET /api/bl/planner-access` → `{ allowed: true/false }` for BL planner (server decides from session).
+- Scrim data file: `data/bl-scrim-record.json` on the server (use Render persistent disk if you need scores to survive redeploys).
 - `https://YOUR-SITE/api/auth/discord/config` → `{"configured":true,...}`.
 - Sign in → profile appears in the top bar.
 

@@ -7,19 +7,55 @@
                     <section class="about-section bg-matte-900 rounded-lg p-6">
                         <h3 class="text-sm font-bold tracking-widest uppercase text-redneon-500">Overview</h3>
                         <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
-                            Café Core is a client-side web experience: tools and pages run in your browser. We do not operate user accounts or sell personal data. This policy describes what may be stored locally, what leaves your device, and how third-party services fit in.
+                            Café Core is a web experience: most tools and pages run in your browser. Optional sign-in with Discord lets you access certain signed-in features. We do not sell personal data. This policy describes what may be stored on your device, what our servers handle when you sign in, and how third-party services fit in.
                         </p>
                     </section>
                     <section class="about-section bg-matte-900 rounded-lg p-6">
                         <h3 class="text-sm font-bold tracking-widest uppercase text-redneon-500">Information stored on your device</h3>
                         <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
-                            Preferences such as sidebar layout and reduced motion may be saved in your browser&apos;s local storage so they persist between visits. Tool inputs (sensitivity, DPI, hardware picks, and similar) stay in the page unless you clear them; they are not uploaded to a Café Core server because none is required for the site to work.
+                            Preferences such as sidebar layout and reduced motion may be saved in your browser&apos;s local storage so they persist between visits. Tool inputs (sensitivity, DPI, hardware picks, and similar) generally stay in the page or in local storage unless you clear them; they are not uploaded to Café Core servers for basic calculator and utility use.
+                        </p>
+                        <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
+                            During Discord sign-in, your browser may briefly use session storage to remember that a login is in progress. That flag is removed when sign-in completes or is cancelled.
+                        </p>
+                    </section>
+                    <section class="about-section bg-matte-900 rounded-lg p-6">
+                        <h3 class="text-sm font-bold tracking-widest uppercase text-redneon-500">Discord sign-in and your account</h3>
+                        <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
+                            Sign-in is optional. When you choose &quot;Sign in with Discord,&quot; you are redirected to Discord&apos;s authorization page. We request the <span class="text-slate-200">identify</span> scope only (enough to recognize you and show your profile in the site UI). We do not request your email, messages, servers, or friends list through this integration.
+                        </p>
+                        <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
+                            After Discord approves access, our auth server exchanges the authorization code for a short-lived access token, reads your Discord user profile once, and then discards that token. We do not store Discord access or refresh tokens on our servers.
+                        </p>
+                        <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
+                            We keep a signed session cookie (<span class="text-slate-200">cafe_core_session</span>) on our auth origin (for example, when the static site uses a hosted API). The cookie is HttpOnly and typically lasts up to 30 days or until you sign out. It contains a tamper-resistant payload with your Discord user id, username, display name, and avatar URL so the site can show who is signed in and authorize limited actions. Signing out clears this cookie.
+                        </p>
+                        <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
+                            Discord&apos;s own privacy policy and terms apply to your Discord account and to data Discord processes during login. See <a href="https://discord.com/privacy" class="text-redneon-500 hover:text-white transition-colors motion-standard" target="_blank" rel="noopener noreferrer">discord.com/privacy</a>.
+                        </p>
+                    </section>
+                    <section class="about-section bg-matte-900 rounded-lg p-6">
+                        <h3 class="text-sm font-bold tracking-widest uppercase text-redneon-500">Server-side data and live features</h3>
+                        <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
+                            When auth and site APIs are enabled, our server may process your session to answer requests such as &quot;who is signed in?&quot; and whether your account may use restricted tools (for example, team planner or scrim record editing for allowlisted operators).
+                        </p>
+                        <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
+                            Shared site data (such as Black-Listed scrim win/loss counts) is stored in server files, not in your browser&apos;s local storage. Visitors receive current values via HTTP and, when connected, a WebSocket feed; only authorized signed-in users may change those shared records.
+                        </p>
+                        <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
+                            Standard connection data (IP address, user agent, timestamps) may appear in hosting or platform logs for security and operations, consistent with our provider&apos;s policies.
                         </p>
                     </section>
                     <section class="about-section bg-matte-900 rounded-lg p-6">
                         <h3 class="text-sm font-bold tracking-widest uppercase text-redneon-500">Third-party services</h3>
                         <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
-                            Tool data such as hardware lists and benchmark charts are loaded from this site’s own static files in your browser. Fonts and icons are loaded from content delivery networks; those providers may log standard connection data such as IP address according to their own policies.
+                            Tool data such as hardware lists and benchmark charts are loaded from this site&apos;s static files in your browser. Fonts, icons, and Discord avatar images may be loaded from content delivery networks; those providers may log standard connection data according to their own policies.
+                        </p>
+                    </section>
+                    <section class="about-section bg-matte-900 rounded-lg p-6">
+                        <h3 class="text-sm font-bold tracking-widest uppercase text-redneon-500">Your choices</h3>
+                        <p class="text-slate-300 mt-3 leading-relaxed tracking-wide">
+                            You can use most of Café Core without signing in. You can sign out at any time to remove the session cookie from your browser. You can clear local storage and cookies in your browser settings to remove on-device preferences and session data.
                         </p>
                     </section>
                     <section class="about-section bg-matte-900 rounded-lg p-6">

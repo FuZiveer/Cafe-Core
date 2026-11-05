@@ -40,7 +40,7 @@ function loadEnvFile() {
     }
 }
 
-function config() {
+export function getAuthConfig() {
     loadEnvFile();
     const clientId = process.env.DISCORD_CLIENT_ID?.trim() || '';
     const clientSecret = process.env.DISCORD_CLIENT_SECRET?.trim() || '';
@@ -131,7 +131,7 @@ function handleAuthOptions(req, res, cfg) {
     if (!origin) return false;
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Vary', 'Origin');
     res.writeHead(204);
@@ -282,21 +282,23 @@ function buildAuthorizeUrl(cfg, state) {
     return `${DISCORD_AUTHORIZE}?${params.toString()}`;
 }
 
+export { applyCors, sendJson };
+
 export function getSessionUser(req) {
-    const cfg = config();
+    const cfg = getAuthConfig();
     const cookies = parseCookies(req.headers.cookie);
     return verifySession(cookies[SESSION_COOKIE], cfg.sessionSecret);
 }
 
 export async function handleDiscordAuthRequest(req, res, url) {
-    const cfg = config();
+    const cfg = getAuthConfig();
     const pathname = url.pathname;
     const cOpts = cookieOpts(cfg);
 
     if (handleAuthOptions(req, res, cfg)) return true;
 
     if (pathname === '/api/health') {
-        sendJson(res, 200, { ok: true, discord: cfg.configured });
+        sendJson(res, 200, { ok: true, discord: cfg.configured, blApi: true });
         return true;
     }
 

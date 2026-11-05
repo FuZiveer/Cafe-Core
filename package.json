@@ -5,5 +5,8 @@
   "scripts": {
     "dev": "node server/dev-server.mjs",
     "start": "node server/dev-server.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.22.1"
   }
 }

@@ -2,7 +2,9 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { handleDiscordAuthRequest } from './discord-auth.mjs';
+import { getAuthConfig, handleDiscordAuthRequest } from './discord-auth.mjs';
+import { handleBlApiRequest } from './bl-api.mjs';
+import { attachBlScrimWebSocket } from './bl-scrim-ws.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -54,8 +56,11 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
 
     try {
-        const handled = await handleDiscordAuthRequest(req, res, url);
-        if (handled) return;
+        const cfg = getAuthConfig();
+        const handledAuth = await handleDiscordAuthRequest(req, res, url);
+        if (handledAuth) return;
+        const handledBl = await handleBlApiRequest(req, res, url, cfg);
+        if (handledBl) return;
     } catch (err) {
         console.error('[auth]', err);
         res.writeHead(500);
@@ -65,6 +70,8 @@ const server = http.createServer(async (req, res) => {
 
     serveFile(req, res, url);
 });
+
+attachBlScrimWebSocket(server);
 
 server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
