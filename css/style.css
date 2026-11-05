@@ -1030,17 +1030,38 @@ html.reduce-motion *::after {
     margin: 0 0 1rem;
 }
 .bl-scrim-counter-score {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto auto auto;
+    grid-template-rows: auto auto;
+    width: max-content;
+    max-width: 100%;
+    margin-inline: auto;
     align-items: center;
-    justify-content: center;
-    gap: 1.25rem;
+    column-gap: 0.625rem;
+    row-gap: 0.375rem;
 }
 .bl-scrim-counter-side {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.375rem;
-    min-width: 5.5rem;
+    display: contents;
+}
+.bl-scrim-counter-side--wins .bl-scrim-counter-tag {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: center;
+}
+.bl-scrim-counter-side--wins .bl-scrim-counter-side-controls {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: center;
+}
+.bl-scrim-counter-side--losses .bl-scrim-counter-tag {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: center;
+}
+.bl-scrim-counter-side--losses .bl-scrim-counter-side-controls {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: center;
 }
 .bl-scrim-counter-tag {
     font-size: 0.625rem;
@@ -1058,7 +1079,7 @@ html.reduce-motion *::after {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.375rem;
 }
 .bl-scrim-counter-num {
     font-size: clamp(2rem, 5vw, 2.75rem);
@@ -1077,11 +1098,14 @@ html.reduce-motion *::after {
     color: #fef2f2;
 }
 .bl-scrim-counter-colon {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    justify-self: center;
     font-size: clamp(1.75rem, 4vw, 2.25rem);
     font-weight: 700;
     line-height: 1;
     color: #64748b;
-    padding-bottom: 1.125rem;
     user-select: none;
 }
 .bl-scrim-counter-adjust {
