@@ -8,13 +8,11 @@
 
     let observer = null;
     let enforceTimer = 0;
-    let tamperNoticeShown = false;
 
-    function detectedIdentityLabel() {
+    function signedInUsernameLabel() {
         const user = typeof window.getDiscordAuthUser === 'function' ? window.getDiscordAuthUser() : null;
         const username = String(user?.username || '').trim();
-        if (username) return `@${username}`;
-        return 'Guest';
+        return username ? `@${username}` : '';
     }
 
     function canUseBlPlanner() {
@@ -32,13 +30,16 @@
     }
 
     function buildRestrictedPanel(title, detail) {
-        const identity = detectedIdentityLabel();
+        const identity = signedInUsernameLabel();
+        const identityBlock = identity
+            ? `<p class="auth-restricted-panel-identity">Signed in as <strong>${identity}</strong></p>`
+            : '';
         return `
             <div class="auth-restricted-panel" role="alert">
                 <div class="auth-restricted-panel-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></div>
                 <h2 class="auth-restricted-panel-title">${title}</h2>
                 <p class="auth-restricted-panel-detail">${detail}</p>
-                <p class="auth-restricted-panel-identity">Detected: <strong>${identity}</strong></p>
+                ${identityBlock}
             </div>`;
     }
 
@@ -86,20 +87,7 @@
         }
     }
 
-    function notifyTamperOnce() {
-        if (tamperNoticeShown) return;
-        tamperNoticeShown = true;
-        const identity = detectedIdentityLabel();
-        window.pushCafeNotification?.({
-            title: 'Restricted controls blocked',
-            body: `${identity} — staff-only UI cannot be enabled from the browser console.`,
-        });
-    }
-
-    function enforceRestrictedUi(options = {}) {
-        const tamper = options.reason === 'tamper';
-        if (tamper) notifyTamperOnce();
-
+    function enforceRestrictedUi() {
         if (!canEditScrim()) {
             removeScrimAdjustControls();
             if (typeof window.syncBlScrimEditControls === 'function') {
@@ -140,7 +128,7 @@
             }
         }
 
-        if (tampered) enforceRestrictedUi({ reason: 'tamper' });
+        if (tampered) enforceRestrictedUi();
     }
 
     function startObserver() {
@@ -176,7 +164,6 @@
         startObserver();
         startPeriodicEnforce();
         window.addEventListener('cafe-discord-auth-change', () => {
-            tamperNoticeShown = false;
             enforceRestrictedUi();
         });
     };

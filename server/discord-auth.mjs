@@ -178,24 +178,32 @@ function verifySession(token, secret) {
     }
 }
 
-function setCookie(res, name, value, { maxAge, httpOnly = true, path = '/', secure = false, sameSite = 'Lax' } = {}) {
+function setCookie(
+    res,
+    name,
+    value,
+    { maxAge, httpOnly = true, path = '/', secure = false, sameSite = 'Lax', partitioned = false } = {},
+) {
     const parts = [`${name}=${encodeURIComponent(value)}`, `Path=${path}`, `SameSite=${sameSite}`];
     if (httpOnly) parts.push('HttpOnly');
     if (secure) parts.push('Secure');
+    if (partitioned) parts.push('Partitioned');
     if (typeof maxAge === 'number') parts.push(`Max-Age=${maxAge}`);
     const prev = res.getHeader('Set-Cookie');
     const next = Array.isArray(prev) ? [...prev, parts.join('; ')] : prev ? [prev, parts.join('; ')] : [parts.join('; ')];
     res.setHeader('Set-Cookie', next);
 }
 
-function clearCookie(res, name, { secure = false, sameSite = 'Lax' } = {}) {
-    setCookie(res, name, '', { maxAge: 0, secure, sameSite });
+function clearCookie(res, name, { secure = false, sameSite = 'Lax', partitioned = false } = {}) {
+    setCookie(res, name, '', { maxAge: 0, secure, sameSite, partitioned });
 }
 
 function cookieOpts(cfg) {
+    const crossSite = cfg.crossSiteCookies;
     return {
         secure: cfg.cookieSecure,
-        sameSite: cfg.crossSiteCookies ? 'None' : 'Lax',
+        sameSite: crossSite ? 'None' : 'Lax',
+        partitioned: crossSite,
     };
 }
 
@@ -315,11 +323,7 @@ export async function handleDiscordAuthRequest(req, res, url) {
     if (pathname === '/api/auth/me') {
         applyCors(req, res, cfg);
         const user = getSessionUser(req);
-        if (!user) {
-            sendJson(res, 401, { user: null });
-            return true;
-        }
-        sendJson(res, 200, { user });
+        sendJson(res, 200, { user: user ?? null });
         return true;
     }
 

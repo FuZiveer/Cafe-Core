@@ -44,7 +44,7 @@ You **cannot** upload only HTML/JS to generic web hosting and keep Discord login
    | `DISCORD_REDIRECT_URI` | `https://YOUR-SERVICE.onrender.com/auth/discord/callback` |
    | `SESSION_SECRET` | long random string (new one for production is fine) |
    | `PUBLIC_ORIGIN` | `https://YOUR-SERVICE.onrender.com` |
-   | `CORS_ORIGINS` | `https://fuziveer.github.io` (if you use GitHub Pages for the static site) |
+   | `CORS_ORIGINS` | `https://fuziveer.github.io` (required for GitHub Pages sign-in; origin only, no path) |
    | `NODE_ENV` | `production` (optional) |
 
    Render sets **`PORT`** automatically — do not hardcode it.
@@ -99,3 +99,7 @@ GitHub Pages only hosts files. OAuth still runs on Render.
 4. Push to GitHub so Pages updates; sign in on `https://fuziveer.github.io/Cafe-Core`.
 
 Flow: Pages → Sign in → Render (Discord) → back to your GitHub Pages URL → profile loads via cross-origin API + cookie on Render.
+
+**`/api/auth/me` shows `"user":null`:** That means no session cookie reached the server (not signed in, or the cookie was not sent). Opening that URL in a new tab while logged out is normal. After **Sign in**, you should get a user object when the site calls `/api/auth/me` with `credentials: 'include'`.
+
+If sign-in completes but the profile never appears on GitHub Pages, check **`CORS_ORIGINS`** on Render (must be exactly `https://fuziveer.github.io`), redeploy after env changes, sign in again, and allow cookies for the site. Some browsers block third-party cookies; the server sets `SameSite=None; Secure; Partitioned` when `CORS_ORIGINS` is set. Using `https://cafe-core.onrender.com` directly avoids cross-site cookies.

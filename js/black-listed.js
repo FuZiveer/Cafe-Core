@@ -557,6 +557,26 @@
 
     let blScrimRecordState = { wins: 0, losses: 0 };
 
+    function paintBlScrimRecord() {
+        const winsEl = document.getElementById('bl-scrim-wins');
+        const lossesEl = document.getElementById('bl-scrim-losses');
+        if (!winsEl || !lossesEl) return;
+        winsEl.textContent = String(blScrimRecordState.wins);
+        lossesEl.textContent = String(blScrimRecordState.losses);
+    }
+
+    function applyBlScrimRecordFromStore() {
+        blScrimRecordState = loadBlScrimRecord();
+        paintBlScrimRecord();
+        window.syncBlScrimEditControls?.();
+    }
+
+    async function refreshBlScrimFromServer() {
+        if (!document.getElementById('bl-scrim-counter')) return;
+        await window.refreshCafeBlApiState?.();
+        applyBlScrimRecordFromStore();
+    }
+
     function stripScrimAdjustControls() {
         document.querySelectorAll('.bl-scrim-counter-adjust').forEach((el) => el.remove());
         document.querySelectorAll('#bl-scrim-counter').forEach((section) => {
@@ -599,19 +619,9 @@
         const section = document.getElementById('bl-scrim-counter');
         if (!section) return;
 
-        const winsEl = document.getElementById('bl-scrim-wins');
-        const lossesEl = document.getElementById('bl-scrim-losses');
-        if (!winsEl || !lossesEl) return;
+        if (!document.getElementById('bl-scrim-wins') || !document.getElementById('bl-scrim-losses')) return;
 
-        blScrimRecordState = loadBlScrimRecord();
-
-        const paint = () => {
-            winsEl.textContent = String(blScrimRecordState.wins);
-            lossesEl.textContent = String(blScrimRecordState.losses);
-        };
-
-        paint();
-        window.syncBlScrimEditControls();
+        applyBlScrimRecordFromStore();
 
         if (section.dataset.scrimBound !== '1') {
             section.dataset.scrimBound = '1';
@@ -632,28 +642,15 @@
                     try {
                         const ok = await saveBlScrimRecord(next);
                         if (!ok) throw new Error('save_failed');
-                        blScrimRecordState = loadBlScrimRecord();
-                        paint();
+                        applyBlScrimRecordFromStore();
                     } catch {
                         window.CafeCore?.Toast?.show?.('Could not update scrim record');
                     }
                 })();
             });
-            const resyncScrimFromAuth = () => {
-                if (!document.getElementById('bl-scrim-counter')) return;
-                void (async () => {
-                    await window.refreshCafeBlApiState?.();
-                    blScrimRecordState = loadBlScrimRecord();
-                    paint();
-                    window.syncBlScrimEditControls?.();
-                })();
-            };
-            window.addEventListener('cafe-discord-auth-change', resyncScrimFromAuth);
             window.addEventListener('cafe-bl-api-updated', () => {
                 if (!document.getElementById('bl-scrim-counter')) return;
-                blScrimRecordState = loadBlScrimRecord();
-                paint();
-                window.syncBlScrimEditControls?.();
+                applyBlScrimRecordFromStore();
             });
         }
     }
@@ -670,10 +667,8 @@
     window.initBlackListedPage = function initBlackListedPage() {
         initBlRosterPlayerModal();
         bindBlRosterMoreButtons();
-        void (async () => {
-            await window.refreshCafeBlApiState?.();
-            initBlScrimCounter();
-            renderBlackListedRoster();
-        })();
+        renderBlackListedRoster();
+        initBlScrimCounter();
+        void refreshBlScrimFromServer();
     };
 })();

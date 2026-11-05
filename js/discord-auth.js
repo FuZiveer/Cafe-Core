@@ -5,7 +5,7 @@
     const BL_PLANNER_DISCORD_USERNAME = 'fuziveer';
 
     /** Discord usernames (without @) allowed to edit the Black-Listed scrim record. */
-    const BL_SCRIM_RECORD_EDITORS = new Set(['fuziveer', 'rawenge', 'rjwarrior']);
+    const BL_SCRIM_RECORD_EDITORS = new Set(['fuziveer', 'rawenge', 'rjwarrior', 'jobless___']);
 
     let currentDiscordUser = null;
 
@@ -207,7 +207,6 @@
 
     async function fetchMe(authBase) {
         const res = await fetch(apiUrl(authBase, '/api/auth/me'), { credentials: 'include' });
-        if (res.status === 401) return null;
         if (!res.ok) throw new Error('auth_me_failed');
         const data = await res.json();
         return data?.user ?? null;
