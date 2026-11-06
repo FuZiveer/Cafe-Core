@@ -210,19 +210,19 @@
             return PRESETS[getActivePresetId()];
         }
 
+        /** Only create the graph after a user gesture; creating AudioContext on hover triggers console warnings. */
         function getAudioContext() {
-            if (!audioContext) {
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                if (!Ctx) return null;
-                audioContext = new Ctx();
-            }
             return audioContext;
         }
 
         function unlockAudio() {
-            const ctx = getAudioContext();
-            if (ctx && ctx.state === 'suspended') {
-                void ctx.resume();
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            if (!audioContext) {
+                audioContext = new Ctx();
+            }
+            if (audioContext.state === 'suspended') {
+                void audioContext.resume();
             }
         }
 
@@ -245,8 +245,7 @@
             lastPlayedAt = now;
 
             const ctx = getAudioContext();
-            if (!ctx) return;
-            unlockAudio();
+            if (!ctx || ctx.state !== 'running') return;
 
             try {
                 const start = ctx.currentTime;
@@ -297,8 +296,7 @@
             filterHz = 2600,
         }) {
             const ctx = getAudioContext();
-            if (!ctx) return;
-            unlockAudio();
+            if (!ctx || ctx.state !== 'running') return;
 
             try {
                 const start = ctx.currentTime;

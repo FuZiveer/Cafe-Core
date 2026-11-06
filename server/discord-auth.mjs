@@ -285,7 +285,7 @@ function buildAuthorizeUrl(cfg, state) {
         response_type: 'code',
         scope: 'identify',
         state,
-        prompt: 'none',
+        // Do not use prompt=none: silent auth fails after sign-out / cleared consent and blocks re-login.
     });
     return `${DISCORD_AUTHORIZE}?${params.toString()}`;
 }
