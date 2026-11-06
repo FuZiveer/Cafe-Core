@@ -1,6 +1,5 @@
 (function() {
   "use strict";
-  const BL_PLANNER_DISCORD_USERNAME = "fuziveer";
   const BL_SCRIM_RECORD_EDITORS = new Set(["fuziveer", "rawenge", "rjwarrior", "jobless___", "kkv060", "two4ne"]);
   let currentDiscordUser = null;
   function byId(id) {
@@ -15,20 +14,12 @@
   function discordUsernameKey(user) {
     return String(user?.username || "").trim().toLowerCase();
   }
-  function isBlPlannerAllowedForUser(user) {
-    if (!user) return false;
-    return discordUsernameKey(user) === BL_PLANNER_DISCORD_USERNAME;
-  }
   function canEditBlScrimRecordForUser(user) {
     if (!user) return false;
     return BL_SCRIM_RECORD_EDITORS.has(discordUsernameKey(user));
   }
   window.getDiscordAuthUser = function getDiscordAuthUser() {
     return currentDiscordUser;
-  };
-  window.isBlPlannerAllowed = function isBlPlannerAllowed() {
-    if (window.__cafeBlApi?.available) return window.__cafeBlApi.plannerAllowed === true;
-    return isBlPlannerAllowedForUser(currentDiscordUser);
   };
   window.canEditBlScrimRecord = function canEditBlScrimRecord() {
     if (window.__cafeBlApi?.available) return window.__cafeBlApi.scrimCanEdit === true;
@@ -80,6 +71,7 @@
     portalDiscordProfileMenu();
     bindDiscordMenuPositionListeners();
     if (open) {
+      window.__cafeCorePicklist?.closeAll?.();
       window.closeNotificationDropdown?.();
       layoutDiscordProfileMenu();
       menu.classList.remove("dropdown-open");

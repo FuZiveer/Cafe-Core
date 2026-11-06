@@ -14,7 +14,6 @@ const PAGE_LABELS = {
   sensitivity: "Converting sensitivity",
   edpi: "Calculating eDPI",
   lineups: "Browsing lineups",
-  "bl-planner": "Using BL planner",
   "aim-trainer": "Training aim"
 };
 

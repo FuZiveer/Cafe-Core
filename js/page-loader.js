@@ -12,7 +12,6 @@
     sensitivity: "pages/sensitivity.html",
     edpi: "pages/edpi.html",
     lineups: "pages/lineups.html",
-    "bl-planner": "pages/bl-planner.html",
     "aim-trainer": "pages/aim-trainer.html"
   });
   const htmlCache = new Map();
@@ -99,18 +98,12 @@
     await loadScript("data/black-listed-roster.js");
     await loadScript("js/black-listed.js");
   }
-  async function ensureBlPlannerScripts() {
-    await loadScript("js/bl-planner.js");
-  }
   async function preparePageDependencies(pageKey) {
     if (pageKey === "sensitivity" || pageKey === "edpi") {
       await ensureSensitivityScripts();
     }
     if (pageKey === "black-listed") {
       await ensureBlackListedScripts();
-    }
-    if (pageKey === "bl-planner") {
-      await ensureBlPlannerScripts();
     }
     if (pageKey === "aim-trainer") {
       await ensureAimTrainerScripts();

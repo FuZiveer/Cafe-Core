@@ -7,24 +7,9 @@ const MOTION_TRANSITION = CoreMotion.standardTransition;
 const INDICATOR_LAYOUT_TRANSITION = CoreMotion.indicatorLayoutTransition;
 let indicatorAnimToken = 0;
 const TIPS_AND_TRICKS_PAGE_ENABLED = window.CafeCore.Features.tipsAndTricksPage;
-const BL_PLANNER_FLYOUT_ITEM_ID = "strat-bl-planner";
 const STRATS_FLYOUT_ITEMS = [
-  { id: "strat-tips", name: "Tips & tricks", icon: "fa-lightbulb" },
-  { id: BL_PLANNER_FLYOUT_ITEM_ID, name: "BL planner", icon: "fa-calendar-days" }
+  { id: "strat-tips", name: "Tips & tricks", icon: "fa-lightbulb" }
 ];
-function isBlPlannerAccessGranted() {
-  return typeof window.isBlPlannerAllowed === "function" && window.isBlPlannerAllowed();
-}
-function isFlyoutItemVisible(itemId) {
-  if (itemId === BL_PLANNER_FLYOUT_ITEM_ID) return isBlPlannerAccessGranted();
-  return true;
-}
-function flyoutItemsForMenu(type) {
-  const items = flyoutData[type]?.items;
-  if (!items) return [];
-  if (type !== "strats") return items;
-  return items.filter((item) => isFlyoutItemVisible(item.id));
-}
 const flyoutData = coreFreeze({
   tools: {
     title: "Tools Menu",
@@ -50,6 +35,9 @@ const flyoutData = coreFreeze({
     ]
   }
 });
+function flyoutItemsForMenu(type) {
+  return flyoutData[type]?.items || [];
+}
 const topBarLabels = coreFreeze({
   home: "Home",
   apps: "Apps",
@@ -129,13 +117,12 @@ const mainPageIds = coreFreeze({
   sensitivity: "page-sensitivity",
   edpi: "page-edpi",
   lineups: "page-lineups",
-  "bl-planner": "page-bl-planner",
   "aim-trainer": "page-aim-trainer"
 });
 window.mainPageIds = mainPageIds;
 function normalizeMainPageKey(pageKey) {
   if (pageKey === "lineups" && !TIPS_AND_TRICKS_PAGE_ENABLED) return "default";
-  if (pageKey === "bl-planner" && !isBlPlannerAccessGranted()) return "default";
+  if (pageKey === "bl-planner") return "default";
   return pageKey in mainPageIds ? pageKey : "default";
 }
 const SENS_GAME_BY_ID = new Map();
@@ -562,9 +549,6 @@ window.clearMainPageInitState = function clearMainPageInitState(pageKey) {
   if (pageKey === "black-listed" && typeof window.teardownBlackListedPage === "function") {
     window.teardownBlackListedPage();
   }
-  if (pageKey === "bl-planner" && typeof window.teardownBlPlannerPage === "function") {
-    window.teardownBlPlannerPage();
-  }
   if (pageKey === "aim-trainer" && typeof window.teardownAimTrainerPage === "function") {
     window.teardownAimTrainerPage();
   }
@@ -725,9 +709,6 @@ window.initMainPage = async function initMainPage(pageKey) {
     case "black-listed":
       if (typeof window.initBlackListedPage === "function") window.initBlackListedPage();
       break;
-    case "bl-planner":
-      if (typeof window.initBlPlannerPage === "function") window.initBlPlannerPage();
-      break;
     case "aim-trainer":
       if (typeof window.initAimTrainerPage === "function") window.initAimTrainerPage();
       break;
@@ -753,21 +734,16 @@ function mainPageKeyForFlyoutItem(itemId) {
   if (itemId === "strat-tips" || itemId === "strat-lineups") {
     return TIPS_AND_TRICKS_PAGE_ENABLED ? "lineups" : "default";
   }
-  if (itemId === "strat-bl-planner") {
-    return isBlPlannerAccessGranted() ? "bl-planner" : "default";
-  }
   return "default";
 }
 function isFlyoutItemNavDisabled(itemId) {
   if ((itemId === "strat-tips" || itemId === "strat-lineups") && !TIPS_AND_TRICKS_PAGE_ENABLED) {
     return true;
   }
-  if (itemId === BL_PLANNER_FLYOUT_ITEM_ID && !isBlPlannerAccessGranted()) return true;
   return false;
 }
 function isMainPageNavDisabled(pageKey) {
   if (pageKey === "lineups" && !TIPS_AND_TRICKS_PAGE_ENABLED) return true;
-  if (pageKey === "bl-planner" && !isBlPlannerAccessGranted()) return true;
   return false;
 }
 function setNavControlDisabled(control, disabled) {
@@ -816,8 +792,7 @@ const mainPageKeyToFlyoutItemId = {
   "black-listed": "more-black-listed",
   privacy: "more-privacy-policy",
   terms: "more-terms-of-service",
-  lineups: "strat-tips",
-  "bl-planner": "strat-bl-planner"
+  lineups: "strat-tips"
 };
 const flyoutNavExtras = {
   "more-privacy-policy": {
@@ -844,7 +819,6 @@ function findNavBtnForSidebarTab(tabType) {
   return null;
 }
 function findFlyoutItemDefinition(itemId) {
-  if (!isFlyoutItemVisible(itemId)) return null;
   for (const [flyoutType, menu] of Object.entries(flyoutData)) {
     const item = menu.items.find((entry) => entry.id === itemId);
     if (item) return { flyoutType, item };
@@ -904,7 +878,7 @@ const SIDEBAR_PREFETCH_PAGES = {
   home: ["default"],
   apps: ["apps"],
   tools: ["bottleneck", "sensitivity", "edpi", "aim-trainer"],
-  strats: ["lineups", "bl-planner"],
+  strats: ["lineups"],
   more: ["branding", "fuziveer", "black-listed", "privacy", "terms"]
 };
 function warmPagesForSidebarTab(tabType) {
@@ -2777,6 +2751,8 @@ function bindToolPicklistMenuScroll(menu) {
   }, { passive: false });
 }
 function openToolPicklist(root) {
+  window.closeNotificationDropdown?.();
+  window.closeDiscordProfileMenu?.();
   const menu = getToolPicklistMenu(root);
   closeAllToolPicklists(root);
   root.classList.add("is-open");
@@ -4062,10 +4038,36 @@ function updateScrollToTopButton() {
   btn.setAttribute("aria-hidden", show ? "false" : "true");
   btn.tabIndex = show ? 0 : -1;
 }
+function smoothScrollElementToTop(el) {
+  if (!el) return;
+  if (isReducedMotionEnabled()) {
+    if (typeof el.scrollTo === "function") {
+      el.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    } else {
+      el.scrollTop = 0;
+    }
+    return;
+  }
+  const start = el.scrollTop;
+  if (start <= 0) return;
+  const durationMs = 500;
+  const t0 = performance.now();
+  function easeOutCubic(t) {
+    return 1 - (1 - t) ** 3;
+  }
+  function step(now) {
+    const t = Math.min(1, (now - t0) / durationMs);
+    const eased = easeOutCubic(t);
+    el.scrollTop = Math.max(0, Math.round(start * (1 - eased)));
+    if (t < 1) requestAnimationFrame(step);
+    else el.scrollTop = 0;
+  }
+  requestAnimationFrame(step);
+}
 function scrollMainContentToTop() {
   const host = getMainContentScrollHost();
   if (!host) return;
-  host.scrollTo({ top: 0, left: 0, behavior: scrollBehaviorOption() });
+  smoothScrollElementToTop(host);
 }
 function initScrollToTopButton() {
   const btn = document.getElementById("scroll-to-top-btn");
@@ -4549,6 +4551,16 @@ function initModalEscapeClose() {
       window.AimTrainerSettings?.close?.();
       return;
     }
+    const notificationDropdownEl = document.getElementById("notification-dropdown");
+    if (notificationDropdownEl?.classList.contains("dropdown-open")) {
+      window.closeNotificationDropdown?.();
+      return;
+    }
+    const discordMenuEl = document.getElementById("discord-profile-menu");
+    if (discordMenuEl?.classList.contains("dropdown-open")) {
+      window.closeDiscordProfileMenu?.();
+      return;
+    }
     if (isMobileLayout() && document.body.classList.contains("mobile-nav-open")) {
       if (activeFlyoutType) {
         closeFlyout();
@@ -4606,7 +4618,7 @@ function handleSidebarClick(clickedBtn, tabType) {
   });
 }
 function selectFlyoutItem(itemId, itemName) {
-  if (!isFlyoutItemVisible(itemId) || isFlyoutItemNavDisabled(itemId)) return;
+  if (!findFlyoutItemDefinition(itemId) || isFlyoutItemNavDisabled(itemId)) return;
   selectedFlyoutItem = itemId;
   if (activeFlyoutParentBtn) {
     const prevSelectedBtn = selectedSidebarBtn;
@@ -4745,6 +4757,7 @@ function setNotificationDropdownOpen(open) {
   portalNotificationDropdown();
   bindNotificationDropdownPositionListeners();
   if (open) {
+    closeAllToolPicklists();
     window.closeDiscordProfileMenu?.();
     layoutNotificationDropdown();
     dropdown.classList.remove("dropdown-open");
@@ -5237,12 +5250,6 @@ window.addEventListener("DOMContentLoaded", () => {
   if (typeof window.initCafeAuthUiGuard === "function") window.initCafeAuthUiGuard();
   initCafePresenceUi();
   window.addEventListener("cafe-discord-auth-change", () => {
-    if (!isBlPlannerAccessGranted() && selectedFlyoutItem === BL_PLANNER_FLYOUT_ITEM_ID) {
-      selectedFlyoutItem = null;
-    }
-    if (!isBlPlannerAccessGranted() && currentMainPageKey === "bl-planner") {
-      navigateToMainPage("default");
-    }
     const flyout = document.getElementById("flyout-panel");
     const flyoutOpen = flyout && !flyout.classList.contains("-translate-x-full") && flyout.getAttribute("aria-hidden") === "false";
     if (activeFlyoutType === "strats" && flyoutOpen && activeFlyoutParentBtn) {

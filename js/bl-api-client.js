@@ -2,7 +2,6 @@
   "use strict";
   window.__cafeBlApi = {
     available: false,
-    plannerAllowed: false,
     scrimCanEdit: false,
     scrim: { wins: 0, losses: 0 }
   };
@@ -138,12 +137,6 @@
       state.scrimCanEdit = scrim.canEdit === true;
     } catch {
       state.scrimCanEdit = false;
-    }
-    try {
-      const planner = await fetchJson("/api/bl/planner-access");
-      state.plannerAllowed = planner.allowed === true;
-    } catch {
-      state.plannerAllowed = false;
     }
     state.available = scrimOk;
     if (scrimOk) {
