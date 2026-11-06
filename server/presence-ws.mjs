@@ -37,6 +37,7 @@ function broadcastPresence() {
       pageKey: st.pageKey,
       activity: activityLabel(st.pageKey),
       name: st.displayName || "Guest",
+      avatarUrl: typeof st.avatarUrl === "string" && st.avatarUrl ? st.avatarUrl : "",
       hidden: st.hiddenFromList === true
     });
   }
@@ -48,7 +49,7 @@ function broadcastPresence() {
 
 wss.on("connection", (ws) => {
   const publicId = `u-${++idSeq}`;
-  const state = { publicId, pageKey: "default", displayName: "Guest", hiddenFromList: false };
+  const state = { publicId, pageKey: "default", displayName: "Guest", avatarUrl: "", hiddenFromList: false };
   sessions.set(ws, state);
   try {
     ws.send(JSON.stringify({ type: "presence_hello", id: publicId }));
@@ -64,6 +65,10 @@ wss.on("connection", (ws) => {
     if (msg?.type !== "presence_ping") return;
     if (typeof msg.pageKey === "string") state.pageKey = msg.pageKey.slice(0, 80);
     if (typeof msg.displayName === "string") state.displayName = msg.displayName.trim().slice(0, 120);
+    if (typeof msg.avatarUrl === "string") {
+      const u = msg.avatarUrl.trim().slice(0, 512);
+      state.avatarUrl = /^https:\/\//i.test(u) ? u : "";
+    }
     if (typeof msg.hiddenFromList === "boolean") state.hiddenFromList = msg.hiddenFromList;
     broadcastPresence();
   });

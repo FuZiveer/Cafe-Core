@@ -874,7 +874,6 @@ html.reduce-motion .settings-tab-glider {
     background-color var(--motion-duration) var(--motion-ease);
 }
 .cafe-presence-row:hover {
-  border-color: #3f3f46;
   background-color: #1a1a1e;
 }
 .cafe-presence-row--you {
@@ -929,6 +928,13 @@ html.reduce-motion .settings-tab-glider {
   border-color: rgba(255, 30, 67, 0.45);
   color: #ff1e43;
   background-color: rgba(255, 30, 67, 0.12);
+}
+.cafe-presence-avatar .cafe-presence-avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 .cafe-presence-row-main {
   min-width: 0;

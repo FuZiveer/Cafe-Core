@@ -4997,6 +4997,12 @@ function cafePresenceDisplayName() {
   }
   return "Guest";
 }
+function cafePresenceDiscordAvatarUrl() {
+  const u = typeof window.getDiscordAuthUser === "function" ? window.getDiscordAuthUser() : null;
+  if (!u || typeof u !== "object") return "";
+  const url = String(u.avatarUrl || "").trim();
+  return /^https:\/\//i.test(url) ? url : "";
+}
 function cafePresenceSendPing() {
   if (!cafePresenceWs || cafePresenceWs.readyState !== WebSocket.OPEN) return;
   try {
@@ -5005,6 +5011,7 @@ function cafePresenceSendPing() {
         type: "presence_ping",
         pageKey: currentMainPageKey,
         displayName: cafePresenceDisplayName(),
+        avatarUrl: cafePresenceDiscordAvatarUrl(),
         hiddenFromList: getCafePresenceHideFromList()
       })
     );
@@ -5032,6 +5039,18 @@ function cafePresenceRowInitials(u, you) {
     return cafePresenceInitialsFromLabel(label);
   }
   return cafePresenceInitialsFromLabel(u?.name || "Guest");
+}
+function cafePresenceAvatarUrlForRow(u, you) {
+  if (you) return cafePresenceDiscordAvatarUrl();
+  const url = String(u?.avatarUrl || "").trim();
+  return /^https:\/\//i.test(url) ? url : "";
+}
+function cafePresenceAvatarHtml(u, you, initialsHtml) {
+  const url = cafePresenceAvatarUrlForRow(u, you);
+  if (url) {
+    return `<img class="cafe-presence-avatar-img" src="${escapeHtmlText(url)}" alt="" width="36" height="36" loading="lazy" decoding="async">`;
+  }
+  return initialsHtml;
 }
 function renderCafePresencePopover() {
   const ul = document.getElementById("cafe-presence-list");
@@ -5097,7 +5116,7 @@ function renderCafePresencePopover() {
     <span class="cafe-presence-hidden-self-label">You are hidden</span>
   </div>`
         : "";
-      const inner = `<div class="cafe-presence-avatar" aria-hidden="true">${ini}</div>
+      const inner = `<div class="cafe-presence-avatar" aria-hidden="true">${cafePresenceAvatarHtml(u, you, ini)}</div>
   <div class="cafe-presence-row-main">
     <div class="cafe-presence-row-top">
       <span class="cafe-presence-name">${displayName}</span>

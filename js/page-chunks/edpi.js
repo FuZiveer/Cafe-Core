@@ -1,69 +1,8 @@
-(function() {
-  "use strict";
+(function () {
+  'use strict';
   var store = window.__CAFE_PAGE_HTML__;
-  if (!store || typeof store !== "object") {
+  if (!store || typeof store !== 'object') {
     store = window.__CAFE_PAGE_HTML__ = Object.create(null);
   }
-  store["edpi"] = `<div id="page-edpi" class="main-page w-full max-w-5xl mx-auto p-8 pb-12">
-                <div class="page-intro mb-8">
-                    <h2 class="text-xl font-bold tracking-widest uppercase text-white">eDPI Calculator</h2>
-                    <p class="text-sm text-slate-400 mt-2 tracking-wide">Calculates eDPI for your selected game</p>
-                </div>
-                <div class="grid grid-cols-6 gap-3 mb-3">
-                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
-                        <span class="text-sm font-bold tracking-widest uppercase text-white">Game</span>
-                        <div id="edpi-game-pick" class="tool-picklist w-full" data-value="">
-                            <div class="tool-picklist-control tool-picklist-control--has-icon ui-interactive">
-                                <i class="ri-search-line tool-picklist-leading-icon" aria-hidden="true"></i>
-                                <input id="edpi-game-input" type="text" class="tool-picklist-input w-full" placeholder="Choose game" autocomplete="off" spellcheck="false">
-                                <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
-                            </div>
-                            <div id="edpi-game-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Game options"></div>
-                        </div>
-                    </div>
-                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
-                        <span class="text-sm font-bold tracking-widest uppercase text-white">Sensitivity</span>
-                        <div class="tool-picklist-control tool-field-input ui-interactive">
-                            <i class="ri-crosshair-2-line tool-field-icon" aria-hidden="true"></i>
-                            <input id="edpi-sens-value" type="text" inputmode="decimal" class="tool-picklist-input tool-picklist-input--field w-full" placeholder="Enter sensitivity" autocomplete="off" spellcheck="false">
-                        </div>
-                    </div>
-                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
-                        <span class="text-sm font-bold tracking-widest uppercase text-white">DPI</span>
-                        <div class="tool-picklist-control tool-field-input ui-interactive">
-                            <i class="ri-mouse-line tool-field-icon" aria-hidden="true"></i>
-                            <input id="edpi-dpi-value" type="text" inputmode="numeric" class="tool-picklist-input tool-picklist-input--field w-full" placeholder="Enter DPI" autocomplete="off" spellcheck="false" value="800">
-                        </div>
-                    </div>
-                </div>
-                <section id="edpi-results" class="bg-matte-900 rounded-lg border border-matte-800 overflow-hidden flex flex-col min-h-[12rem]" aria-live="polite">
-                    <div class="tool-results-hero relative flex flex-col items-center justify-center px-6 py-8 text-center flex-1">
-                        <p class="text-xs font-bold tracking-widest uppercase text-slate-500 mb-2.5">Your eDPI</p>
-                        <p id="edpi-result-value" class="text-5xl font-semibold text-redneon-500 leading-none tabular-nums mb-4">\u2014</p>
-                        <p id="edpi-game-label" class="text-sm font-semibold text-white tracking-wide"></p>
-                        <p id="edpi-analysis" class="text-sm text-slate-500 mt-3.5 tracking-wide leading-relaxed max-w-md">Enter DPI and sensitivity to calculate eDPI.</p>
-                        <span class="brand-copy-btn-host tool-results-copy-host">
-                            <button type="button" id="edpi-result-copy-btn" onclick="copyToolResultValue('edpi-result-value', this)" class="tool-result-copy-btn brand-copy-btn ui-interactive inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-matte-800 bg-matte-950 text-[11px] font-bold tracking-widest uppercase text-slate-400 hover:text-redneon-500 hover:bg-matte-800 hover:border-matte-700 disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-matte-950 disabled:hover:text-slate-400 disabled:hover:border-matte-800" aria-label="Copy result" disabled>
-                                <i class="fa-solid fa-copy text-sm shrink-0" aria-hidden="true"></i>
-                                <span class="tool-result-copy-label">Copy result</span>
-                            </button>
-                        </span>
-                    </div>
-                    <div class="grid grid-cols-3 border-t border-matte-800 divide-x divide-matte-800">
-                        <div class="px-4 py-4 text-center">
-                            <p class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">DPI \xD7 sens</p>
-                            <p id="edpi-formula" class="text-lg font-semibold text-white tabular-nums">\u2014</p>
-                        </div>
-                        <div class="px-4 py-4 text-center">
-                            <p class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">cm / 360\xB0</p>
-                            <p id="edpi-cm360" class="text-lg font-semibold text-white tabular-nums">\u2014</p>
-                        </div>
-                        <div class="px-4 py-4 text-center">
-                            <p class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">Sens</p>
-                            <p id="edpi-feel" class="text-lg font-semibold text-white">\u2014</p>
-                        </div>
-                    </div>
-                </section>
-            </div>
-`;
+  store["edpi"] = "<div id=\"page-edpi\" class=\"main-page w-full max-w-5xl mx-auto p-8 pb-12\">\n                <div class=\"page-intro mb-8\">\n                    <h2 class=\"text-xl font-bold tracking-widest uppercase text-white\">eDPI Calculator</h2>\n                    <p class=\"text-sm text-slate-400 mt-2 tracking-wide\">Calculates eDPI for your selected game</p>\n                </div>\n                <div class=\"grid grid-cols-6 gap-3 mb-3\">\n                    <div class=\"bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0\">\n                        <span class=\"text-sm font-bold tracking-widest uppercase text-white\">Game</span>\n                        <div id=\"edpi-game-pick\" class=\"tool-picklist w-full\" data-value=\"\">\n                            <div class=\"tool-picklist-control tool-picklist-control--has-icon ui-interactive\">\n                                <i class=\"ri-search-line tool-picklist-leading-icon\" aria-hidden=\"true\"></i>\n                                <input id=\"edpi-game-input\" type=\"text\" class=\"tool-picklist-input w-full\" placeholder=\"Choose game\" autocomplete=\"off\" spellcheck=\"false\">\n                                <i class=\"tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400\" aria-hidden=\"true\"></i>\n                            </div>\n                            <div id=\"edpi-game-menu\" class=\"tool-picklist-menu dropdown-closed\" role=\"listbox\" aria-label=\"Game options\"></div>\n                        </div>\n                    </div>\n                    <div class=\"bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0\">\n                        <span class=\"text-sm font-bold tracking-widest uppercase text-white\">Sensitivity</span>\n                        <div class=\"tool-picklist-control tool-field-input ui-interactive\">\n                            <i class=\"ri-crosshair-2-line tool-field-icon\" aria-hidden=\"true\"></i>\n                            <input id=\"edpi-sens-value\" type=\"text\" inputmode=\"decimal\" class=\"tool-picklist-input tool-picklist-input--field w-full\" placeholder=\"Enter sensitivity\" autocomplete=\"off\" spellcheck=\"false\">\n                        </div>\n                    </div>\n                    <div class=\"bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0\">\n                        <span class=\"text-sm font-bold tracking-widest uppercase text-white\">DPI</span>\n                        <div class=\"tool-picklist-control tool-field-input ui-interactive\">\n                            <i class=\"ri-mouse-line tool-field-icon\" aria-hidden=\"true\"></i>\n                            <input id=\"edpi-dpi-value\" type=\"text\" inputmode=\"numeric\" class=\"tool-picklist-input tool-picklist-input--field w-full\" placeholder=\"Enter DPI\" autocomplete=\"off\" spellcheck=\"false\" value=\"800\">\n                        </div>\n                    </div>\n                </div>\n                <section id=\"edpi-results\" class=\"bg-matte-900 rounded-lg border border-matte-800 overflow-hidden flex flex-col min-h-[12rem]\" aria-live=\"polite\">\n                    <div class=\"tool-results-hero relative flex flex-col items-center justify-center px-6 py-8 text-center flex-1\">\n                        <p class=\"text-xs font-bold tracking-widest uppercase text-slate-500 mb-2.5\">Your eDPI</p>\n                        <p id=\"edpi-result-value\" class=\"text-5xl font-semibold text-redneon-500 leading-none tabular-nums mb-4\">—</p>\n                        <p id=\"edpi-game-label\" class=\"text-sm font-semibold text-white tracking-wide\"></p>\n                        <p id=\"edpi-analysis\" class=\"text-sm text-slate-500 mt-3.5 tracking-wide leading-relaxed max-w-md\">Enter DPI and sensitivity to calculate eDPI.</p>\n                        <span class=\"brand-copy-btn-host tool-results-copy-host\">\n                            <button type=\"button\" id=\"edpi-result-copy-btn\" onclick=\"copyToolResultValue('edpi-result-value', this)\" class=\"tool-result-copy-btn brand-copy-btn ui-interactive inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-matte-800 bg-matte-950 text-[11px] font-bold tracking-widest uppercase text-slate-400 hover:text-redneon-500 hover:bg-matte-800 hover:border-matte-700 disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-matte-950 disabled:hover:text-slate-400 disabled:hover:border-matte-800\" aria-label=\"Copy result\" disabled>\n                                <i class=\"fa-solid fa-copy text-sm shrink-0\" aria-hidden=\"true\"></i>\n                                <span class=\"tool-result-copy-label\">Copy result</span>\n                            </button>\n                        </span>\n                    </div>\n                    <div class=\"grid grid-cols-3 border-t border-matte-800 divide-x divide-matte-800\">\n                        <div class=\"px-4 py-4 text-center\">\n                            <p class=\"text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5\">DPI × sens</p>\n                            <p id=\"edpi-formula\" class=\"text-lg font-semibold text-white tabular-nums\">—</p>\n                        </div>\n                        <div class=\"px-4 py-4 text-center\">\n                            <p class=\"text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5\">cm / 360°</p>\n                            <p id=\"edpi-cm360\" class=\"text-lg font-semibold text-white tabular-nums\">—</p>\n                        </div>\n                        <div class=\"px-4 py-4 text-center\">\n                            <p class=\"text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5\">Sens</p>\n                            <p id=\"edpi-feel\" class=\"text-lg font-semibold text-white\">—</p>\n                        </div>\n                    </div>\n                </section>\n            </div>\n";
 })();
