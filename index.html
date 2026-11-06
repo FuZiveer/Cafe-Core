@@ -109,14 +109,10 @@
                     <i class="fa-solid fa-chevron-right text-xs opacity-70 transition-transform motion-standard chevron-icon"></i>
                 </button>
                 <div id="cafe-online-btn-wrap" class="relative w-full z-20">
-                    <button type="button" id="cafe-online-btn" class="nav-btn direct-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left" aria-expanded="false" aria-controls="cafe-presence-popover">
+                    <button type="button" id="cafe-online-btn" class="nav-btn direct-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left" aria-expanded="false" aria-controls="cafe-presence-modal">
                         <i class="fa-solid fa-signal w-5 text-center flex-shrink-0" aria-hidden="true"></i>
                         <span id="cafe-online-count" class="btn-label sidebar-slide-fade whitespace-nowrap min-w-0 truncate">0 members online</span>
                     </button>
-                    <div id="cafe-presence-popover" class="hidden absolute left-0 right-0 top-full mt-1 max-h-64 overflow-y-auto rounded-lg border border-matte-800 bg-matte-900 shadow-lg p-2 text-left" role="menu" aria-hidden="true">
-                        <p class="px-2 py-1 text-[10px] font-bold tracking-widest uppercase text-slate-500">Who is here</p>
-                        <ul id="cafe-presence-list" class="space-y-1"></ul>
-                    </div>
                 </div>
             </div>
         </nav>
@@ -382,6 +378,62 @@
             <div id="brand-logo-modal-preview" class="brand-logo-modal-preview w-full rounded-lg border border-matte-700 flex items-center justify-center min-h-[14rem] sm:min-h-[16rem]">
                 <img id="brand-logo-modal-img" src="" alt="" class="brand-logo-preview-img w-40 h-40 sm:w-48 sm:h-48 object-contain">
             </div>
+        </div>
+    </div>
+
+    <div id="cafe-presence-modal" class="settings-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="cafe-presence-modal-title" aria-hidden="true">
+        <button type="button" id="cafe-presence-modal-backdrop" class="modal-backdrop settings-modal-backdrop absolute inset-0 ui-interactive" aria-label="Close members online" tabindex="-1"></button>
+        <div class="settings-modal-shell cafe-presence-modal-shell">
+            <div class="settings-modal-panel cafe-presence-modal-panel relative w-full bg-matte-900 border border-matte-800 rounded-lg p-5 flex flex-col min-h-0">
+                <div id="cafe-presence-view-members" class="cafe-presence-view flex flex-col flex-1 min-h-0 min-w-0">
+                    <div class="flex items-start justify-between gap-3 mb-5 shrink-0 border-b border-matte-800 pb-4">
+                        <div class="min-w-0 flex-1">
+                            <h3 id="cafe-presence-modal-title" class="text-sm font-bold tracking-widest uppercase text-white">Who is here</h3>
+                            <p id="cafe-presence-modal-summary" class="text-xs text-slate-500 mt-1 tracking-wide">Live activity across Caf&eacute; Core</p>
+                        </div>
+                        <button type="button" id="cafe-presence-modal-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0" aria-label="Close members online">
+                            <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div class="settings-modal-main cafe-presence-modal-main flex flex-col flex-1 min-h-0 min-w-0">
+                        <div class="settings-modal-body cafe-presence-modal-body flex-1 min-h-0 overflow-y-auto">
+                            <ul id="cafe-presence-list" class="cafe-presence-list space-y-2" role="list"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div id="cafe-presence-view-settings" class="cafe-presence-view hidden flex flex-col flex-1 min-h-0 min-w-0" hidden>
+                    <div class="flex items-start justify-between gap-3 mb-5 shrink-0 border-b border-matte-800 pb-4">
+                        <div class="min-w-0 flex-1">
+                            <h3 class="text-sm font-bold tracking-widest uppercase text-white">Presence settings</h3>
+                            <p class="text-xs text-slate-500 mt-1 tracking-wide">Control how you appear in the live list.</p>
+                        </div>
+                        <button type="button" id="cafe-presence-settings-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0" aria-label="Close members online">
+                            <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div class="settings-modal-main flex flex-col flex-1 min-h-0 min-w-0">
+                        <div class="settings-modal-body flex-1 min-h-0 overflow-y-auto">
+                            <div class="settings-row bg-matte-950 rounded-lg p-4 flex items-center justify-between gap-4">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold tracking-widest uppercase text-white">Hide me from the list</p>
+                                    <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Others won&apos;t see you in Who is here. You can still use the site as usual.</p>
+                                </div>
+                                <label class="lazer-toggle ui-interactive shrink-0">
+                                    <input type="checkbox" id="cafe-presence-hide-toggle" role="switch" aria-checked="false" aria-label="Hide me from the member list">
+                                    <span class="lazer-slider" aria-hidden="true"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <nav class="settings-modal-tabs" id="cafe-presence-modal-tabs" aria-label="Presence">
+                <div class="settings-tab-row" id="cafe-presence-tab-row">
+                    <span class="settings-tab-glider" id="cafe-presence-tab-glider" aria-hidden="true"></span>
+                    <button type="button" class="settings-tab-btn ui-interactive active" id="cafe-presence-tab-members" data-cafe-presence-tab="members" aria-selected="true">Members</button>
+                    <button type="button" class="settings-tab-btn ui-interactive" id="cafe-presence-tab-settings" data-cafe-presence-tab="settings" aria-selected="false">Settings</button>
+                </div>
+            </nav>
         </div>
     </div>
 

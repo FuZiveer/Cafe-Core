@@ -1981,6 +1981,7 @@ function setLineupsVideoModalOpen(open) {
   clearTimeout(lineupsVideoModalCloseTimer);
   lineupsVideoModalCloseTimer = null;
   if (open) {
+    closeCafePresenceModal();
     portalAppModalToBody(modal);
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
@@ -3361,6 +3362,7 @@ function setBrandLogoModalOpen(open) {
   clearTimeout(brandLogoModalCloseTimer);
   brandLogoModalCloseTimer = null;
   if (open) {
+    closeCafePresenceModal();
     portalAppModalToBody(modal);
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
@@ -4031,6 +4033,8 @@ const defaultSettings = {
 let appSettings = { ...defaultSettings };
 let settingsModalOpen = false;
 let settingsModalCloseTimer = null;
+let cafePresenceModalOpen = false;
+let cafePresenceModalCloseTimer = null;
 function isReducedMotionEnabled() {
   return !!appSettings.reducedMotion;
 }
@@ -4261,6 +4265,7 @@ function setSettingsModalOpen(open) {
   settingsModalCloseTimer = null;
   settingsModalOpen = open;
   if (open) {
+    closeCafePresenceModal();
     portalAppModalToBody(modal);
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
@@ -4291,12 +4296,52 @@ function closeSettingsModal() {
   if (!settingsModalOpen) return;
   setSettingsModalOpen(false);
 }
+function setCafePresenceModalOpen(open) {
+  const modal = document.getElementById("cafe-presence-modal");
+  const trigger = document.getElementById("cafe-online-btn");
+  if (!modal) return;
+  clearTimeout(cafePresenceModalCloseTimer);
+  cafePresenceModalCloseTimer = null;
+  cafePresenceModalOpen = open;
+  if (open) {
+    closeSettingsModal();
+    portalAppModalToBody(modal);
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("cafe-presence-modal-open");
+    if (!isReducedMotionEnabled()) void modal.offsetHeight;
+    modal.classList.add("is-open");
+    if (trigger) trigger.setAttribute("aria-expanded", "true");
+    setCafePresenceModalView("members", { instant: true });
+    syncCafePresenceHideToggleUi();
+    document.getElementById("cafe-presence-modal-close")?.focus();
+    renderCafePresencePopover();
+    return;
+  }
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("cafe-presence-modal-open");
+  if (trigger) trigger.setAttribute("aria-expanded", "false");
+  const closeDelay = isReducedMotionEnabled() ? 0 : MOTION_MS;
+  cafePresenceModalCloseTimer = setTimeout(() => {
+    modal.classList.add("hidden");
+    cafePresenceModalCloseTimer = null;
+  }, closeDelay);
+}
+function closeCafePresenceModal() {
+  if (!cafePresenceModalOpen) return;
+  setCafePresenceModalOpen(false);
+}
+function toggleCafePresenceModal() {
+  setCafePresenceModalOpen(!cafePresenceModalOpen);
+}
 function toggleSettingsModal() {
   setSettingsModalOpen(!settingsModalOpen);
 }
 function handleSettingsClick() {
   closeFlyout();
   closeMobileNav();
+  closeCafePresenceModal();
   closeLineupsVideoModal();
   toggleSettingsModal();
 }
@@ -4433,6 +4478,7 @@ function portalAppModalToBody(modal) {
 }
 function initAppModalPortals() {
   portalAppModalToBody(document.getElementById("settings-modal"));
+  portalAppModalToBody(document.getElementById("cafe-presence-modal"));
   portalAppModalToBody(document.getElementById("lineups-video-modal"));
   portalAppModalToBody(document.getElementById("brand-logo-modal"));
 }
@@ -4478,6 +4524,11 @@ function initSettingsModal() {
 function initModalEscapeClose() {
   document.addEventListener("keydown", (event2) => {
     if (event2.key !== "Escape") return;
+    const cafePresenceModal = document.getElementById("cafe-presence-modal");
+    if (cafePresenceModal && cafePresenceModal.classList.contains("is-open")) {
+      closeCafePresenceModal();
+      return;
+    }
     const lineupsVideoModal = document.getElementById("lineups-video-modal");
     if (lineupsVideoModal && !lineupsVideoModal.classList.contains("hidden")) {
       const speedMenuEl = document.getElementById("lineups-player-speed-menu");
@@ -4514,6 +4565,7 @@ function initModalEscapeClose() {
 }
 function handleSidebarClick(clickedBtn, tabType) {
   closeSettingsModal();
+  closeCafePresenceModal();
   closeLineupsVideoModal();
   if (tabType === "tools" || tabType === "strats" || tabType === "more") {
     if (isMobileLayout() && !document.body.classList.contains("mobile-nav-open")) {
@@ -4855,6 +4907,71 @@ let cafePresenceReconnectTimer = null;
 let cafePresencePingTimer = null;
 let cafePresenceSnapshot = { count: 0, users: [] };
 let cafePresenceSelfId = "";
+const CAFE_PRESENCE_HIDE_KEY = "cafe_presence_hide_from_list";
+function getCafePresenceHideFromList() {
+  try {
+    return localStorage.getItem(CAFE_PRESENCE_HIDE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function setCafePresenceHideFromList(on) {
+  try {
+    if (on) localStorage.setItem(CAFE_PRESENCE_HIDE_KEY, "1");
+    else localStorage.removeItem(CAFE_PRESENCE_HIDE_KEY);
+  } catch {
+  }
+}
+function syncCafePresenceHideToggleUi() {
+  const input = document.getElementById("cafe-presence-hide-toggle");
+  if (!input) return;
+  const on = getCafePresenceHideFromList();
+  input.checked = on;
+  input.setAttribute("aria-checked", on ? "true" : "false");
+}
+function syncCafePresenceTabGlider({ instant = false, fromIndex } = {}) {
+  syncVerticalTabGlider(
+    document.getElementById("cafe-presence-tab-row"),
+    document.getElementById("cafe-presence-tab-glider"),
+    { instant, fromIndex }
+  );
+}
+function setCafePresenceModalView(view, { instant = false, fromIndex } = {}) {
+  const id = view === "settings" ? "settings" : "members";
+  const membersView = document.getElementById("cafe-presence-view-members");
+  const settingsView = document.getElementById("cafe-presence-view-settings");
+  const showMembers = id === "members";
+  if (membersView) {
+    membersView.classList.toggle("hidden", !showMembers);
+    membersView.hidden = !showMembers;
+  }
+  if (settingsView) {
+    settingsView.classList.toggle("hidden", showMembers);
+    settingsView.hidden = showMembers;
+  }
+  document.querySelectorAll(".settings-tab-btn[data-cafe-presence-tab]").forEach((btn) => {
+    const selected = btn.dataset.cafePresenceTab === id;
+    btn.classList.toggle("active", selected);
+    btn.setAttribute("aria-selected", selected ? "true" : "false");
+  });
+  syncCafePresenceTabGlider({ instant, fromIndex });
+  if (!showMembers) syncCafePresenceHideToggleUi();
+}
+function initCafePresenceModalTabs() {
+  const row = document.getElementById("cafe-presence-tab-row");
+  if (!row || row.dataset.cafePresenceTabsBound === "1") return;
+  row.dataset.cafePresenceTabsBound = "1";
+  row.querySelectorAll(".settings-tab-btn[data-cafe-presence-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.classList.contains("active")) return;
+      const fromIndex = parseInt(row.dataset.glideIndex ?? "0", 10);
+      setCafePresenceModalView(btn.dataset.cafePresenceTab, { fromIndex });
+      if (btn.dataset.cafePresenceTab === "settings") document.getElementById("cafe-presence-hide-toggle")?.focus();
+    });
+  });
+  setCafePresenceModalView("members", { instant: true });
+  window.addEventListener("resize", () => syncCafePresenceTabGlider({ instant: true }));
+}
 function cafePresenceApiOrigin() {
   const o = window.__CAFE_AUTH_ORIGIN;
   if (typeof o === "string" && o.trim()) return o.trim().replace(/\/$/, "");
@@ -4887,7 +5004,8 @@ function cafePresenceSendPing() {
       JSON.stringify({
         type: "presence_ping",
         pageKey: currentMainPageKey,
-        displayName: cafePresenceDisplayName()
+        displayName: cafePresenceDisplayName(),
+        hiddenFromList: getCafePresenceHideFromList()
       })
     );
   } catch {
@@ -4897,20 +5015,101 @@ function __cafeNotifyPresence() {
   cafePresenceSendPing();
 }
 window.__cafeNotifyPresence = __cafeNotifyPresence;
+function cafePresenceInitialsFromLabel(label) {
+  const s = String(label || "").trim();
+  if (!s) return "?";
+  const parts = s.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const a = (parts[0][0] || "") + (parts[1][0] || "");
+    return escapeHtmlText(a.toUpperCase().slice(0, 2));
+  }
+  return escapeHtmlText(s.slice(0, 2).toUpperCase());
+}
+function cafePresenceRowInitials(u, you) {
+  if (you) {
+    const usr = typeof window.getDiscordAuthUser === "function" ? window.getDiscordAuthUser() : null;
+    const label = String(usr?.displayName || usr?.username || u?.name || "You").trim();
+    return cafePresenceInitialsFromLabel(label);
+  }
+  return cafePresenceInitialsFromLabel(u?.name || "Guest");
+}
 function renderCafePresencePopover() {
   const ul = document.getElementById("cafe-presence-list");
+  const summary = document.getElementById("cafe-presence-modal-summary");
   if (!ul) return;
-  const users = Array.isArray(cafePresenceSnapshot.users) ? cafePresenceSnapshot.users : [];
-  if (!users.length) {
-    ul.innerHTML = '<li class="px-2 py-2 text-xs text-slate-500">No one else connected yet.</li>';
+  const rawUsers = Array.isArray(cafePresenceSnapshot.users) ? cafePresenceSnapshot.users : [];
+  const visibleUsers = rawUsers.filter((u) => !u?.hidden);
+  const hideSelf = getCafePresenceHideFromList();
+  const selfEntry =
+    hideSelf && cafePresenceSelfId ? rawUsers.find((u) => u.id === cafePresenceSelfId) : null;
+  const countAll = rawUsers.length;
+  const visibleCount = Math.max(0, Math.floor(Number(cafePresenceSnapshot.count) || 0));
+  const c = visibleCount;
+  const nBtn = document.getElementById("cafe-online-count");
+  if (nBtn) {
+    nBtn.textContent = c === 1 ? "1 member online" : `${c} members online`;
+  }
+  if (summary) {
+    if (getCafePresenceHideFromList()) {
+      summary.textContent =
+        countAll <= 1
+          ? "You are hidden from this list"
+          : c === 0
+            ? "Everyone else is hidden or offline"
+            : c === 1
+              ? "1 other person visible"
+              : `${c} other people visible`;
+    } else {
+      summary.textContent = c === 0 ? "No one connected right now" : c === 1 ? "1 person on the site" : `${c} people on the site`;
+    }
+  }
+  const showHiddenSelfRow = Boolean(selfEntry);
+  if (!visibleUsers.length && !showHiddenSelfRow) {
+    const sub = getCafePresenceHideFromList()
+      ? "Turn off hide in Settings to appear again, or wait until someone else is visible."
+      : "When visitors open Caf&eacute; Core, they show up here with what they are doing.";
+    ul.innerHTML = `<li class="cafe-presence-empty" role="status">
+  <div class="cafe-presence-empty-icon" aria-hidden="true"><i class="fa-solid fa-user-slash"></i></div>
+  <p class="cafe-presence-empty-title">No one to show</p>
+  <p class="cafe-presence-empty-sub">${sub}</p>
+</li>`;
     return;
   }
-  ul.innerHTML = users
+  const listUsers = [...visibleUsers];
+  if (showHiddenSelfRow && selfEntry && !listUsers.some((u) => u.id === selfEntry.id)) {
+    listUsers.push(selfEntry);
+  }
+  ul.innerHTML = listUsers
     .map((u) => {
-      const name = escapeHtmlText(u.name || "Guest");
+      const nameRaw = u.name || "Guest";
+      const name = escapeHtmlText(nameRaw);
       const act = escapeHtmlText(u.activity || "Online");
-      const you = u.id && cafePresenceSelfId && u.id === cafePresenceSelfId;
-      return `<li class="rounded-md px-2 py-1.5 text-xs text-slate-300 hover:bg-matte-800"><span class="font-semibold text-white">${you ? "You" : name}</span><span class="block text-[11px] text-slate-500 mt-0.5">${act}</span></li>`;
+      const you = Boolean(u.id && cafePresenceSelfId && u.id === cafePresenceSelfId);
+      const selfHidden = you && hideSelf;
+      const displayName = you ? "You" : name;
+      const ini = cafePresenceRowInitials(u, you);
+      const rowClass = you
+        ? `cafe-presence-row cafe-presence-row--you${selfHidden ? " cafe-presence-row--you-hidden-overlay" : ""}`
+        : "cafe-presence-row";
+      const badge = you && !selfHidden ? '<span class="cafe-presence-you-badge">You</span>' : "";
+      const hiddenOverlay = selfHidden
+        ? `<div class="cafe-presence-hidden-overlay" role="status" aria-label="You are hidden from the member list">
+    <span class="cafe-presence-hidden-self-label">You are hidden</span>
+  </div>`
+        : "";
+      const inner = `<div class="cafe-presence-avatar" aria-hidden="true">${ini}</div>
+  <div class="cafe-presence-row-main">
+    <div class="cafe-presence-row-top">
+      <span class="cafe-presence-name">${displayName}</span>
+      ${badge}
+    </div>
+    <span class="cafe-presence-activity">${act}</span>
+  </div>`;
+      const body = selfHidden ? `<div class="cafe-presence-row-dim">${inner}</div>` : inner;
+      return `<li class="${rowClass}">
+  ${body}
+  ${hiddenOverlay}
+</li>`;
     })
     .join("");
 }
@@ -4919,17 +5118,12 @@ function applyCafePresenceMessage(msg) {
   if (msg.type === "presence_hello" && typeof msg.id === "string") {
     cafePresenceSelfId = msg.id;
     cafePresenceSendPing();
+    renderCafePresencePopover();
     return;
   }
   if (msg.type === "presence") {
     cafePresenceSnapshot = msg;
-    const n = document.getElementById("cafe-online-count");
-    if (n) {
-      const c = Math.max(0, Math.floor(Number(msg.count) || 0));
-      n.textContent = c === 1 ? "1 member online" : `${c} members online`;
-    }
-    const pop = document.getElementById("cafe-presence-popover");
-    if (pop && !pop.classList.contains("hidden")) renderCafePresencePopover();
+    renderCafePresencePopover();
   }
 }
 function scheduleCafePresenceReconnect() {
@@ -4977,31 +5171,33 @@ function initCafePresenceConnection() {
 }
 function initCafePresenceUi() {
   const btn = document.getElementById("cafe-online-btn");
-  const pop = document.getElementById("cafe-presence-popover");
+  const modal = document.getElementById("cafe-presence-modal");
+  const backdrop = document.getElementById("cafe-presence-modal-backdrop");
+  const closeBtn = document.getElementById("cafe-presence-modal-close");
+  const closeSettingsBtn = document.getElementById("cafe-presence-settings-close");
+  const hideToggle = document.getElementById("cafe-presence-hide-toggle");
   const wrap = document.getElementById("cafe-online-btn-wrap");
-  if (!btn || !pop || !wrap) return;
+  if (!btn || !modal || !wrap) return;
   if (!cafePresenceWsBase()) {
     wrap.classList.add("hidden");
     return;
   }
-  const closePopover = () => {
-    pop.classList.add("hidden");
-    pop.setAttribute("aria-hidden", "true");
-    btn.setAttribute("aria-expanded", "false");
-  };
-  const openPopover = () => {
-    renderCafePresencePopover();
-    pop.classList.remove("hidden");
-    pop.setAttribute("aria-hidden", "false");
-    btn.setAttribute("aria-expanded", "true");
-  };
+  initCafePresenceModalTabs();
+  syncCafePresenceHideToggleUi();
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (pop.classList.contains("hidden")) openPopover();
-    else closePopover();
+    toggleCafePresenceModal();
   });
-  document.addEventListener("click", () => closePopover());
-  pop.addEventListener("click", (e) => e.stopPropagation());
+  if (backdrop) backdrop.addEventListener("click", closeCafePresenceModal);
+  if (closeBtn) closeBtn.addEventListener("click", closeCafePresenceModal);
+  if (closeSettingsBtn) closeSettingsBtn.addEventListener("click", closeCafePresenceModal);
+  hideToggle?.addEventListener("change", () => {
+    const on = !!hideToggle.checked;
+    setCafePresenceHideFromList(on);
+    hideToggle.setAttribute("aria-checked", on ? "true" : "false");
+    cafePresenceSendPing();
+    renderCafePresencePopover();
+  });
   window.addEventListener("cafe-discord-auth-change", () => cafePresenceSendPing());
   clearInterval(cafePresencePingTimer);
   cafePresencePingTimer = setInterval(() => cafePresenceSendPing(), 25e3);

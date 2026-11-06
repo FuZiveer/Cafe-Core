@@ -29,15 +29,18 @@ function activityLabel(pageKey) {
 
 function broadcastPresence() {
   const users = [];
+  let visibleCount = 0;
   for (const st of sessions.values()) {
+    if (!st.hiddenFromList) visibleCount += 1;
     users.push({
       id: st.publicId,
       pageKey: st.pageKey,
       activity: activityLabel(st.pageKey),
-      name: st.displayName || "Guest"
+      name: st.displayName || "Guest",
+      hidden: st.hiddenFromList === true
     });
   }
-  const payload = JSON.stringify({ type: "presence", count: users.length, users });
+  const payload = JSON.stringify({ type: "presence", count: visibleCount, users });
   for (const client of wss.clients) {
     if (client.readyState === 1) client.send(payload);
   }
@@ -45,13 +48,12 @@ function broadcastPresence() {
 
 wss.on("connection", (ws) => {
   const publicId = `u-${++idSeq}`;
-  const state = { publicId, pageKey: "default", displayName: "Guest" };
+  const state = { publicId, pageKey: "default", displayName: "Guest", hiddenFromList: false };
   sessions.set(ws, state);
   try {
     ws.send(JSON.stringify({ type: "presence_hello", id: publicId }));
   } catch {
   }
-  broadcastPresence();
   ws.on("message", (raw) => {
     let msg;
     try {
@@ -62,6 +64,7 @@ wss.on("connection", (ws) => {
     if (msg?.type !== "presence_ping") return;
     if (typeof msg.pageKey === "string") state.pageKey = msg.pageKey.slice(0, 80);
     if (typeof msg.displayName === "string") state.displayName = msg.displayName.trim().slice(0, 120);
+    if (typeof msg.hiddenFromList === "boolean") state.hiddenFromList = msg.hiddenFromList;
     broadcastPresence();
   });
   ws.on("close", () => {
