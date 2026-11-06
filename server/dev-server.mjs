@@ -1,95 +1,85 @@
-import http from 'node:http';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { getAuthConfig, handleDiscordAuthRequest } from './discord-auth.mjs';
-import { handleBlApiRequest } from './bl-api.mjs';
-import { attachBlScrimWebSocket } from './bl-scrim-ws.mjs';
-
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { getAuthConfig, handleDiscordAuthRequest } from "./discord-auth.mjs";
+import { handleBlApiRequest } from "./bl-api.mjs";
+import { attachBlScrimWebSocket } from "./bl-scrim-ws.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, "..");
 const PORT = Number(process.env.PORT || 8787);
-
 const MIME = {
-    '.html': 'text/html; charset=utf-8',
-    '.js': 'text/javascript; charset=utf-8',
-    '.css': 'text/css; charset=utf-8',
-    '.json': 'application/json; charset=utf-8',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.webp': 'image/webp',
-    '.svg': 'image/svg+xml',
-    '.mp4': 'video/mp4',
-    '.woff2': 'font/woff2',
-    '.ico': 'image/x-icon',
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".mp4": "video/mp4",
+  ".woff2": "font/woff2",
+  ".ico": "image/x-icon"
 };
-
 function safePath(urlPath) {
-    const decoded = decodeURIComponent(urlPath.split('?')[0]);
-    const relative = decoded === '/' ? '/index.html' : decoded;
-    const resolved = path.normalize(path.join(ROOT, relative));
-    if (!resolved.startsWith(ROOT)) return null;
-    return resolved;
+  const decoded = decodeURIComponent(urlPath.split("?")[0]);
+  const relative = decoded === "/" ? "/index.html" : decoded;
+  const resolved = path.normalize(path.join(ROOT, relative));
+  if (!resolved.startsWith(ROOT)) return null;
+  return resolved;
 }
-
 function serveFile(req, res, url) {
-    const filePath = safePath(url.pathname);
-    if (!filePath) {
-        res.writeHead(403);
-        res.end('Forbidden');
-        return;
+  const filePath = safePath(url.pathname);
+  if (!filePath) {
+    res.writeHead(403);
+    res.end("Forbidden");
+    return;
+  }
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      res.writeHead(err.code === "ENOENT" ? 404 : 500);
+      res.end(err.code === "ENOENT" ? "Not found" : "Server error");
+      return;
     }
-    fs.readFile(filePath, (err, data) => {
-        if (err) {
-            res.writeHead(err.code === 'ENOENT' ? 404 : 500);
-            res.end(err.code === 'ENOENT' ? 'Not found' : 'Server error');
-            return;
-        }
-        const ext = path.extname(filePath).toLowerCase();
-        res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-        res.end(data);
-    });
+    const ext = path.extname(filePath).toLowerCase();
+    res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
+    res.end(data);
+  });
 }
-
 const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
-
-    try {
-        const cfg = getAuthConfig();
-        const handledAuth = await handleDiscordAuthRequest(req, res, url);
-        if (handledAuth) return;
-        const handledBl = await handleBlApiRequest(req, res, url, cfg);
-        if (handledBl) return;
-    } catch (err) {
-        console.error('[auth]', err);
-        res.writeHead(500);
-        res.end('Auth error');
-        return;
-    }
-
-    serveFile(req, res, url);
+  const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
+  try {
+    const cfg = getAuthConfig();
+    const handledAuth = await handleDiscordAuthRequest(req, res, url);
+    if (handledAuth) return;
+    const handledBl = await handleBlApiRequest(req, res, url, cfg);
+    if (handledBl) return;
+  } catch (err) {
+    console.error("[auth]", err);
+    res.writeHead(500);
+    res.end("Auth error");
+    return;
+  }
+  serveFile(req, res, url);
 });
-
 attachBlScrimWebSocket(server);
-
-server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use.`);
-        console.error('Stop the other process, or run:');
-        console.error(`  $env:PORT=8788; npm run dev`);
-        console.error('On Windows, find and kill the listener:');
-        console.error(`  netstat -ano | findstr :${PORT}`);
-        console.error('  taskkill /PID <pid> /F');
-        process.exit(1);
-    }
-    throw err;
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} is already in use.`);
+    console.error("Stop the other process, or run:");
+    console.error(`  $env:PORT=8788; npm run dev`);
+    console.error("On Windows, find and kill the listener:");
+    console.error(`  netstat -ano | findstr :${PORT}`);
+    console.error("  taskkill /PID <pid> /F");
+    process.exit(1);
+  }
+  throw err;
 });
-
-server.listen(PORT, '0.0.0.0', () => {
-    const origin = process.env.PUBLIC_ORIGIN?.trim() || `http://127.0.0.1:${PORT}`;
-    console.log(`Café Core server listening on port ${PORT}`);
-    console.log(`  Local:  http://127.0.0.1:${PORT}`);
-    if (origin !== `http://127.0.0.1:${PORT}`) console.log(`  Public: ${origin}`);
-    console.log('Discord sign-in: see DISCORD_AUTH.md');
+server.listen(PORT, "0.0.0.0", () => {
+  const origin = process.env.PUBLIC_ORIGIN?.trim() || `http://127.0.0.1:${PORT}`;
+  console.log(`Caf\xE9 Core server listening on port ${PORT}`);
+  console.log(`  Local:  http://127.0.0.1:${PORT}`);
+  if (origin !== `http://127.0.0.1:${PORT}`) console.log(`  Public: ${origin}`);
+  console.log("Discord sign-in: see DISCORD_AUTH.md");
 });
