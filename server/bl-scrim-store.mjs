@@ -22,7 +22,7 @@ export function normalizeScrimRecord(raw) {
 function readScrimRecordFromFileSync() {
   try {
     if (!fs.existsSync(SCRIM_DATA_PATH)) {
-      const initial = { wins: 0, losses: 0 };
+      const initial = { wins: 0, losses: 1 };
       fs.mkdirSync(path.dirname(SCRIM_DATA_PATH), { recursive: true });
       fs.writeFileSync(SCRIM_DATA_PATH, `${JSON.stringify(initial, null, 2)}
 `, "utf8");
@@ -31,7 +31,7 @@ function readScrimRecordFromFileSync() {
     const parsed = JSON.parse(fs.readFileSync(SCRIM_DATA_PATH, "utf8"));
     return normalizeScrimRecord(parsed);
   } catch {
-    return { wins: 0, losses: 0 };
+    return { wins: 0, losses: 1 };
   }
 }
 function writeScrimRecordToFileSync(record) {

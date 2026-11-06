@@ -1,66 +1,8 @@
-(function() {
-  "use strict";
+(function () {
+  'use strict';
   var store = window.__CAFE_PAGE_HTML__;
-  if (!store || typeof store !== "object") {
+  if (!store || typeof store !== 'object') {
     store = window.__CAFE_PAGE_HTML__ = Object.create(null);
   }
-  store["black-listed"] = `<div id="page-black-listed" class="main-page bl-roster-page w-full max-w-5xl mx-auto p-8 pb-12">
-                <header class="bl-roster-hero home-hero-panel page-intro mb-10">
-                    <div class="bl-roster-hero-bg" style="background-image: url('images/home-games/rainbow-six-siege.jpg')" aria-hidden="true"></div>
-                    <div class="bl-roster-hero-inner">
-                        <div class="bl-roster-hero-icon-wrap" aria-hidden="true">
-                            <i class="fa-solid fa-person-rifle"></i>
-                        </div>
-                        <h2 class="bl-roster-hero-title text-xl font-bold tracking-widest uppercase text-white">Black<span class="text-redneon-500">-Listed</span></h2>
-                        <p class="text-sm text-slate-400 mt-2 tracking-wide max-w-md mx-auto">Rainbow Six Siege roster \u2014 roles and operator pools</p>
-                    </div>
-                </header>
-                <section id="bl-scrim-counter" class="bl-scrim-counter home-hero-panel" data-auth-protected="scrim-edit" aria-label="Scrim record">
-                    <p class="bl-scrim-counter-label text-sm font-bold tracking-widest uppercase text-slate-400">Scrim record</p>
-                    <div class="bl-scrim-counter-score">
-                        <div class="bl-scrim-counter-side bl-scrim-counter-side--wins">
-                            <span class="bl-scrim-counter-tag">W</span>
-                            <div class="bl-scrim-counter-side-controls" data-bl-scrim-side="wins">
-                                <span id="bl-scrim-wins" class="bl-scrim-counter-num">0</span>
-                            </div>
-                        </div>
-                        <span class="bl-scrim-counter-colon" aria-hidden="true">:</span>
-                        <div class="bl-scrim-counter-side bl-scrim-counter-side--losses">
-                            <span class="bl-scrim-counter-tag">L</span>
-                            <div class="bl-scrim-counter-side-controls" data-bl-scrim-side="losses">
-                                <span id="bl-scrim-losses" class="bl-scrim-counter-num">0</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-                <section id="black-listed-starters-section" class="bl-roster-starters-section">
-                    <h3 class="bl-roster-section-title bl-roster-section-title--starters text-sm font-bold tracking-widest uppercase mb-4">Starters</h3>
-                    <div id="black-listed-roster" class="bl-roster-grid grid grid-cols-1 sm:grid-cols-2 gap-4" aria-live="polite"></div>
-                </section>
-                <section id="black-listed-subs-section" class="bl-roster-subs-section hidden">
-                    <div class="bl-roster-subs-divider" aria-hidden="true"></div>
-                    <h3 class="bl-roster-section-title bl-roster-section-title--subs text-sm font-bold tracking-widest uppercase mb-4">Substitute</h3>
-                    <div id="black-listed-subs" class="bl-roster-grid grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
-                </section>
-                <div id="bl-roster-player-modal" class="bl-roster-player-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="bl-roster-player-modal-title" aria-hidden="true">
-                    <button type="button" id="bl-roster-player-modal-backdrop" class="modal-backdrop settings-modal-backdrop bl-roster-player-modal-backdrop absolute inset-0 ui-interactive" aria-label="Close" tabindex="-1"></button>
-                    <div class="bl-roster-player-modal-shell relative z-10 w-full max-w-md mx-auto">
-                        <aside id="bl-roster-player-modal-team-rank" class="bl-roster-modal-team-rank-rail" hidden aria-label="Team rank"></aside>
-                        <aside id="bl-roster-player-modal-peak" class="bl-roster-modal-peak-rail" hidden aria-label="Peak rank"></aside>
-                        <div class="bl-roster-player-modal-panel brand-logo-modal-panel relative w-full bg-matte-900 border border-matte-800 rounded-lg pt-5 px-5 pb-0 flex flex-col min-h-0 overflow-hidden">
-                        <div class="bl-roster-modal-head-row flex items-center justify-between gap-3 mb-3 shrink-0 min-w-0">
-                            <div class="bl-roster-modal-title-row flex flex-col min-w-0 flex-1">
-                                <h3 id="bl-roster-player-modal-title" class="bl-roster-player-name text-sm font-bold tracking-widest uppercase text-white truncate min-w-0">Player</h3>
-                                <p id="bl-roster-player-modal-role" class="bl-roster-role bl-roster-modal-head-role"></p>
-                            </div>
-                            <button type="button" id="bl-roster-player-modal-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0" aria-label="Close">
-                                <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        <div id="bl-roster-player-modal-body" class="bl-roster-player-modal-body flex-1 min-h-0 overflow-y-auto text-sm text-slate-300 tracking-wide leading-relaxed"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-`;
+  store["black-listed"] = "<div id=\"page-black-listed\" class=\"main-page bl-roster-page w-full max-w-5xl mx-auto p-8 pb-12\">\n                <header class=\"bl-roster-hero home-hero-panel page-intro mb-10\">\n                    <div class=\"bl-roster-hero-bg\" style=\"background-image: url('images/home-games/rainbow-six-siege.jpg')\" aria-hidden=\"true\"></div>\n                    <div class=\"bl-roster-hero-inner\">\n                        <div class=\"bl-roster-hero-icon-wrap\" aria-hidden=\"true\">\n                            <i class=\"fa-solid fa-person-rifle\"></i>\n                        </div>\n                        <h2 class=\"bl-roster-hero-title text-xl font-bold tracking-widest uppercase text-white\">Black<span class=\"text-redneon-500\">-Listed</span></h2>\n                        <p class=\"text-sm text-slate-400 mt-2 tracking-wide max-w-md mx-auto\">Rainbow Six Siege roster — roles and operator pools</p>\n                    </div>\n                </header>\n                <section id=\"bl-scrim-counter\" class=\"bl-scrim-counter home-hero-panel\" aria-label=\"Scrim record\">\n                    <p class=\"bl-scrim-counter-label text-sm font-bold tracking-widest uppercase text-slate-400\">Scrim record</p>\n                    <div class=\"bl-scrim-counter-score\">\n                        <div class=\"bl-scrim-counter-side bl-scrim-counter-side--wins\">\n                            <span class=\"bl-scrim-counter-tag\">W</span>\n                            <div class=\"bl-scrim-counter-side-controls\" data-bl-scrim-side=\"wins\">\n                                <span id=\"bl-scrim-wins\" class=\"bl-scrim-counter-num\">0</span>\n                            </div>\n                        </div>\n                        <span class=\"bl-scrim-counter-colon\" aria-hidden=\"true\">:</span>\n                        <div class=\"bl-scrim-counter-side bl-scrim-counter-side--losses\">\n                            <span class=\"bl-scrim-counter-tag\">L</span>\n                            <div class=\"bl-scrim-counter-side-controls\" data-bl-scrim-side=\"losses\">\n                                <span id=\"bl-scrim-losses\" class=\"bl-scrim-counter-num\">1</span>\n                            </div>\n                        </div>\n                    </div>\n                </section>\n                <section id=\"black-listed-starters-section\" class=\"bl-roster-starters-section\">\n                    <h3 class=\"bl-roster-section-title bl-roster-section-title--starters text-sm font-bold tracking-widest uppercase mb-4\">Starters</h3>\n                    <div id=\"black-listed-roster\" class=\"bl-roster-grid grid grid-cols-1 sm:grid-cols-2 gap-4\" aria-live=\"polite\"></div>\n                </section>\n                <section id=\"black-listed-subs-section\" class=\"bl-roster-subs-section hidden\">\n                    <div class=\"bl-roster-subs-divider\" aria-hidden=\"true\"></div>\n                    <h3 class=\"bl-roster-section-title bl-roster-section-title--subs text-sm font-bold tracking-widest uppercase mb-4\">Substitute</h3>\n                    <div id=\"black-listed-subs\" class=\"bl-roster-grid grid grid-cols-1 sm:grid-cols-2 gap-4\"></div>\n                </section>\n                <div id=\"bl-roster-player-modal\" class=\"bl-roster-player-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"bl-roster-player-modal-title\" aria-hidden=\"true\">\n                    <button type=\"button\" id=\"bl-roster-player-modal-backdrop\" class=\"modal-backdrop settings-modal-backdrop bl-roster-player-modal-backdrop absolute inset-0 ui-interactive\" aria-label=\"Close\" tabindex=\"-1\"></button>\n                    <div class=\"bl-roster-player-modal-shell relative z-10 w-full max-w-md mx-auto\">\n                        <aside id=\"bl-roster-player-modal-team-rank\" class=\"bl-roster-modal-team-rank-rail\" hidden aria-label=\"Team rank\"></aside>\n                        <aside id=\"bl-roster-player-modal-peak\" class=\"bl-roster-modal-peak-rail\" hidden aria-label=\"Peak rank\"></aside>\n                        <div class=\"bl-roster-player-modal-panel brand-logo-modal-panel relative w-full bg-matte-900 border border-matte-800 rounded-lg pt-5 px-5 pb-0 flex flex-col min-h-0 overflow-hidden\">\n                        <div class=\"bl-roster-modal-head-row flex items-center justify-between gap-3 mb-3 shrink-0 min-w-0\">\n                            <div class=\"bl-roster-modal-title-row flex flex-col min-w-0 flex-1\">\n                                <h3 id=\"bl-roster-player-modal-title\" class=\"bl-roster-player-name text-sm font-bold tracking-widest uppercase text-white truncate min-w-0\">Player</h3>\n                                <p id=\"bl-roster-player-modal-role\" class=\"bl-roster-role bl-roster-modal-head-role\"></p>\n                            </div>\n                            <button type=\"button\" id=\"bl-roster-player-modal-close\" class=\"topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0\" aria-label=\"Close\">\n                                <i class=\"fa-solid fa-xmark text-sm\" aria-hidden=\"true\"></i>\n                            </button>\n                        </div>\n                        <div id=\"bl-roster-player-modal-body\" class=\"bl-roster-player-modal-body flex-1 min-h-0 overflow-y-auto text-sm text-slate-300 tracking-wide leading-relaxed\"></div>\n                        </div>\n                    </div>\n                </div>\n            </div>\n";
 })();

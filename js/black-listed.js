@@ -427,19 +427,9 @@
         losses: Math.max(0, Math.round(Number(s.losses) || 0))
       };
     }
-    return { wins: 0, losses: 0 };
+    return { wins: 0, losses: 1 };
   }
-  async function saveBlScrimRecord(record) {
-    if (!window.__cafeBlApi?.available || typeof window.patchCafeScrimRecord !== "function") {
-      return false;
-    }
-    await window.patchCafeScrimRecord(record);
-    return true;
-  }
-  function canEditBlScrimCounter() {
-    return typeof window.canEditBlScrimRecord === "function" && window.canEditBlScrimRecord();
-  }
-  let blScrimRecordState = { wins: 0, losses: 0 };
+  let blScrimRecordState = { wins: 0, losses: 1 };
   function paintBlScrimRecord() {
     const winsEl = document.getElementById("bl-scrim-wins");
     const lossesEl = document.getElementById("bl-scrim-losses");
@@ -450,76 +440,21 @@
   function applyBlScrimRecordFromStore() {
     blScrimRecordState = loadBlScrimRecord();
     paintBlScrimRecord();
-    window.syncBlScrimEditControls?.();
   }
   async function refreshBlScrimFromServer() {
     if (!document.getElementById("bl-scrim-counter")) return;
     await window.refreshCafeBlApiState?.();
     applyBlScrimRecordFromStore();
   }
-  function stripScrimAdjustControls() {
-    document.querySelectorAll(".bl-scrim-counter-adjust").forEach((el) => el.remove());
-    document.querySelectorAll("#bl-scrim-counter").forEach((section) => {
-      section.classList.remove("bl-scrim-counter--editable");
-    });
-  }
-  function createScrimAdjustButton(key, delta) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "bl-scrim-counter-adjust ui-interactive";
-    btn.dataset.scrimDelta = `${key},${delta}`;
-    btn.setAttribute(
-      "aria-label",
-      delta > 0 ? `Increase scrim ${key}` : `Decrease scrim ${key}`
-    );
-    btn.textContent = delta > 0 ? "+" : "\u2212";
-    return btn;
-  }
   window.syncBlScrimEditControls = function syncBlScrimEditControls() {
-    stripScrimAdjustControls();
-    if (!canEditBlScrimCounter()) return;
-    const section = document.getElementById("bl-scrim-counter");
-    if (!section) return;
-    section.classList.add("bl-scrim-counter--editable");
-    section.querySelectorAll("[data-bl-scrim-side]").forEach((wrap) => {
-      const key = wrap.dataset.blScrimSide;
-      if (key !== "wins" && key !== "losses") return;
-      const num = wrap.querySelector(".bl-scrim-counter-num");
-      if (!num) return;
-      wrap.insertBefore(createScrimAdjustButton(key, -1), num);
-      wrap.appendChild(createScrimAdjustButton(key, 1));
-    });
   };
   function initBlScrimCounter() {
     const section = document.getElementById("bl-scrim-counter");
     if (!section) return;
     if (!document.getElementById("bl-scrim-wins") || !document.getElementById("bl-scrim-losses")) return;
     applyBlScrimRecordFromStore();
-    if (section.dataset.scrimBound !== "1") {
-      section.dataset.scrimBound = "1";
-      section.addEventListener("click", (event) => {
-        const btn = event.target.closest?.("[data-scrim-delta]");
-        if (!btn) return;
-        if (!canEditBlScrimCounter()) return;
-        const parts = String(btn.dataset.scrimDelta || "").split(",");
-        const key = parts[0];
-        const delta = Number(parts[1]);
-        if (key !== "wins" && key !== "losses") return;
-        if (!Number.isFinite(delta)) return;
-        const next = {
-          ...blScrimRecordState,
-          [key]: Math.max(0, blScrimRecordState[key] + delta)
-        };
-        void (async () => {
-          try {
-            const ok = await saveBlScrimRecord(next);
-            if (!ok) throw new Error("save_failed");
-            applyBlScrimRecordFromStore();
-          } catch {
-            window.CafeCore?.Toast?.show?.("Could not update scrim record");
-          }
-        })();
-      });
+    if (section.dataset.scrimApiBound !== "1") {
+      section.dataset.scrimApiBound = "1";
       window.addEventListener("cafe-bl-api-updated", () => {
         if (!document.getElementById("bl-scrim-counter")) return;
         applyBlScrimRecordFromStore();
