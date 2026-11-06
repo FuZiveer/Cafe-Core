@@ -1,5 +1,5 @@
 import { applyCors, getSessionUser, sendJson } from "./discord-auth.mjs";
-import { readScrimRecordFile, writeScrimRecordFile } from "./bl-scrim-store.mjs";
+import { readScrimRecord, writeScrimRecord } from "./bl-scrim-store.mjs";
 import { broadcastScrimRecord } from "./bl-scrim-ws.mjs";
 const BL_SCRIM_RECORD_EDITORS = new Set(["fuziveer", "rawenge", "rjwarrior", "jobless___", "kkv060", "two4ne"]);
 function usernameKey(user) {
@@ -24,7 +24,7 @@ export async function handleBlApiRequest(req, res, url, cfg) {
   if (pathname === "/api/bl/scrim-record" && req.method === "GET") {
     applyCors(req, res, cfg);
     const user = getSessionUser(req);
-    const record = readScrimRecordFile();
+    const record = await readScrimRecord();
     sendJson(res, 200, {
       wins: record.wins,
       losses: record.losses,
@@ -48,7 +48,7 @@ export async function handleBlApiRequest(req, res, url, cfg) {
       sendJson(res, 400, { error: "invalid_json" });
       return true;
     }
-    const record = writeScrimRecordFile(body);
+    const record = await writeScrimRecord(body);
     broadcastScrimRecord(record);
     sendJson(res, 200, { wins: record.wins, losses: record.losses, canEdit: true });
     return true;

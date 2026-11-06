@@ -51,7 +51,7 @@
     const fillD = `${d} L${pts[pts.length - 1].x.toFixed(1)},${(pad + gh).toFixed(1)} L${pts[0].x.toFixed(1)},${(pad + gh).toFixed(1)} Z`;
     const grid = 4;
     for (let g = 0; g <= grid; g++) {
-      const gy = pad + (gh * g) / grid;
+      const gy = pad + gh * g / grid;
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", String(pad));
       line.setAttribute("x2", String(w - pad));
@@ -116,7 +116,7 @@
       renderChart(svgEl, labelsEl, series);
     } catch {
       clearTimeout(tid);
-      if (totalEl) totalEl.textContent = "—";
+      if (totalEl) totalEl.textContent = "\u2014";
       renderChart(svgEl, labelsEl, []);
       const empty = document.getElementById("server-stats-chart-empty");
       if (empty) {

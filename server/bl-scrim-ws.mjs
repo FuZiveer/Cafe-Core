@@ -1,5 +1,5 @@
 import { WebSocketServer } from "ws";
-import { readScrimRecordFile } from "./bl-scrim-store.mjs";
+import { readScrimRecord } from "./bl-scrim-store.mjs";
 const SCRIM_WS_PATH = "/ws/bl/scrim";
 const clients = new Set();
 function scrimMessage(record) {
@@ -18,7 +18,9 @@ export function broadcastScrimRecord(record) {
 const wss = new WebSocketServer({ noServer: true });
 wss.on("connection", (ws) => {
   clients.add(ws);
-  ws.send(scrimMessage(readScrimRecordFile()));
+  void readScrimRecord().then((record) => {
+    ws.send(scrimMessage(record));
+  });
   ws.on("close", () => clients.delete(ws));
   ws.on("error", () => clients.delete(ws));
 });

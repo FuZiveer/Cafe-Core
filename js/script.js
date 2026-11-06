@@ -5156,8 +5156,7 @@ function syncTopBarPresenceStatus() {
   bar.classList.remove("hidden");
   bar.removeAttribute("aria-hidden");
   const reduced = isReducedMotionEnabled();
-  const needRestart =
-    !topbarPresenceStatusWasShowing || topbarPresenceDotsUsedReducedMotion !== reduced;
+  const needRestart = !topbarPresenceStatusWasShowing || topbarPresenceDotsUsedReducedMotion !== reduced;
   topbarPresenceStatusWasShowing = true;
   topbarPresenceDotsUsedReducedMotion = reduced;
   if (!needRestart) return;
@@ -5326,8 +5325,7 @@ function renderCafePresencePopover() {
   const rawUsers = Array.isArray(cafePresenceSnapshot.users) ? cafePresenceSnapshot.users : [];
   const visibleUsers = rawUsers.filter((u) => !u?.hidden);
   const hideSelf = getCafePresenceHideFromList();
-  const selfEntry =
-    hideSelf && cafePresenceSelfId ? rawUsers.find((u) => u.id === cafePresenceSelfId) : null;
+  const selfEntry = hideSelf && cafePresenceSelfId ? rawUsers.find((u) => u.id === cafePresenceSelfId) : null;
   const countAll = rawUsers.length;
   const visibleCount = Math.max(0, Math.floor(Number(cafePresenceSnapshot.count) || 0));
   const c = visibleCount;
@@ -5337,23 +5335,14 @@ function renderCafePresencePopover() {
   }
   if (summary) {
     if (getCafePresenceHideFromList()) {
-      summary.textContent =
-        countAll <= 1
-          ? "You are hidden from this list"
-          : c === 0
-            ? "Everyone else is hidden or offline"
-            : c === 1
-              ? "1 other person visible"
-              : `${c} other people visible`;
+      summary.textContent = countAll <= 1 ? "You are hidden from this list" : c === 0 ? "Everyone else is hidden or offline" : c === 1 ? "1 other person visible" : `${c} other people visible`;
     } else {
       summary.textContent = c === 0 ? "No one connected right now" : c === 1 ? "1 person on the site" : `${c} people on the site`;
     }
   }
   const showHiddenSelfRow = Boolean(selfEntry);
   if (!visibleUsers.length && !showHiddenSelfRow) {
-    const sub = getCafePresenceHideFromList()
-      ? "Turn off hide in Settings to appear again, or wait until someone else is visible."
-      : "When visitors open Caf&eacute; Core, they show up here with what they are doing.";
+    const sub = getCafePresenceHideFromList() ? "Turn off hide in Settings to appear again, or wait until someone else is visible." : "When visitors open Caf&eacute; Core, they show up here with what they are doing.";
     ul.innerHTML = `<li class="cafe-presence-empty" role="status">
   <div class="cafe-presence-empty-icon" aria-hidden="true"><i class="fa-solid fa-user-slash"></i></div>
   <p class="cafe-presence-empty-title">No one to show</p>
@@ -5365,25 +5354,20 @@ function renderCafePresencePopover() {
   if (showHiddenSelfRow && selfEntry && !listUsers.some((u) => u.id === selfEntry.id)) {
     listUsers.push(selfEntry);
   }
-  ul.innerHTML = listUsers
-    .map((u) => {
-      const nameRaw = u.name || "Guest";
-      const name = escapeHtmlText(nameRaw);
-      const act = escapeHtmlText(u.activity || "Online");
-      const you = Boolean(u.id && cafePresenceSelfId && u.id === cafePresenceSelfId);
-      const selfHidden = you && hideSelf;
-      const displayName = you ? "You" : name;
-      const ini = cafePresenceRowInitials(u, you);
-      const rowClass = you
-        ? `cafe-presence-row cafe-presence-row--you${selfHidden ? " cafe-presence-row--you-hidden-overlay" : ""}`
-        : "cafe-presence-row";
-      const badge = you && !selfHidden ? '<span class="cafe-presence-you-badge">You</span>' : "";
-      const hiddenOverlay = selfHidden
-        ? `<div class="cafe-presence-hidden-overlay" role="status" aria-label="You are hidden from the member list">
+  ul.innerHTML = listUsers.map((u) => {
+    const nameRaw = u.name || "Guest";
+    const name = escapeHtmlText(nameRaw);
+    const act = escapeHtmlText(u.activity || "Online");
+    const you = Boolean(u.id && cafePresenceSelfId && u.id === cafePresenceSelfId);
+    const selfHidden = you && hideSelf;
+    const displayName = you ? "You" : name;
+    const ini = cafePresenceRowInitials(u, you);
+    const rowClass = you ? `cafe-presence-row cafe-presence-row--you${selfHidden ? " cafe-presence-row--you-hidden-overlay" : ""}` : "cafe-presence-row";
+    const badge = you && !selfHidden ? '<span class="cafe-presence-you-badge">You</span>' : "";
+    const hiddenOverlay = selfHidden ? `<div class="cafe-presence-hidden-overlay" role="status" aria-label="You are hidden from the member list">
     <span class="cafe-presence-hidden-self-label">You are hidden</span>
-  </div>`
-        : "";
-      const inner = `<div class="cafe-presence-avatar" aria-hidden="true">${cafePresenceAvatarHtml(u, you, ini)}</div>
+  </div>` : "";
+    const inner = `<div class="cafe-presence-avatar" aria-hidden="true">${cafePresenceAvatarHtml(u, you, ini)}</div>
   <div class="cafe-presence-row-main">
     <div class="cafe-presence-row-top">
       <span class="cafe-presence-name">${displayName}</span>
@@ -5391,13 +5375,12 @@ function renderCafePresencePopover() {
     </div>
     <span class="cafe-presence-activity">${act}</span>
   </div>`;
-      const body = selfHidden ? `<div class="cafe-presence-row-dim">${inner}</div>` : inner;
-      return `<li class="${rowClass}">
+    const body = selfHidden ? `<div class="cafe-presence-row-dim">${inner}</div>` : inner;
+    return `<li class="${rowClass}">
   ${body}
   ${hiddenOverlay}
 </li>`;
-    })
-    .join("");
+  }).join("");
 }
 function applyCafePresenceMessage(msg) {
   if (!msg || typeof msg !== "object") return;

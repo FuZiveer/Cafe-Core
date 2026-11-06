@@ -1,7 +1,5 @@
 import { WebSocketServer } from "ws";
-
 export const PRESENCE_WS_PATH = "/ws/presence";
-
 const PAGE_LABELS = {
   default: "Browsing home",
   apps: "Browsing apps",
@@ -16,16 +14,13 @@ const PAGE_LABELS = {
   lineups: "Browsing lineups",
   "aim-trainer": "Training aim"
 };
-
 const wss = new WebSocketServer({ noServer: true });
 let idSeq = 0;
 const sessions = new Map();
-
 function activityLabel(pageKey) {
   const k = String(pageKey || "").trim();
   return PAGE_LABELS[k] || (k ? `Viewing ${k}` : "Online");
 }
-
 function broadcastPresence() {
   const users = [];
   let visibleCount = 0;
@@ -45,7 +40,6 @@ function broadcastPresence() {
     if (client.readyState === 1) client.send(payload);
   }
 }
-
 wss.on("connection", (ws) => {
   const publicId = `u-${++idSeq}`;
   const state = { publicId, pageKey: "default", displayName: "Guest", avatarUrl: "", hiddenFromList: false };
@@ -80,7 +74,6 @@ wss.on("connection", (ws) => {
     broadcastPresence();
   });
 });
-
 export function handlePresenceUpgrade(request, socket, head, pathname) {
   if (pathname !== PRESENCE_WS_PATH) return false;
   wss.handleUpgrade(request, socket, head, (client) => {

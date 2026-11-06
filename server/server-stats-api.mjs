@@ -1,20 +1,16 @@
 import crypto from "node:crypto";
 import { applyCors, sendJson, parseCookies, setCookie, getSessionUser, isSiteStatsAdminUser } from "./discord-auth.mjs";
 import { getSiteStatsSummary, recordPageView } from "./site-stats-store.mjs";
-
 const SITE_VISITOR_COOKIE = "cafe_site_vid";
-
 function randomVisitorId() {
   return crypto.randomBytes(16).toString("base64url");
 }
-
 function parseQueryDays(url) {
   const d = url.searchParams.get("days");
   const n = Math.floor(Number(d));
   if (Number.isFinite(n) && n > 0) return n;
   return 14;
 }
-
 export async function handleSiteStatsRequest(req, res, url, cfg) {
   const pathname = url.pathname;
   if (pathname === "/api/site-stats/record" && req.method === "POST") {
@@ -34,7 +30,7 @@ export async function handleSiteStatsRequest(req, res, url, cfg) {
       setCookie(res, SITE_VISITOR_COOKIE, vid, opts);
     }
     const now = new Date();
-    recordPageView(now, now.getUTCHours());
+    await recordPageView(now, now.getUTCHours());
     sendJson(res, 200, { ok: true });
     return true;
   }
@@ -46,7 +42,7 @@ export async function handleSiteStatsRequest(req, res, url, cfg) {
       return true;
     }
     const days = parseQueryDays(url);
-    const summary = getSiteStatsSummary({ days });
+    const summary = await getSiteStatsSummary({ days });
     sendJson(res, 200, summary);
     return true;
   }

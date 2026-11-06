@@ -8,9 +8,7 @@ const DISCORD_AUTHORIZE = "https://discord.com/api/oauth2/authorize";
 const DISCORD_TOKEN = "https://discord.com/api/oauth2/token";
 const DISCORD_USER = "https://discord.com/api/users/@me";
 const SESSION_COOKIE = "cafe_core_session";
-const SITE_STATS_ADMIN_USERNAME = String(process.env.SITE_STATS_ADMIN_USERNAME || "fuziveer")
-  .trim()
-  .toLowerCase();
+const SITE_STATS_ADMIN_USERNAME = String(process.env.SITE_STATS_ADMIN_USERNAME || "fuziveer").trim().toLowerCase();
 const STATE_COOKIE = "cafe_oauth_state";
 const RETURN_COOKIE = "cafe_oauth_return";
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 30;
