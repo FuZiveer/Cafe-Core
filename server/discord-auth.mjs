@@ -178,6 +178,34 @@ function verifySession(token, secret) {
     }
 }
 
+/** Signed Discord OAuth state (return_to + nonce) — works when cross-site cookies are blocked. */
+function signOauthStatePayload(payload, secret) {
+    const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    const sig = crypto.createHmac('sha256', secret).update(`oauth_state:${body}`).digest('base64url');
+    return `${body}.${sig}`;
+}
+
+function verifyOauthStateToken(token, secret) {
+    if (!token || !secret) return null;
+    const dot = token.lastIndexOf('.');
+    if (dot <= 0) return null;
+    const body = token.slice(0, dot);
+    const sig = token.slice(dot + 1);
+    const expected = crypto.createHmac('sha256', secret).update(`oauth_state:${body}`).digest('base64url');
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    try {
+        const json = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+        if (!json || typeof json !== 'object') return null;
+        if (typeof json.exp !== 'number' || json.exp < Date.now()) return null;
+        if (typeof json.n !== 'string' || !json.n) return null;
+        return json;
+    } catch {
+        return null;
+    }
+}
+
 function setCookie(
     res,
     name,
@@ -212,6 +240,12 @@ function postLoginRedirect(req, cfg) {
     const returnTo = cookies[RETURN_COOKIE];
     if (returnTo && isAllowedReturnTo(returnTo, cfg)) return returnTo;
     return `${cfg.publicOrigin}/`;
+}
+
+/** Prefer signed OAuth state payload (cross-site safe); fall back to RETURN_COOKIE. */
+function resolvePostOAuthReturn(req, cfg, verifiedState) {
+    if (verifiedState?.rt && isAllowedReturnTo(verifiedState.rt, cfg)) return verifiedState.rt;
+    return postLoginRedirect(req, cfg);
 }
 
 function sendJson(res, status, data) {
@@ -368,22 +402,46 @@ export async function handleDiscordAuthRequest(req, res, url) {
     }
 
     if (pathname === '/auth/discord/login' && req.method === 'GET') {
-        const state = crypto.randomBytes(16).toString('hex');
         const returnTo = url.searchParams.get('return_to')?.trim() || '';
-        setCookie(res, STATE_COOKIE, state, { maxAge: 600, httpOnly: true, ...cOpts });
+        const nonce = crypto.randomBytes(16).toString('hex');
+        const payload = {
+            n: nonce,
+            exp: Date.now() + 10 * 60 * 1000,
+        };
         if (returnTo && isAllowedReturnTo(returnTo, cfg)) {
-            setCookie(res, RETURN_COOKIE, returnTo, { maxAge: 600, httpOnly: true, ...cOpts });
+            payload.rt = returnTo;
         }
-        redirect(res, buildAuthorizeUrl(cfg, state));
+        const stateToken = signOauthStatePayload(payload, cfg.sessionSecret);
+        // Legacy same-site jar (optional); primary return URL is embedded in signed `state` for cross-site flows.
+        setCookie(res, STATE_COOKIE, nonce, { maxAge: 600, httpOnly: true, ...cOpts });
+        if (payload.rt) {
+            setCookie(res, RETURN_COOKIE, payload.rt, { maxAge: 600, httpOnly: true, ...cOpts });
+        }
+        redirect(res, buildAuthorizeUrl(cfg, stateToken));
         return true;
     }
 
     if (pathname === '/auth/discord/callback' && req.method === 'GET') {
-        const cookies = parseCookies(req.headers.cookie);
-        const expectedState = cookies[STATE_COOKIE];
+        const stateParam = url.searchParams.get('state') || '';
+        const verifiedState = verifyOauthStateToken(stateParam, cfg.sessionSecret);
+        const afterLogin = resolvePostOAuthReturn(req, cfg, verifiedState);
+
         clearCookie(res, STATE_COOKIE, cOpts);
-        const afterLogin = postLoginRedirect(req, cfg);
+        if (cfg.crossSiteCookies) {
+            clearCookie(res, STATE_COOKIE, {
+                secure: cfg.cookieSecure,
+                sameSite: 'None',
+                partitioned: false,
+            });
+        }
         clearCookie(res, RETURN_COOKIE, cOpts);
+        if (cfg.crossSiteCookies) {
+            clearCookie(res, RETURN_COOKIE, {
+                secure: cfg.cookieSecure,
+                sameSite: 'None',
+                partitioned: false,
+            });
+        }
 
         const err = url.searchParams.get('error');
         if (err) {
@@ -392,8 +450,7 @@ export async function handleDiscordAuthRequest(req, res, url) {
         }
 
         const code = url.searchParams.get('code');
-        const state = url.searchParams.get('state');
-        if (!code || !state || state !== expectedState) {
+        if (!code || !verifiedState) {
             redirect(res, appendAuthQuery(afterLogin, 'discord_invalid'));
             return true;
         }
