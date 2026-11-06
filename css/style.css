@@ -4051,7 +4051,7 @@ html.reduce-motion .aim-trainer-start-overlay .aim-countdown span {
   border: 1px solid #333338;
   border-radius: var(--radius-ui);
   background-color: #1a1a1e;
-  color: #fff;
+  color: #94a3b8;
   font-family: inherit;
   font-size: 0.75rem;
   font-weight: 700;
@@ -4067,10 +4067,12 @@ html.reduce-motion .aim-trainer-start-overlay .aim-countdown span {
 #aim-trainer-settings-open.aim-trainer-settings-corner i {
   font-size: 0.9375rem;
   line-height: 1;
-  color: #ff1e43;
+  color: #94a3b8;
+  transition: color var(--motion-duration) var(--motion-ease);
 }
 #aim-trainer-settings-open.aim-trainer-settings-corner span {
   line-height: 1;
+  transition: color var(--motion-duration) var(--motion-ease);
 }
 #aim-trainer-settings-open.aim-trainer-settings-corner:hover {
   border-color: #ff1e43;
@@ -4078,11 +4080,6 @@ html.reduce-motion .aim-trainer-start-overlay .aim-countdown span {
   color: #ff1e43;
 }
 #aim-trainer-settings-open.aim-trainer-settings-corner:hover i {
-  color: #ff1e43;
-}
-#aim-trainer-settings-open.aim-trainer-settings-corner[aria-expanded=true] {
-  border-color: #ff1e43;
-  background-color: #141418;
   color: #ff1e43;
 }
 #main-content:has(#page-aim-trainer.main-page-active:not(.page-aim-trainer--session)) {

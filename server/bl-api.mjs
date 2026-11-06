@@ -1,7 +1,7 @@
 import { applyCors, getSessionUser, sendJson } from "./discord-auth.mjs";
 import { readScrimRecordFile, writeScrimRecordFile } from "./bl-scrim-store.mjs";
 import { broadcastScrimRecord } from "./bl-scrim-ws.mjs";
-const BL_SCRIM_RECORD_EDITORS = new Set(["fuziveer", "rawenge", "rjwarrior", "jobless___"]);
+const BL_SCRIM_RECORD_EDITORS = new Set(["fuziveer", "rawenge", "rjwarrior", "jobless___", "kkv060", "two4ne"]);
 const BL_PLANNER_DISCORD_USERNAME = "fuziveer";
 function usernameKey(user) {
   return String(user?.username || "").trim().toLowerCase();

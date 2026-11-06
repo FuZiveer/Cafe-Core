@@ -4,7 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAuthConfig, handleDiscordAuthRequest } from "./discord-auth.mjs";
 import { handleBlApiRequest } from "./bl-api.mjs";
-import { attachBlScrimWebSocket } from "./bl-scrim-ws.mjs";
+import { handleScrimUpgrade } from "./bl-scrim-ws.mjs";
+import { handlePresenceUpgrade } from "./presence-ws.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PORT = Number(process.env.PORT || 8787);
@@ -63,7 +64,18 @@ const server = http.createServer(async (req, res) => {
   }
   serveFile(req, res, url);
 });
-attachBlScrimWebSocket(server);
+server.on("upgrade", (request, socket, head) => {
+  let pathname = "";
+  try {
+    pathname = new URL(request.url || "", "http://127.0.0.1").pathname;
+  } catch {
+    socket.destroy();
+    return;
+  }
+  if (handleScrimUpgrade(request, socket, head, pathname)) return;
+  if (handlePresenceUpgrade(request, socket, head, pathname)) return;
+  socket.destroy();
+});
 server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
     console.error(`Port ${PORT} is already in use.`);

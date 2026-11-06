@@ -380,6 +380,10 @@ function initBottleneckHardwareDetect() {
   });
 }
 let currentMainPageKey = "default";
+function setCurrentMainPageKey(nextKey) {
+  currentMainPageKey = nextKey;
+  if (typeof window.__cafeNotifyPresence === "function") window.__cafeNotifyPresence();
+}
 let mainPageAnimToken = 0;
 let mainPageTransitionHandler = null;
 function getMainContentScrollHost() {
@@ -447,7 +451,7 @@ function revealMainPage(nextPage, nextKey, token) {
       nextPage.classList.remove("main-page-enter-prep");
     });
   });
-  currentMainPageKey = nextKey;
+  setCurrentMainPageKey(nextKey);
   if (window.pageLoader) window.pageLoader.syncLocationHash(nextKey);
   syncPlaceholderPageView(nextKey);
   if (nextKey === "default") initHomeFeatureCardTilt();
@@ -526,7 +530,7 @@ async function setMainPageInternal(pageKey, options = {}) {
     const nextPage2 = await window.pageLoader.mountMainPageElement(nextKey);
     if (!nextPage2) return;
     applyMainPageInstant(nextPage2);
-    currentMainPageKey = nextKey;
+    setCurrentMainPageKey(nextKey);
     window.pageLoader.syncLocationHash(nextKey);
     syncPlaceholderPageView(nextKey);
     if (nextKey === "default") initHomeFeatureCardTilt();
@@ -4846,6 +4850,163 @@ window.__cafeCoreGlide = {
 };
 window.syncVerticalTabGlider = syncVerticalTabGlider;
 window.shouldUseGliderWrapAnimation = shouldUseGliderWrapAnimation;
+let cafePresenceWs = null;
+let cafePresenceReconnectTimer = null;
+let cafePresencePingTimer = null;
+let cafePresenceSnapshot = { count: 0, users: [] };
+let cafePresenceSelfId = "";
+function cafePresenceApiOrigin() {
+  const o = window.__CAFE_AUTH_ORIGIN;
+  if (typeof o === "string" && o.trim()) return o.trim().replace(/\/$/, "");
+  if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+    return window.location.origin;
+  }
+  return "";
+}
+function cafePresenceWsBase() {
+  const base = cafePresenceApiOrigin();
+  if (!base) return "";
+  if (base.startsWith("https://")) return `wss://${base.slice(8)}`;
+  if (base.startsWith("http://")) return `ws://${base.slice(7)}`;
+  return "";
+}
+function cafePresenceDisplayName() {
+  const u = typeof window.getDiscordAuthUser === "function" ? window.getDiscordAuthUser() : null;
+  if (u && typeof u === "object") {
+    const d = String(u.displayName || "").trim();
+    const n = String(u.username || "").trim();
+    if (d) return d;
+    if (n) return n;
+  }
+  return "Guest";
+}
+function cafePresenceSendPing() {
+  if (!cafePresenceWs || cafePresenceWs.readyState !== WebSocket.OPEN) return;
+  try {
+    cafePresenceWs.send(
+      JSON.stringify({
+        type: "presence_ping",
+        pageKey: currentMainPageKey,
+        displayName: cafePresenceDisplayName()
+      })
+    );
+  } catch {
+  }
+}
+function __cafeNotifyPresence() {
+  cafePresenceSendPing();
+}
+window.__cafeNotifyPresence = __cafeNotifyPresence;
+function renderCafePresencePopover() {
+  const ul = document.getElementById("cafe-presence-list");
+  if (!ul) return;
+  const users = Array.isArray(cafePresenceSnapshot.users) ? cafePresenceSnapshot.users : [];
+  if (!users.length) {
+    ul.innerHTML = '<li class="px-2 py-2 text-xs text-slate-500">No one else connected yet.</li>';
+    return;
+  }
+  ul.innerHTML = users
+    .map((u) => {
+      const name = escapeHtmlText(u.name || "Guest");
+      const act = escapeHtmlText(u.activity || "Online");
+      const you = u.id && cafePresenceSelfId && u.id === cafePresenceSelfId;
+      return `<li class="rounded-md px-2 py-1.5 text-xs text-slate-300 hover:bg-matte-800"><span class="font-semibold text-white">${you ? "You" : name}</span><span class="block text-[11px] text-slate-500 mt-0.5">${act}</span></li>`;
+    })
+    .join("");
+}
+function applyCafePresenceMessage(msg) {
+  if (!msg || typeof msg !== "object") return;
+  if (msg.type === "presence_hello" && typeof msg.id === "string") {
+    cafePresenceSelfId = msg.id;
+    cafePresenceSendPing();
+    return;
+  }
+  if (msg.type === "presence") {
+    cafePresenceSnapshot = msg;
+    const n = document.getElementById("cafe-online-count");
+    if (n) {
+      const c = Math.max(0, Math.floor(Number(msg.count) || 0));
+      n.textContent = c === 1 ? "1 member online" : `${c} members online`;
+    }
+    const pop = document.getElementById("cafe-presence-popover");
+    if (pop && !pop.classList.contains("hidden")) renderCafePresencePopover();
+  }
+}
+function scheduleCafePresenceReconnect() {
+  clearTimeout(cafePresenceReconnectTimer);
+  cafePresenceReconnectTimer = setTimeout(() => {
+    cafePresenceReconnectTimer = null;
+    initCafePresenceConnection();
+  }, 4e3);
+}
+function initCafePresenceConnection() {
+  const wsb = cafePresenceWsBase();
+  const wrap = document.getElementById("cafe-online-btn-wrap");
+  if (!wsb || !wrap) return;
+  if (cafePresenceWs && (cafePresenceWs.readyState === WebSocket.OPEN || cafePresenceWs.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
+  try {
+    cafePresenceWs = new WebSocket(`${wsb}/ws/presence`);
+  } catch {
+    scheduleCafePresenceReconnect();
+    return;
+  }
+  cafePresenceWs.onopen = () => {
+    cafePresenceSendPing();
+  };
+  cafePresenceWs.onmessage = (ev) => {
+    let msg;
+    try {
+      msg = JSON.parse(String(ev.data || ""));
+    } catch {
+      return;
+    }
+    applyCafePresenceMessage(msg);
+  };
+  cafePresenceWs.onclose = () => {
+    if (cafePresenceWs) cafePresenceWs = null;
+    scheduleCafePresenceReconnect();
+  };
+  cafePresenceWs.onerror = () => {
+    try {
+      cafePresenceWs.close();
+    } catch {
+    }
+  };
+}
+function initCafePresenceUi() {
+  const btn = document.getElementById("cafe-online-btn");
+  const pop = document.getElementById("cafe-presence-popover");
+  const wrap = document.getElementById("cafe-online-btn-wrap");
+  if (!btn || !pop || !wrap) return;
+  if (!cafePresenceWsBase()) {
+    wrap.classList.add("hidden");
+    return;
+  }
+  const closePopover = () => {
+    pop.classList.add("hidden");
+    pop.setAttribute("aria-hidden", "true");
+    btn.setAttribute("aria-expanded", "false");
+  };
+  const openPopover = () => {
+    renderCafePresencePopover();
+    pop.classList.remove("hidden");
+    pop.setAttribute("aria-hidden", "false");
+    btn.setAttribute("aria-expanded", "true");
+  };
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (pop.classList.contains("hidden")) openPopover();
+    else closePopover();
+  });
+  document.addEventListener("click", () => closePopover());
+  pop.addEventListener("click", (e) => e.stopPropagation());
+  window.addEventListener("cafe-discord-auth-change", () => cafePresenceSendPing());
+  clearInterval(cafePresencePingTimer);
+  cafePresencePingTimer = setInterval(() => cafePresenceSendPing(), 25e3);
+  initCafePresenceConnection();
+}
 window.addEventListener("DOMContentLoaded", () => {
   initToolPicklistDismiss();
   initKeyboardRestrictions();
@@ -4859,6 +5020,7 @@ window.addEventListener("DOMContentLoaded", () => {
   initScrollToTopButton();
   if (typeof window.initDiscordAuth === "function") window.initDiscordAuth();
   if (typeof window.initCafeAuthUiGuard === "function") window.initCafeAuthUiGuard();
+  initCafePresenceUi();
   window.addEventListener("cafe-discord-auth-change", () => {
     if (!isBlPlannerAccessGranted() && selectedFlyoutItem === BL_PLANNER_FLYOUT_ITEM_ID) {
       selectedFlyoutItem = null;

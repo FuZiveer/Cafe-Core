@@ -1,7 +1,7 @@
 (function() {
   "use strict";
   const BL_PLANNER_DISCORD_USERNAME = "fuziveer";
-  const BL_SCRIM_RECORD_EDITORS = new Set(["fuziveer", "rawenge", "rjwarrior", "jobless___"]);
+  const BL_SCRIM_RECORD_EDITORS = new Set(["fuziveer", "rawenge", "rjwarrior", "jobless___", "kkv060", "two4ne"]);
   let currentDiscordUser = null;
   function byId(id) {
     return document.getElementById(id);

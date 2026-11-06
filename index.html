@@ -108,6 +108,16 @@
                     </div>
                     <i class="fa-solid fa-chevron-right text-xs opacity-70 transition-transform motion-standard chevron-icon"></i>
                 </button>
+                <div id="cafe-online-btn-wrap" class="relative w-full z-20">
+                    <button type="button" id="cafe-online-btn" class="nav-btn direct-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left" aria-expanded="false" aria-controls="cafe-presence-popover">
+                        <i class="fa-solid fa-signal w-5 text-center flex-shrink-0" aria-hidden="true"></i>
+                        <span id="cafe-online-count" class="btn-label sidebar-slide-fade whitespace-nowrap min-w-0 truncate">0 members online</span>
+                    </button>
+                    <div id="cafe-presence-popover" class="hidden absolute left-0 right-0 top-full mt-1 max-h-64 overflow-y-auto rounded-lg border border-matte-800 bg-matte-900 shadow-lg p-2 text-left" role="menu" aria-hidden="true">
+                        <p class="px-2 py-1 text-[10px] font-bold tracking-widest uppercase text-slate-500">Who is here</p>
+                        <ul id="cafe-presence-list" class="space-y-1"></ul>
+                    </div>
+                </div>
             </div>
         </nav>
     </aside>

@@ -15,30 +15,19 @@ export function broadcastScrimRecord(record) {
     if (ws.readyState === 1) ws.send(payload);
   }
 }
-export function attachBlScrimWebSocket(httpServer) {
-  const wss = new WebSocketServer({ noServer: true });
-  httpServer.on("upgrade", (request, socket, head) => {
-    let pathname = "";
-    try {
-      pathname = new URL(request.url || "", "http://127.0.0.1").pathname;
-    } catch {
-      socket.destroy();
-      return;
-    }
-    if (pathname !== SCRIM_WS_PATH) {
-      socket.destroy();
-      return;
-    }
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit("connection", ws, request);
-    });
+const wss = new WebSocketServer({ noServer: true });
+wss.on("connection", (ws) => {
+  clients.add(ws);
+  ws.send(scrimMessage(readScrimRecordFile()));
+  ws.on("close", () => clients.delete(ws));
+  ws.on("error", () => clients.delete(ws));
+});
+export function handleScrimUpgrade(request, socket, head, pathname) {
+  if (pathname !== SCRIM_WS_PATH) return false;
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit("connection", ws, request);
   });
-  wss.on("connection", (ws) => {
-    clients.add(ws);
-    ws.send(scrimMessage(readScrimRecordFile()));
-    ws.on("close", () => clients.delete(ws));
-    ws.on("error", () => clients.delete(ws));
-  });
+  return true;
 }
 export function getScrimWebSocketPath() {
   return SCRIM_WS_PATH;
