@@ -160,6 +160,13 @@
         return url.toString();
     }
 
+    function buildLogoutUrl(authBase) {
+        const base = authBase || window.location.origin;
+        const url = new URL('/auth/discord/logout', `${base}/`);
+        url.searchParams.set('return_to', currentReturnTo());
+        return url.toString();
+    }
+
     function clearAuthQueryFromUrl() {
         const params = new URLSearchParams(window.location.search);
         if (!params.has('auth')) return;
@@ -280,14 +287,12 @@
             window.setDiscordProfileMenuOpen(!isOpen);
         });
 
-        signOut?.addEventListener('click', async () => {
+        signOut?.addEventListener('click', () => {
             window.closeDiscordProfileMenu();
-            try {
-                await fetch(apiUrl(authBase, '/api/auth/logout'), { method: 'POST', credentials: 'include' });
-            } catch {
-                /* ignore */
-            }
-            await refreshDiscordAuthUi();
+            setCurrentDiscordUser(null);
+            // Full navigation to the auth origin clears HttpOnly session cookies reliably
+            // (cross-site fetch often cannot update Partitioned / third-party cookie jars).
+            window.location.assign(buildLogoutUrl(authBase));
         });
 
         portalDiscordProfileMenu();

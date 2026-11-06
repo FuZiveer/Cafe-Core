@@ -661,6 +661,9 @@ window.clearMainPageInitState = function clearMainPageInitState(pageKey) {
     if (pageKey === 'black-listed' && typeof window.teardownBlackListedPage === 'function') {
         window.teardownBlackListedPage();
     }
+    if (pageKey === 'bl-planner' && typeof window.teardownBlPlannerPage === 'function') {
+        window.teardownBlPlannerPage();
+    }
     if (pageKey === 'aim-trainer' && typeof window.teardownAimTrainerPage === 'function') {
         window.teardownAimTrainerPage();
     }
@@ -845,6 +848,9 @@ window.initMainPage = async function initMainPage(pageKey) {
             break;
         case 'black-listed':
             if (typeof window.initBlackListedPage === 'function') window.initBlackListedPage();
+            break;
+        case 'bl-planner':
+            if (typeof window.initBlPlannerPage === 'function') window.initBlPlannerPage();
             break;
         case 'aim-trainer':
             if (typeof window.initAimTrainerPage === 'function') window.initAimTrainerPage();

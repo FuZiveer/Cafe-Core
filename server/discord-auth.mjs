@@ -330,7 +330,32 @@ export async function handleDiscordAuthRequest(req, res, url) {
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
         applyCors(req, res, cfg);
         clearCookie(res, SESSION_COOKIE, cOpts);
+        // Older sessions may have been set without Partitioned; clear both shapes.
+        if (cfg.crossSiteCookies) {
+            clearCookie(res, SESSION_COOKIE, {
+                secure: cfg.cookieSecure,
+                sameSite: 'None',
+                partitioned: false,
+            });
+        }
         sendJson(res, 200, { ok: true });
+        return true;
+    }
+
+    /** Top-level browser navigation (same as OAuth): reliably clears HttpOnly cookies on the auth host. */
+    if (pathname === '/auth/discord/logout' && req.method === 'GET') {
+        clearCookie(res, SESSION_COOKIE, cOpts);
+        if (cfg.crossSiteCookies) {
+            clearCookie(res, SESSION_COOKIE, {
+                secure: cfg.cookieSecure,
+                sameSite: 'None',
+                partitioned: false,
+            });
+        }
+        const returnTo = url.searchParams.get('return_to')?.trim() || '';
+        const dest =
+            returnTo && isAllowedReturnTo(returnTo, cfg) ? returnTo : `${cfg.publicOrigin}/`;
+        redirect(res, dest);
         return true;
     }
 

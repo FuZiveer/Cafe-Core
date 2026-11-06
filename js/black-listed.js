@@ -534,10 +534,13 @@
     }
 
     function loadBlScrimRecord() {
-        if (window.__cafeBlApi?.available) {
+        // Always mirror __cafeBlApi.scrim — WebSocket can update scores even when the REST
+        // health probe failed (e.g. server waking from sleep before /api/bl responds again).
+        const s = window.__cafeBlApi?.scrim;
+        if (s) {
             return {
-                wins: window.__cafeBlApi.scrim.wins,
-                losses: window.__cafeBlApi.scrim.losses,
+                wins: Math.max(0, Math.round(Number(s.wins) || 0)),
+                losses: Math.max(0, Math.round(Number(s.losses) || 0)),
             };
         }
         return { wins: 0, losses: 0 };

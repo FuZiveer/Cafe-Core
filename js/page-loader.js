@@ -119,12 +119,19 @@
         await loadScript('js/black-listed.js');
     }
 
+    async function ensureBlPlannerScripts() {
+        await loadScript('js/bl-planner.js');
+    }
+
     async function preparePageDependencies(pageKey) {
         if (pageKey === 'sensitivity' || pageKey === 'edpi') {
             await ensureSensitivityScripts();
         }
         if (pageKey === 'black-listed') {
             await ensureBlackListedScripts();
+        }
+        if (pageKey === 'bl-planner') {
+            await ensureBlPlannerScripts();
         }
         if (pageKey === 'aim-trainer') {
             await ensureAimTrainerScripts();

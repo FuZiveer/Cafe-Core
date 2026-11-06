@@ -74,6 +74,7 @@
             wins: Math.max(0, Math.round(Number(wins) || 0)),
             losses: Math.max(0, Math.round(Number(losses) || 0)),
         };
+        state.available = true;
         dispatchBlApiUpdated();
     }
 
@@ -182,6 +183,20 @@
         dispatchBlApiUpdated();
         return state;
     };
+
+    let blApiResumeBound = false;
+    function bindBlApiResumeRefresh() {
+        if (blApiResumeBound) return;
+        blApiResumeBound = true;
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            void window.refreshCafeBlApiState?.();
+        });
+        window.addEventListener('online', () => {
+            void window.refreshCafeBlApiState?.();
+        });
+    }
+    bindBlApiResumeRefresh();
 
     window.patchCafeScrimRecord = async function patchCafeScrimRecord(record) {
         const wins = Math.max(0, Math.round(Number(record?.wins) || 0));
