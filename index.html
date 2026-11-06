@@ -53,6 +53,16 @@
 </head>
 <body class="bg-matte-950 text-slate-200 antialiased h-screen flex overflow-hidden relative">
 
+    <div
+        id="top-bar-image-load-bar"
+        class="top-bar-image-load-bar"
+        role="status"
+        aria-live="polite"
+        aria-hidden="true"
+    >
+        <div id="top-bar-image-load-bar-fill" class="top-bar-image-load-bar__fill" aria-hidden="true"></div>
+    </div>
+
     <button type="button" id="mobile-nav-backdrop" class="modal-backdrop mobile-nav-backdrop ui-interactive" aria-hidden="true" tabindex="-1"></button>
 
     <aside id="sidebar" class="w-56 bg-matte-900 border-r border-matte-800 flex flex-col h-full z-20 relative shrink-0 overflow-visible">
@@ -120,6 +130,16 @@
 
     <main class="flex-1 flex flex-col h-full min-w-0 bg-matte-950 overflow-hidden">
         <header id="top-bar" class="h-[64px] shrink-0 bg-matte-900 border-b border-matte-800 flex items-center justify-between p-4 relative z-20">
+            <div
+                id="topbar-presence-status"
+                class="topbar-presence-status pointer-events-none absolute inset-0 z-[5] flex items-center justify-center hidden"
+                aria-live="polite"
+                aria-atomic="true"
+            >
+                <span class="topbar-presence-status__text text-xs font-bold tracking-widest uppercase whitespace-nowrap">
+                    <span id="topbar-presence-status-base">Server is waking up</span><span id="topbar-presence-status-dots" class="topbar-presence-status__dots inline-block min-w-[1.125em] text-left" aria-hidden="true"></span>
+                </span>
+            </div>
             <div class="flex items-center min-w-0 flex-1 overflow-hidden relative z-10 gap-2">
                 <button type="button" id="mobile-menu-btn" class="mobile-menu-btn topbar-action-btn ui-interactive w-9 h-9 rounded-lg items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 shrink-0" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
                     <i id="mobile-menu-icon" class="fa-solid fa-bars text-sm" aria-hidden="true"></i>

@@ -332,6 +332,9 @@
     if (typeof window.refreshCafeBlApiState === "function") {
       void window.refreshCafeBlApiState();
     }
+    if (typeof window.__cafeRefreshSessionPrivileges === "function") {
+      void window.__cafeRefreshSessionPrivileges();
+    }
   }
   window.initDiscordAuth = function initDiscordAuth() {
     clearAuthQueryFromUrl();

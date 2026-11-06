@@ -12,6 +12,7 @@
     sensitivity: "pages/sensitivity.html",
     edpi: "pages/edpi.html",
     lineups: "pages/lineups.html",
+    "server-stats": "pages/server-stats.html",
     "aim-trainer": "pages/aim-trainer.html"
   });
   const htmlCache = new Map();
@@ -104,6 +105,9 @@
     }
     if (pageKey === "black-listed") {
       await ensureBlackListedScripts();
+    }
+    if (pageKey === "server-stats") {
+      await loadScript("js/server-stats.js");
     }
     if (pageKey === "aim-trainer") {
       await ensureAimTrainerScripts();

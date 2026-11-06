@@ -35,8 +35,18 @@ const flyoutData = coreFreeze({
     ]
   }
 });
+window.__cafeServerStatsAllowed = window.__cafeServerStatsAllowed || false;
+function cafeServerStatsMenuAllowed() {
+  return window.__cafeServerStatsAllowed === true;
+}
 function flyoutItemsForMenu(type) {
-  return flyoutData[type]?.items || [];
+  const items = flyoutData[type]?.items ? flyoutData[type].items.slice() : [];
+  if (type === "more" && cafeServerStatsMenuAllowed()) {
+    const blIdx = items.findIndex((e) => e.id === "more-black-listed");
+    const insertAt = blIdx >= 0 ? blIdx + 1 : items.length;
+    items.splice(insertAt, 0, { id: "more-server-stats", name: "Server Stats", icon: "fa-chart-line" });
+  }
+  return items;
 }
 const topBarLabels = coreFreeze({
   home: "Home",
@@ -117,12 +127,14 @@ const mainPageIds = coreFreeze({
   sensitivity: "page-sensitivity",
   edpi: "page-edpi",
   lineups: "page-lineups",
+  "server-stats": "page-server-stats",
   "aim-trainer": "page-aim-trainer"
 });
 window.mainPageIds = mainPageIds;
 function normalizeMainPageKey(pageKey) {
   if (pageKey === "lineups" && !TIPS_AND_TRICKS_PAGE_ENABLED) return "default";
   if (pageKey === "bl-planner") return "default";
+  if (pageKey === "server-stats" && !cafeServerStatsMenuAllowed()) return "default";
   return pageKey in mainPageIds ? pageKey : "default";
 }
 const SENS_GAME_BY_ID = new Map();
@@ -549,6 +561,9 @@ window.clearMainPageInitState = function clearMainPageInitState(pageKey) {
   if (pageKey === "black-listed" && typeof window.teardownBlackListedPage === "function") {
     window.teardownBlackListedPage();
   }
+  if (pageKey === "server-stats" && typeof window.teardownServerStatsPage === "function") {
+    window.teardownServerStatsPage();
+  }
   if (pageKey === "aim-trainer" && typeof window.teardownAimTrainerPage === "function") {
     window.teardownAimTrainerPage();
   }
@@ -709,6 +724,9 @@ window.initMainPage = async function initMainPage(pageKey) {
     case "black-listed":
       if (typeof window.initBlackListedPage === "function") window.initBlackListedPage();
       break;
+    case "server-stats":
+      if (typeof window.initServerStatsPage === "function") window.initServerStatsPage();
+      break;
     case "aim-trainer":
       if (typeof window.initAimTrainerPage === "function") window.initAimTrainerPage();
       break;
@@ -722,6 +740,7 @@ window.initMainPage = async function initMainPage(pageKey) {
   }
 };
 function mainPageKeyForFlyoutItem(itemId) {
+  if (itemId === "more-server-stats") return "server-stats";
   if (itemId === "more-branding") return "branding";
   if (itemId === "more-fuziveer") return "fuziveer";
   if (itemId === "more-black-listed") return "black-listed";
@@ -740,10 +759,12 @@ function isFlyoutItemNavDisabled(itemId) {
   if ((itemId === "strat-tips" || itemId === "strat-lineups") && !TIPS_AND_TRICKS_PAGE_ENABLED) {
     return true;
   }
+  if (itemId === "more-server-stats" && !cafeServerStatsMenuAllowed()) return true;
   return false;
 }
 function isMainPageNavDisabled(pageKey) {
   if (pageKey === "lineups" && !TIPS_AND_TRICKS_PAGE_ENABLED) return true;
+  if (pageKey === "server-stats" && !cafeServerStatsMenuAllowed()) return true;
   return false;
 }
 function setNavControlDisabled(control, disabled) {
@@ -790,6 +811,7 @@ const mainPageKeyToFlyoutItemId = {
   branding: "more-branding",
   fuziveer: "more-fuziveer",
   "black-listed": "more-black-listed",
+  "server-stats": "more-server-stats",
   privacy: "more-privacy-policy",
   terms: "more-terms-of-service",
   lineups: "strat-tips"
@@ -822,6 +844,9 @@ function findFlyoutItemDefinition(itemId) {
   for (const [flyoutType, menu] of Object.entries(flyoutData)) {
     const item = menu.items.find((entry) => entry.id === itemId);
     if (item) return { flyoutType, item };
+  }
+  if (itemId === "more-server-stats" && cafeServerStatsMenuAllowed()) {
+    return { flyoutType: "more", item: { id: "more-server-stats", name: "Server Stats", icon: "fa-chart-line" } };
   }
   const extra = flyoutNavExtras[itemId];
   if (extra) return { flyoutType: extra.flyoutType, item: extra };
@@ -4088,6 +4113,95 @@ function initScrollToTopButton() {
   window.addEventListener("resize", updateScrollToTopButton, { passive: true });
   updateScrollToTopButton();
 }
+const cafeMainContentImgPending = new Set();
+let cafeMainContentImgObserver = null;
+function cafeInvalidateMainContentImg(img) {
+  img.dataset.cafeImgLoadToken = "";
+  cafeMainContentImgPending.delete(img);
+}
+function cafeBindMainContentImageLoad(img) {
+  const main = document.getElementById("main-content");
+  const bar = document.getElementById("top-bar-image-load-bar");
+  const fill = document.getElementById("top-bar-image-load-bar-fill");
+  if (!main || !bar || !fill || !img || img.tagName !== "IMG" || !main.contains(img)) return;
+  const token = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  img.dataset.cafeImgLoadToken = token;
+  if (img.complete) {
+    if (img.naturalWidth > 0) return;
+    return;
+  }
+  cafeMainContentImgPending.add(img);
+  const onDone = () => {
+    if (img.dataset.cafeImgLoadToken !== token) return;
+    cafeMainContentImgPending.delete(img);
+    cafeSyncTopBarImageLoadBar();
+  };
+  img.addEventListener("load", onDone, { once: true });
+  img.addEventListener("error", onDone, { once: true });
+  cafeSyncTopBarImageLoadBar();
+}
+function cafeScanMainContentImages(root) {
+  const main = document.getElementById("main-content");
+  if (!main || !root) return;
+  if (root.nodeType === 1) {
+    if (root.tagName === "IMG" && main.contains(root)) {
+      cafeBindMainContentImageLoad(root);
+    }
+    root.querySelectorAll("img").forEach((img) => {
+      if (main.contains(img)) cafeBindMainContentImageLoad(img);
+    });
+  }
+}
+function cafeSyncTopBarImageLoadBar() {
+  const bar = document.getElementById("top-bar-image-load-bar");
+  const fill = document.getElementById("top-bar-image-load-bar-fill");
+  if (!bar || !fill) return;
+  const active = cafeMainContentImgPending.size > 0;
+  bar.classList.toggle("is-active", active);
+  fill.classList.toggle("is-indeterminate", active);
+  if (!active) {
+    fill.style.width = "0%";
+    bar.setAttribute("aria-hidden", "true");
+    bar.removeAttribute("aria-busy");
+    bar.removeAttribute("aria-label");
+    return;
+  }
+  bar.setAttribute("aria-hidden", "false");
+  bar.setAttribute("aria-busy", "true");
+  bar.setAttribute("aria-label", "Loading images");
+}
+function initTopBarImageLoadBar() {
+  const main = document.getElementById("main-content");
+  if (!main || cafeMainContentImgObserver) return;
+  cafeScanMainContentImages(main);
+  cafeMainContentImgObserver = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.type === "childList") {
+        m.addedNodes.forEach((node) => {
+          if (node.nodeType === 1) cafeScanMainContentImages(node);
+        });
+        m.removedNodes.forEach((node) => {
+          if (node.nodeType !== 1) return;
+          if (node.tagName === "IMG") cafeInvalidateMainContentImg(node);
+          node.querySelectorAll?.("img").forEach(cafeInvalidateMainContentImg);
+        });
+      }
+      if (m.type === "attributes" && m.target.tagName === "IMG" && (m.attributeName === "src" || m.attributeName === "srcset")) {
+        const img = m.target;
+        cafeInvalidateMainContentImg(img);
+        cafeBindMainContentImageLoad(img);
+      }
+    }
+    cafeSyncTopBarImageLoadBar();
+  });
+  cafeMainContentImgObserver.observe(main, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["src", "srcset"]
+  });
+  cafeSyncTopBarImageLoadBar();
+}
 function motionTimeoutMs(fallbackMs = MOTION_MS) {
   return isReducedMotionEnabled() ? 0 : fallbackMs;
 }
@@ -4183,6 +4297,7 @@ function applyAppSettings() {
   syncSettingsUiRefreshGlide();
   document.documentElement.classList.toggle("reduce-motion", appSettings.reducedMotion);
   if (appSettings.reducedMotion) snapUiMotionInstant();
+  syncTopBarPresenceStatus();
   if (currentMainPageKey === "default") {
     if (appSettings.reducedMotion) destroyHomeFeatureCardTilt();
     else initHomeFeatureCardTilt();
@@ -4920,6 +5035,145 @@ let cafePresenceReconnectTimer = null;
 let cafePresencePingTimer = null;
 let cafePresenceSnapshot = { count: 0, users: [] };
 let cafePresenceSelfId = "";
+let cafeServerHealthReachable = null;
+let cafeServerHealthTimer = null;
+let cafePageViewRecorded = false;
+let topbarPresenceDotsTimer = null;
+let topbarPresenceDotsStep = 0;
+let topbarPresenceStatusWasShowing = false;
+let topbarPresenceDotsUsedReducedMotion = false;
+function cafeHealthCheckUrl() {
+  const o = window.__CAFE_AUTH_ORIGIN;
+  let base = typeof o === "string" && o.trim() ? o.trim().replace(/\/$/, "") : "";
+  if (!base && (window.location.protocol === "http:" || window.location.protocol === "https:")) {
+    base = window.location.origin;
+  }
+  if (!base) return "";
+  return `${base}/api/health`;
+}
+function authApiOriginBase() {
+  const o = window.__CAFE_AUTH_ORIGIN;
+  let base = typeof o === "string" && o.trim() ? o.trim().replace(/\/$/, "") : "";
+  if (!base && (window.location.protocol === "http:" || window.location.protocol === "https:")) {
+    base = window.location.origin;
+  }
+  return base;
+}
+function authApiUrl(path) {
+  const base = authApiOriginBase();
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return base ? `${base}${p}` : p;
+}
+function serverStatsAllowedFromHealthPayload(data) {
+  return data && typeof data.serverStatsAllowed === "boolean" ? data.serverStatsAllowed : false;
+}
+function applyServerStatsAllowedFlag(allowed) {
+  const next = allowed === true;
+  const prev = window.__cafeServerStatsAllowed;
+  window.__cafeServerStatsAllowed = next;
+  if (prev !== next) {
+    if (activeFlyoutType === "more" && activeFlyoutParentBtn) {
+      openFlyout("more", activeFlyoutParentBtn);
+    }
+    applyEmptyPageNavDisabledState(document);
+    if (currentMainPageKey === "server-stats" && !cafeServerStatsMenuAllowed()) {
+      navigateToMainPage("default");
+    }
+  }
+}
+async function recordCafePageViewOnce() {
+  if (cafePageViewRecorded) return;
+  const base = authApiOriginBase();
+  if (!base) return;
+  cafePageViewRecorded = true;
+  try {
+    await fetch(authApiUrl("/api/site-stats/record"), {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store"
+    });
+  } catch {
+  }
+}
+async function checkCafeServerHealth() {
+  const url = cafeHealthCheckUrl();
+  if (!url) {
+    cafeServerHealthReachable = null;
+    applyServerStatsAllowedFlag(false);
+    syncTopBarPresenceStatus();
+    return;
+  }
+  try {
+    const ctrl = new AbortController();
+    const tid = window.setTimeout(() => ctrl.abort(), 6e3);
+    const res = await fetch(url, { credentials: "include", signal: ctrl.signal, cache: "no-store" });
+    clearTimeout(tid);
+    if (!res.ok) throw new Error("health_http");
+    const data = await res.json();
+    if (!data || data.ok !== true) throw new Error("health_body");
+    cafeServerHealthReachable = true;
+    void recordCafePageViewOnce();
+    applyServerStatsAllowedFlag(serverStatsAllowedFromHealthPayload(data));
+  } catch {
+    cafeServerHealthReachable = false;
+    applyServerStatsAllowedFlag(false);
+  }
+  syncTopBarPresenceStatus();
+}
+window.__cafeRefreshSessionPrivileges = function __cafeRefreshSessionPrivileges() {
+  return checkCafeServerHealth();
+};
+function initCafeServerHealthMonitor() {
+  if (cafeServerHealthTimer) return;
+  void checkCafeServerHealth();
+  cafeServerHealthTimer = window.setInterval(() => void checkCafeServerHealth(), 12e3);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void checkCafeServerHealth();
+  });
+  window.addEventListener("online", () => void checkCafeServerHealth());
+}
+function stopTopBarPresenceDotsAnimation(dotsEl) {
+  if (topbarPresenceDotsTimer != null) {
+    clearInterval(topbarPresenceDotsTimer);
+    topbarPresenceDotsTimer = null;
+  }
+  if (dotsEl) dotsEl.textContent = "";
+  topbarPresenceDotsStep = 0;
+}
+function syncTopBarPresenceStatus() {
+  const bar = document.getElementById("topbar-presence-status");
+  const dotsEl = document.getElementById("topbar-presence-status-dots");
+  if (!bar || !dotsEl) return;
+  const canCheck = Boolean(cafeHealthCheckUrl());
+  const show = canCheck && cafeServerHealthReachable === false;
+  if (!show) {
+    bar.classList.add("hidden");
+    bar.setAttribute("aria-hidden", "true");
+    stopTopBarPresenceDotsAnimation(dotsEl);
+    topbarPresenceStatusWasShowing = false;
+    return;
+  }
+  bar.classList.remove("hidden");
+  bar.removeAttribute("aria-hidden");
+  const reduced = isReducedMotionEnabled();
+  const needRestart =
+    !topbarPresenceStatusWasShowing || topbarPresenceDotsUsedReducedMotion !== reduced;
+  topbarPresenceStatusWasShowing = true;
+  topbarPresenceDotsUsedReducedMotion = reduced;
+  if (!needRestart) return;
+  stopTopBarPresenceDotsAnimation(dotsEl);
+  if (reduced) {
+    dotsEl.textContent = "...";
+    return;
+  }
+  const stepMs = 420;
+  function tick() {
+    topbarPresenceDotsStep = (topbarPresenceDotsStep + 1) % 4;
+    dotsEl.textContent = ".".repeat(topbarPresenceDotsStep);
+  }
+  tick();
+  topbarPresenceDotsTimer = window.setInterval(tick, stepMs);
+}
 const CAFE_PRESENCE_HIDE_KEY = "cafe_presence_hide_from_list";
 function getCafePresenceHideFromList() {
   try {
@@ -5246,14 +5500,23 @@ window.addEventListener("DOMContentLoaded", () => {
   initResponsiveLayout();
   initAppModalPortals();
   initScrollToTopButton();
+  initTopBarImageLoadBar();
+  initCafeServerHealthMonitor();
   if (typeof window.initDiscordAuth === "function") window.initDiscordAuth();
   if (typeof window.initCafeAuthUiGuard === "function") window.initCafeAuthUiGuard();
   initCafePresenceUi();
   window.addEventListener("cafe-discord-auth-change", () => {
+    applyEmptyPageNavDisabledState(document);
     const flyout = document.getElementById("flyout-panel");
     const flyoutOpen = flyout && !flyout.classList.contains("-translate-x-full") && flyout.getAttribute("aria-hidden") === "false";
     if (activeFlyoutType === "strats" && flyoutOpen && activeFlyoutParentBtn) {
       openFlyout("strats", activeFlyoutParentBtn);
+    }
+    if (activeFlyoutType === "more" && flyoutOpen && activeFlyoutParentBtn) {
+      openFlyout("more", activeFlyoutParentBtn);
+    }
+    if (currentMainPageKey === "server-stats" && !cafeServerStatsMenuAllowed()) {
+      navigateToMainPage("default");
     }
   });
   initSettingsModal();

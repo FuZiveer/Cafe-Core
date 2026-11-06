@@ -4,5 +4,6 @@
 *.key
 credentials.json
 node_modules/
+data/site-stats.json
 .DS_Store
 Thumbs.db

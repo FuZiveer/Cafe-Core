@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getAuthConfig, handleDiscordAuthRequest } from "./discord-auth.mjs";
 import { handleBlApiRequest } from "./bl-api.mjs";
+import { handleSiteStatsRequest } from "./server-stats-api.mjs";
 import { handleScrimUpgrade } from "./bl-scrim-ws.mjs";
 import { handlePresenceUpgrade } from "./presence-ws.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,6 +55,8 @@ const server = http.createServer(async (req, res) => {
     const cfg = getAuthConfig();
     const handledAuth = await handleDiscordAuthRequest(req, res, url);
     if (handledAuth) return;
+    const handledStats = await handleSiteStatsRequest(req, res, url, cfg);
+    if (handledStats) return;
     const handledBl = await handleBlApiRequest(req, res, url, cfg);
     if (handledBl) return;
   } catch (err) {
@@ -93,5 +96,5 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`Caf\xE9 Core server listening on port ${PORT}`);
   console.log(`  Local:  http://127.0.0.1:${PORT}`);
   if (origin !== `http://127.0.0.1:${PORT}`) console.log(`  Public: ${origin}`);
-  console.log("Discord sign-in: see DISCORD_AUTH.md");
+  console.log("Discord sign-in: set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI in .env");
 });
