@@ -602,7 +602,7 @@ body.sidebar-collapsed .parent-btn {
 }
 .top-bar-image-load-bar.is-active .top-bar-image-load-bar__fill.is-indeterminate {
   width: 40% !important;
-  animation: top-bar-load-bar-shimmer 1.1s ease-in-out infinite;
+  animation: top-bar-load-bar-shimmer 3s ease-in-out infinite;
 }
 @keyframes top-bar-load-bar-shimmer {
   0% {
