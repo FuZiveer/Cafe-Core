@@ -19,7 +19,11 @@ const wss = new WebSocketServer({ noServer: true });
 wss.on("connection", (ws) => {
   clients.add(ws);
   void readScrimRecord().then((record) => {
-    ws.send(scrimMessage(record));
+    if (ws.readyState === 1) ws.send(scrimMessage(record));
+  }).catch(() => {
+    if (ws.readyState === 1) {
+      ws.send(scrimMessage({ wins: 0, losses: 0 }));
+    }
   });
   ws.on("close", () => clients.delete(ws));
   ws.on("error", () => clients.delete(ws));
@@ -30,7 +34,4 @@ export function handleScrimUpgrade(request, socket, head, pathname) {
     wss.emit("connection", ws, request);
   });
   return true;
-}
-export function getScrimWebSocketPath() {
-  return SCRIM_WS_PATH;
 }

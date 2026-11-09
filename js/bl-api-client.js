@@ -3,7 +3,7 @@
   window.__cafeBlApi = {
     available: false,
     scrimCanEdit: false,
-    scrim: { wins: 0, losses: 1 }
+    scrim: { wins: 0, losses: 0 }
   };
   let scrimWs = null;
   let scrimWsReconnectTimer = null;

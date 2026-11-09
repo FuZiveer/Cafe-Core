@@ -4,7 +4,6 @@
 *.key
 credentials.json
 node_modules/
-data/site-stats.json
 data/bl-scrim-record.json
 .DS_Store
 Thumbs.db

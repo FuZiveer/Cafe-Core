@@ -14,7 +14,6 @@ const PAGE_FILES = {
   sensitivity: "pages/sensitivity.html",
   edpi: "pages/edpi.html",
   lineups: "pages/lineups.html",
-  "server-stats": "pages/server-stats.html",
   "aim-trainer": "pages/aim-trainer.html"
 };
 function toJsString(value) {

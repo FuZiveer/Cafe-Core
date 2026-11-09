@@ -22,7 +22,7 @@ export function normalizeScrimRecord(raw) {
 function readScrimRecordFromFileSync() {
   try {
     if (!fs.existsSync(SCRIM_DATA_PATH)) {
-      const initial = { wins: 0, losses: 1 };
+      const initial = { wins: 0, losses: 0 };
       fs.mkdirSync(path.dirname(SCRIM_DATA_PATH), { recursive: true });
       fs.writeFileSync(SCRIM_DATA_PATH, `${JSON.stringify(initial, null, 2)}
 `, "utf8");
@@ -31,7 +31,7 @@ function readScrimRecordFromFileSync() {
     const parsed = JSON.parse(fs.readFileSync(SCRIM_DATA_PATH, "utf8"));
     return normalizeScrimRecord(parsed);
   } catch {
-    return { wins: 0, losses: 1 };
+    return { wins: 0, losses: 0 };
   }
 }
 function writeScrimRecordToFileSync(record) {
@@ -41,10 +41,6 @@ function writeScrimRecordToFileSync(record) {
 `, "utf8");
   return normalized;
 }
-function scrimRecordHasScore(r) {
-  const n = normalizeScrimRecord(r);
-  return n.wins > 0 || n.losses > 0;
-}
 export async function readScrimRecord() {
   if (!usesUpstashRedis()) {
     return readScrimRecordFromFileSync();
@@ -52,17 +48,12 @@ export async function readScrimRecord() {
   try {
     const fromRedis = await upstashRedisGetJson(REDIS_KEY);
     if (fromRedis != null && typeof fromRedis === "object") {
-      const norm = normalizeScrimRecord(fromRedis);
-      if (scrimRecordHasScore(norm)) {
-        return norm;
-      }
+      return normalizeScrimRecord(fromRedis);
     }
     const fromFile = readScrimRecordFromFileSync();
-    if (scrimRecordHasScore(fromFile)) {
-      try {
-        await upstashRedisSetJson(REDIS_KEY, fromFile);
-      } catch {
-      }
+    try {
+      await upstashRedisSetJson(REDIS_KEY, fromFile);
+    } catch {
     }
     return fromFile;
   } catch {
@@ -70,14 +61,14 @@ export async function readScrimRecord() {
   }
 }
 export async function writeScrimRecord(record) {
+  const normalized = normalizeScrimRecord(record);
   if (!usesUpstashRedis()) {
-    return writeScrimRecordToFileSync(record);
+    return writeScrimRecordToFileSync(normalized);
   }
   try {
-    const normalized = normalizeScrimRecord(record);
     await upstashRedisSetJson(REDIS_KEY, normalized);
     return normalized;
   } catch {
-    return writeScrimRecordToFileSync(record);
+    return writeScrimRecordToFileSync(normalized);
   }
 }

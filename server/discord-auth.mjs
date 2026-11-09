@@ -8,7 +8,6 @@ const DISCORD_AUTHORIZE = "https://discord.com/api/oauth2/authorize";
 const DISCORD_TOKEN = "https://discord.com/api/oauth2/token";
 const DISCORD_USER = "https://discord.com/api/users/@me";
 const SESSION_COOKIE = "cafe_core_session";
-const SITE_STATS_ADMIN_USERNAME = String(process.env.SITE_STATS_ADMIN_USERNAME || "fuziveer").trim().toLowerCase();
 const STATE_COOKIE = "cafe_oauth_state";
 const RETURN_COOKIE = "cafe_oauth_return";
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 30;
@@ -337,11 +336,6 @@ export function getSessionUser(req) {
   const cookies = parseCookies(req.headers.cookie);
   return verifySession(cookies[SESSION_COOKIE], cfg.sessionSecret);
 }
-export function isSiteStatsAdminUser(user) {
-  if (!user) return false;
-  const name = String(user.username || "").trim().toLowerCase();
-  return Boolean(SITE_STATS_ADMIN_USERNAME && name === SITE_STATS_ADMIN_USERNAME);
-}
 export async function handleDiscordAuthRequest(req, res, url) {
   const cfg = getAuthConfig();
   const pathname = url.pathname;
@@ -349,13 +343,7 @@ export async function handleDiscordAuthRequest(req, res, url) {
   if (handleAuthOptions(req, res, cfg)) return true;
   if (pathname === "/api/health") {
     applyCors(req, res, cfg);
-    const user = getSessionUser(req);
-    sendJson(res, 200, {
-      ok: true,
-      discord: cfg.configured,
-      blApi: true,
-      serverStatsAllowed: isSiteStatsAdminUser(user)
-    });
+    sendJson(res, 200, { ok: true, discord: cfg.configured, blApi: true });
     return true;
   }
   if (pathname === "/api/auth/discord/config") {

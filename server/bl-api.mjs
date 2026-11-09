@@ -1,13 +1,17 @@
 import { applyCors, getSessionUser, sendJson } from "./discord-auth.mjs";
 import { readScrimRecord, writeScrimRecord } from "./bl-scrim-store.mjs";
 import { broadcastScrimRecord } from "./bl-scrim-ws.mjs";
+
 const BL_SCRIM_RECORD_EDITORS = new Set(["fuziveer", "rawenge", "rjwarrior", "jobless___", "kkv060", "two4ne"]);
+
 function usernameKey(user) {
   return String(user?.username || "").trim().toLowerCase();
 }
+
 function canEditScrim(user) {
   return BL_SCRIM_RECORD_EDITORS.has(usernameKey(user));
 }
+
 async function readJsonBody(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
@@ -19,6 +23,7 @@ async function readJsonBody(req) {
     return null;
   }
 }
+
 export async function handleBlApiRequest(req, res, url, cfg) {
   const pathname = url.pathname;
   if (pathname === "/api/bl/scrim-record" && req.method === "GET") {
@@ -50,7 +55,11 @@ export async function handleBlApiRequest(req, res, url, cfg) {
     }
     const record = await writeScrimRecord(body);
     broadcastScrimRecord(record);
-    sendJson(res, 200, { wins: record.wins, losses: record.losses, canEdit: true });
+    sendJson(res, 200, {
+      wins: record.wins,
+      losses: record.losses,
+      canEdit: true
+    });
     return true;
   }
   return false;

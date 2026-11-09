@@ -1,10 +1,11 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
+import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { getAuthConfig, handleDiscordAuthRequest } from "./discord-auth.mjs";
 import { handleBlApiRequest } from "./bl-api.mjs";
-import { handleSiteStatsRequest } from "./server-stats-api.mjs";
 import { handleScrimUpgrade } from "./bl-scrim-ws.mjs";
 import { handlePresenceUpgrade } from "./presence-ws.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +32,20 @@ function safePath(urlPath) {
   if (!resolved.startsWith(ROOT)) return null;
   return resolved;
 }
+const COMPRESSIBLE = new Set([".html", ".js", ".css", ".json", ".svg", ".mjs"]);
+const GZIP_MIN_BYTES = 512;
+function cacheControlForExt(ext) {
+  if (ext === ".html") return "no-cache";
+  if (COMPRESSIBLE.has(ext)) return "public, max-age=86400, stale-while-revalidate=604800";
+  return "public, max-age=2592000, immutable";
+}
+function sendStaticBody(res, data, headers, statusCode = 200) {
+  res.writeHead(statusCode, headers);
+  res.end(data);
+}
+function weakEtag(data) {
+  return `W/"${crypto.createHash("sha1").update(data).digest("base64")}"`;
+}
 function serveFile(req, res, url) {
   const filePath = safePath(url.pathname);
   if (!filePath) {
@@ -45,8 +60,39 @@ function serveFile(req, res, url) {
       return;
     }
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
-    res.end(data);
+    const type = MIME[ext] || "application/octet-stream";
+    const etag = weakEtag(data);
+    const headers = {
+      "Content-Type": type,
+      "Cache-Control": cacheControlForExt(ext),
+      ETag: etag
+    };
+    const ifNoneMatch = req.headers["if-none-match"];
+    if (ifNoneMatch === etag || ifNoneMatch === "*") {
+      res.writeHead(304, {
+        "Cache-Control": headers["Cache-Control"],
+        ETag: etag
+      });
+      res.end();
+      return;
+    }
+    const accept = String(req.headers["accept-encoding"] || "");
+    const mayGzip = COMPRESSIBLE.has(ext) && accept.includes("gzip") && data.length >= GZIP_MIN_BYTES;
+    if (!mayGzip) {
+      sendStaticBody(res, data, headers);
+      return;
+    }
+    zlib.gzip(data, { level: zlib.constants.Z_BEST_SPEED }, (gzipErr, compressed) => {
+      if (gzipErr || !compressed || compressed.length >= data.length) {
+        sendStaticBody(res, data, headers);
+        return;
+      }
+      sendStaticBody(res, compressed, {
+        ...headers,
+        "Content-Encoding": "gzip",
+        Vary: "Accept-Encoding"
+      });
+    });
   });
 }
 const server = http.createServer(async (req, res) => {
@@ -55,8 +101,6 @@ const server = http.createServer(async (req, res) => {
     const cfg = getAuthConfig();
     const handledAuth = await handleDiscordAuthRequest(req, res, url);
     if (handledAuth) return;
-    const handledStats = await handleSiteStatsRequest(req, res, url, cfg);
-    if (handledStats) return;
     const handledBl = await handleBlApiRequest(req, res, url, cfg);
     if (handledBl) return;
   } catch (err) {

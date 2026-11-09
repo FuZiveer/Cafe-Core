@@ -427,34 +427,170 @@
         losses: Math.max(0, Math.round(Number(s.losses) || 0))
       };
     }
-    return { wins: 0, losses: 1 };
+    return { wins: 0, losses: 0 };
   }
-  let blScrimRecordState = { wins: 0, losses: 1 };
+  async function saveBlScrimRecord(record) {
+    if (!window.__cafeBlApi?.available || typeof window.patchCafeScrimRecord !== "function") {
+      return false;
+    }
+    await window.patchCafeScrimRecord(record);
+    return true;
+  }
+  function canEditBlScrimCounter() {
+    return typeof window.canEditBlScrimRecord === "function" && window.canEditBlScrimRecord();
+  }
+  let blScrimRecordState = { wins: 0, losses: 0 };
+  let blScrimDisplayed = { wins: null, losses: null };
+  const BL_SCRIM_DIGIT_TRANSITION = "transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)";
+  function scrimDigitMotionEnabled() {
+    return !document.documentElement.classList.contains("reduce-motion");
+  }
+  function buildBlScrimDigitStrip() {
+    const strip = document.createElement("span");
+    strip.className = "bl-scrim-digit-strip";
+    for (let d = 0; d <= 9; d += 1) {
+      const digit = document.createElement("span");
+      digit.className = "bl-scrim-digit";
+      digit.textContent = String(d);
+      strip.appendChild(digit);
+    }
+    return strip;
+  }
+  function ensureBlScrimDigitGroup(container, value) {
+    const text = String(Math.max(0, Math.round(Number(value) || 0)));
+    let group = container.querySelector(".bl-scrim-digit-group");
+    if (!group) {
+      group = document.createElement("span");
+      group.className = "bl-scrim-digit-group";
+      group.setAttribute("aria-hidden", "true");
+      container.replaceChildren(group);
+    }
+    while (group.children.length < text.length) {
+      const slot = document.createElement("span");
+      slot.className = "bl-scrim-digit-slot";
+      slot.appendChild(buildBlScrimDigitStrip());
+      group.appendChild(slot);
+    }
+    while (group.children.length > text.length) {
+      group.lastElementChild?.remove();
+    }
+    return { group, text };
+  }
+  function setBlScrimDigitSlot(slot, digitChar, animate, delayMs) {
+    const strip = slot.querySelector(".bl-scrim-digit-strip");
+    if (!strip) return;
+    const d = Math.max(0, Math.min(9, Number(digitChar) || 0));
+    if (!animate || !scrimDigitMotionEnabled()) {
+      strip.style.transition = "none";
+      strip.style.transitionDelay = "0ms";
+      strip.style.transform = `translate3d(0, calc(${-d} * var(--bl-scrim-digit-step, 1em)), 0)`;
+      void strip.offsetHeight;
+      strip.style.transition = BL_SCRIM_DIGIT_TRANSITION;
+      return;
+    }
+    strip.style.transitionDelay = `${delayMs}ms`;
+    strip.style.transform = `translate3d(0, calc(${-d} * var(--bl-scrim-digit-step, 1em)), 0)`;
+  }
+  function paintBlScrimAnimatedNumber(container, value, previousValue) {
+    const animate = previousValue !== null && previousValue !== value && scrimDigitMotionEnabled();
+    const { text } = ensureBlScrimDigitGroup(container, value);
+    const slots = container.querySelectorAll(".bl-scrim-digit-slot");
+    const prevText = previousValue === null ? text : String(Math.max(0, Math.round(Number(previousValue) || 0)));
+    const maxLen = Math.max(text.length, prevText.length);
+    text.split("").forEach((ch, index) => {
+      const delay = animate ? (maxLen - 1 - index) * 45 : 0;
+      setBlScrimDigitSlot(slots[index], ch, animate, delay);
+    });
+    container.setAttribute("aria-label", text);
+  }
   function paintBlScrimRecord() {
     const winsEl = document.getElementById("bl-scrim-wins");
     const lossesEl = document.getElementById("bl-scrim-losses");
     if (!winsEl || !lossesEl) return;
-    winsEl.textContent = String(blScrimRecordState.wins);
-    lossesEl.textContent = String(blScrimRecordState.losses);
+    paintBlScrimAnimatedNumber(winsEl, blScrimRecordState.wins, blScrimDisplayed.wins);
+    paintBlScrimAnimatedNumber(lossesEl, blScrimRecordState.losses, blScrimDisplayed.losses);
+    blScrimDisplayed = { wins: blScrimRecordState.wins, losses: blScrimRecordState.losses };
   }
   function applyBlScrimRecordFromStore() {
     blScrimRecordState = loadBlScrimRecord();
     paintBlScrimRecord();
+    window.syncBlScrimEditControls?.();
   }
   async function refreshBlScrimFromServer() {
     if (!document.getElementById("bl-scrim-counter")) return;
     await window.refreshCafeBlApiState?.();
     applyBlScrimRecordFromStore();
   }
+  function stripScrimAdjustControls() {
+    document.querySelectorAll(".bl-scrim-counter-adjust").forEach((el) => el.remove());
+    document.querySelectorAll("#bl-scrim-counter").forEach((section) => {
+      section.classList.remove("bl-scrim-counter--editable");
+      section.querySelectorAll("[data-bl-scrim-edit]").forEach((wrap) => {
+        wrap.hidden = true;
+      });
+    });
+  }
+  function createScrimAdjustButton(key, delta) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className =
+      "bl-scrim-counter-adjust topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0";
+    btn.dataset.scrimDelta = `${key},${delta}`;
+    btn.setAttribute(
+      "aria-label",
+      delta > 0 ? `Increase scrim ${key}` : `Decrease scrim ${key}`
+    );
+    btn.innerHTML = delta > 0
+      ? '<i class="fa-solid fa-plus text-xs" aria-hidden="true"></i>'
+      : '<i class="fa-solid fa-minus text-xs" aria-hidden="true"></i>';
+    return btn;
+  }
   window.syncBlScrimEditControls = function syncBlScrimEditControls() {
+    stripScrimAdjustControls();
+    if (!canEditBlScrimCounter()) return;
+    const section = document.getElementById("bl-scrim-counter");
+    if (!section) return;
+    section.classList.add("bl-scrim-counter--editable");
+    section.querySelectorAll("[data-bl-scrim-edit]").forEach((wrap) => {
+      const key = wrap.dataset.blScrimEdit;
+      if (key !== "wins" && key !== "losses") return;
+      const label = wrap.querySelector(".bl-scrim-counter-edit-label");
+      if (!label) return;
+      wrap.hidden = false;
+      wrap.insertBefore(createScrimAdjustButton(key, -1), label);
+      wrap.appendChild(createScrimAdjustButton(key, 1));
+    });
   };
   function initBlScrimCounter() {
     const section = document.getElementById("bl-scrim-counter");
     if (!section) return;
     if (!document.getElementById("bl-scrim-wins") || !document.getElementById("bl-scrim-losses")) return;
     applyBlScrimRecordFromStore();
-    if (section.dataset.scrimApiBound !== "1") {
-      section.dataset.scrimApiBound = "1";
+    if (section.dataset.scrimBound !== "1") {
+      section.dataset.scrimBound = "1";
+      section.addEventListener("click", (event) => {
+        const btn = event.target.closest?.("[data-scrim-delta]");
+        if (!btn) return;
+        if (!canEditBlScrimCounter()) return;
+        const parts = String(btn.dataset.scrimDelta || "").split(",");
+        const key = parts[0];
+        const delta = Number(parts[1]);
+        if (key !== "wins" && key !== "losses") return;
+        if (!Number.isFinite(delta)) return;
+        const next = {
+          ...blScrimRecordState,
+          [key]: Math.max(0, blScrimRecordState[key] + delta)
+        };
+        void (async () => {
+          try {
+            const ok = await saveBlScrimRecord(next);
+            if (!ok) throw new Error("save_failed");
+            applyBlScrimRecordFromStore();
+          } catch {
+            window.CafeCore?.Toast?.show?.("Could not update scrim record");
+          }
+        })();
+      });
       window.addEventListener("cafe-bl-api-updated", () => {
         if (!document.getElementById("bl-scrim-counter")) return;
         applyBlScrimRecordFromStore();

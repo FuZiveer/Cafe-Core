@@ -5,18 +5,18 @@
   function byId(id) {
     return document.getElementById(id);
   }
-  function setCurrentDiscordUser(user) {
-    currentDiscordUser = user && typeof user === "object" ? user : null;
-    window.dispatchEvent(new CustomEvent("cafe-discord-auth-change", {
-      detail: { user: currentDiscordUser }
-    }));
-  }
   function discordUsernameKey(user) {
     return String(user?.username || "").trim().toLowerCase();
   }
   function canEditBlScrimRecordForUser(user) {
     if (!user) return false;
     return BL_SCRIM_RECORD_EDITORS.has(discordUsernameKey(user));
+  }
+  function setCurrentDiscordUser(user) {
+    currentDiscordUser = user && typeof user === "object" ? user : null;
+    window.dispatchEvent(new CustomEvent("cafe-discord-auth-change", {
+      detail: { user: currentDiscordUser }
+    }));
   }
   window.getDiscordAuthUser = function getDiscordAuthUser() {
     return currentDiscordUser;
@@ -331,9 +331,6 @@
     }
     if (typeof window.refreshCafeBlApiState === "function") {
       void window.refreshCafeBlApiState();
-    }
-    if (typeof window.__cafeRefreshSessionPrivileges === "function") {
-      void window.__cafeRefreshSessionPrivileges();
     }
   }
   window.initDiscordAuth = function initDiscordAuth() {
