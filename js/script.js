@@ -52,7 +52,7 @@ let selectedFlyoutItem = null;
 let isCollapsed = false;
 const brandColors = [
   { name: "Raven", hex: "#0a0a0c", usage: "App background" },
-  { name: "Cursed Black", hex: "#141418", usage: "Sidebar, header, panels" },
+  { name: "Dark Void", hex: "#131317", usage: "Sidebar, header, panels" },
   { name: "Gluon Grey", hex: "#1a1a1e", usage: "Borders, hover surfaces" },
   { name: "Closed Shutter", hex: "#26262b", usage: "Strong borders, controls" },
   { name: "Future Fuchsia", hex: "#ff1e43", usage: "Primary accent" },
@@ -64,7 +64,7 @@ const BRAND_LOGO_SRC = "images/Caf%C3%A9%20Core.png";
 const BRAND_LOGO_FALLBACK = "";
 const brandLogoBackgrounds = [
   { name: "Raven", hex: "#0a0a0c" },
-  { name: "Cursed Black", hex: "#141418" },
+  { name: "Dark Void", hex: "#131317" },
   { name: "Blue Blouse", hex: "#94a3b8" }
 ];
 const appsCatalog = [

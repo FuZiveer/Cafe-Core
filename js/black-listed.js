@@ -125,7 +125,6 @@
     else if (member.gridCenter) cardClass += " bl-roster-card--grid-center";
     const cardHtml = `
         <article class="${cardClass}">
-            <div class="bl-roster-card-accent" aria-hidden="true"></div>
             <div class="bl-roster-card-body">
                 <header class="bl-roster-card-head">
                     <div class="bl-roster-card-head-main">
