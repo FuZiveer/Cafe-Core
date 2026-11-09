@@ -1283,30 +1283,23 @@ html.reduce-motion *::after {
 .bl-scrim-counter-label {
   margin: 0 0 0.75rem;
 }
-.bl-scrim-counter-top {
+.bl-scrim-counter-score {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-  min-height: 1.75rem;
-}
-.bl-scrim-counter-edit {
-  display: none;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
+  gap: 0.625rem;
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
+}
+.bl-scrim-counter-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 0.35rem;
+  min-width: 0;
 }
-.bl-scrim-counter--editable .bl-scrim-counter-edit {
-  display: inline-flex;
-}
-.bl-scrim-counter-edit--wins {
-  margin-right: auto;
-}
-.bl-scrim-counter-edit--losses {
-  margin-left: auto;
-}
-.bl-scrim-counter-edit-label {
+.bl-scrim-counter-side-label {
   font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -1314,25 +1307,27 @@ html.reduce-motion *::after {
   padding: 0 0.15rem;
   user-select: none;
 }
-.bl-scrim-counter-edit--wins .bl-scrim-counter-edit-label {
+.bl-scrim-counter-side--wins .bl-scrim-counter-side-label {
   color: #86efac;
 }
-.bl-scrim-counter-edit--losses .bl-scrim-counter-edit-label {
+.bl-scrim-counter-side--losses .bl-scrim-counter-side-label {
   color: #fca5a5;
 }
-.bl-scrim-counter-score {
+.bl-scrim-counter-side-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.625rem;
-  width: 100%;
-  max-width: 100%;
-  margin-inline: auto;
+  gap: 0.35rem;
 }
-.bl-scrim-counter-side-controls {
-  display: flex;
+.bl-scrim-counter-adjust-stack {
+  display: none;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+.bl-scrim-counter--editable .bl-scrim-counter-adjust-stack {
+  display: flex;
 }
 .bl-scrim-counter-num {
   --bl-scrim-digit-step: 1em;
@@ -1392,6 +1387,8 @@ html.reduce-motion .bl-scrim-digit-strip {
 }
 .bl-scrim-counter-colon {
   flex: 0 0 auto;
+  align-self: flex-end;
+  margin-bottom: 0.08em;
   font-size: clamp(1.75rem, 4vw, 2.25rem);
   font-weight: 700;
   line-height: 1;

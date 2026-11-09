@@ -551,14 +551,12 @@
     const section = document.getElementById("bl-scrim-counter");
     if (!section) return;
     section.classList.add("bl-scrim-counter--editable");
-    section.querySelectorAll("[data-bl-scrim-edit]").forEach((wrap) => {
-      const key = wrap.dataset.blScrimEdit;
+    section.querySelectorAll("[data-bl-scrim-edit]").forEach((stack) => {
+      const key = stack.dataset.blScrimEdit;
       if (key !== "wins" && key !== "losses") return;
-      const label = wrap.querySelector(".bl-scrim-counter-edit-label");
-      if (!label) return;
-      wrap.hidden = false;
-      wrap.insertBefore(createScrimAdjustButton(key, -1), label);
-      wrap.appendChild(createScrimAdjustButton(key, 1));
+      stack.hidden = false;
+      stack.appendChild(createScrimAdjustButton(key, 1));
+      stack.appendChild(createScrimAdjustButton(key, -1));
     });
   };
   function initBlScrimCounter() {

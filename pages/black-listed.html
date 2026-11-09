@@ -11,21 +11,21 @@
                 </header>
                 <section id="bl-scrim-counter" class="bl-scrim-counter home-hero-panel" data-auth-protected="scrim-edit" aria-label="Scrim record">
                     <p class="bl-scrim-counter-label text-sm font-bold tracking-widest uppercase text-slate-400">Scrim record</p>
-                    <div class="bl-scrim-counter-top">
-                        <div class="bl-scrim-counter-edit bl-scrim-counter-edit--wins" data-bl-scrim-edit="wins" hidden>
-                            <span class="bl-scrim-counter-edit-label">Win</span>
-                        </div>
-                        <div class="bl-scrim-counter-edit bl-scrim-counter-edit--losses" data-bl-scrim-edit="losses" hidden>
-                            <span class="bl-scrim-counter-edit-label">Lose</span>
-                        </div>
-                    </div>
                     <div class="bl-scrim-counter-score">
-                        <div class="bl-scrim-counter-side-controls" data-bl-scrim-side="wins">
-                            <span id="bl-scrim-wins" class="bl-scrim-counter-num" role="status" aria-live="polite" aria-atomic="true" aria-label="0"></span>
+                        <div class="bl-scrim-counter-side bl-scrim-counter-side--wins">
+                            <span class="bl-scrim-counter-side-label">Win</span>
+                            <div class="bl-scrim-counter-side-row">
+                                <div class="bl-scrim-counter-adjust-stack" data-bl-scrim-edit="wins" hidden></div>
+                                <span id="bl-scrim-wins" class="bl-scrim-counter-num" role="status" aria-live="polite" aria-atomic="true" aria-label="0"></span>
+                            </div>
                         </div>
                         <span class="bl-scrim-counter-colon" aria-hidden="true">:</span>
-                        <div class="bl-scrim-counter-side-controls" data-bl-scrim-side="losses">
-                            <span id="bl-scrim-losses" class="bl-scrim-counter-num" role="status" aria-live="polite" aria-atomic="true" aria-label="0"></span>
+                        <div class="bl-scrim-counter-side bl-scrim-counter-side--losses">
+                            <span class="bl-scrim-counter-side-label">Lose</span>
+                            <div class="bl-scrim-counter-side-row">
+                                <span id="bl-scrim-losses" class="bl-scrim-counter-num" role="status" aria-live="polite" aria-atomic="true" aria-label="0"></span>
+                                <div class="bl-scrim-counter-adjust-stack" data-bl-scrim-edit="losses" hidden></div>
+                            </div>
                         </div>
                     </div>
                 </section>
