@@ -4,7 +4,7 @@
                     <p class="text-sm text-slate-400 mt-2 tracking-wide">Checks for CPU or GPU bottlenecks in your build</p>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mb-3">
-                    <div class="bottleneck-field bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                    <div class="bottleneck-field bg-matte-900 rounded-lg p-4 flex flex-col gap-3 min-w-0">
                         <div class="bottleneck-part-header flex items-center justify-between gap-2 min-w-0 min-h-9">
                             <span class="text-sm font-bold tracking-widest uppercase text-white shrink-0">CPU</span>
                         </div>
@@ -16,7 +16,7 @@
                             <div id="bottleneck-cpu-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="CPU options"></div>
                         </div>
                     </div>
-                    <div class="bottleneck-field bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                    <div class="bottleneck-field bg-matte-900 rounded-lg p-4 flex flex-col gap-3 min-w-0">
                         <div class="bottleneck-part-header flex items-center justify-between gap-2 min-w-0 min-h-9">
                             <span class="text-sm font-bold tracking-widest uppercase text-white shrink-0">GPU</span>
                             <button type="button" id="bottleneck-detect-gpu-btn" class="bottleneck-detect-gpu-btn ui-interactive" aria-label="Automatically set GPU via WebGL">
@@ -46,7 +46,7 @@
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3 items-stretch">
-                    <section class="bottleneck-chart bg-matte-900 rounded-lg p-6 border border-matte-800" aria-live="polite">
+                    <section class="bottleneck-chart bg-matte-900 rounded-lg p-6" aria-live="polite">
                         <h3 class="text-sm font-bold tracking-widest uppercase text-slate-400 mb-6">Bottleneck estimate</h3>
                         <div class="space-y-3">
                             <div class="bottleneck-bar-row flex items-center gap-3">
@@ -66,7 +66,7 @@
                         </div>
                         <p id="bottleneck-summary" class="text-sm text-slate-400 mt-6 tracking-wide leading-relaxed">Select a CPU and GPU to see an estimate.</p>
                     </section>
-                    <section id="bottleneck-recommend" class="bottleneck-chart bg-matte-900 rounded-lg p-6 border border-matte-800 flex flex-col" aria-live="polite">
+                    <section id="bottleneck-recommend" class="bottleneck-chart bg-matte-900 rounded-lg p-6 flex flex-col" aria-live="polite">
                         <h3 class="text-sm font-bold tracking-widest uppercase text-slate-400 mb-6">Pairing suggestion</h3>
                         <p id="bottleneck-recommend-kind" class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-2">—</p>
                         <p id="bottleneck-recommend-name" class="text-lg font-semibold text-white tracking-wide leading-snug">—</p>

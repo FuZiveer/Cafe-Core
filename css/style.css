@@ -19,6 +19,90 @@
   --ui-locked-opacity: 0.55;
   --ui-muted-opacity: 0.45;
   --ui-nav-disabled-opacity: 0.42;
+  --ui-chamfer: 1rem;
+  /* TL/BR: chamfer; TR/BL: quarter-circle approximation (no inward notch points). */
+  --ui-chamfer-clip: polygon(
+    var(--ui-chamfer) 0,
+    calc(100% - var(--radius-ui)) 0,
+    calc(100% - calc(var(--radius-ui) * 0.618)) calc(var(--radius-ui) * 0.076),
+    calc(100% - calc(var(--radius-ui) * 0.076)) calc(var(--radius-ui) * 0.618),
+    100% var(--radius-ui),
+    100% calc(100% - var(--ui-chamfer)),
+    calc(100% - var(--ui-chamfer)) 100%,
+    var(--radius-ui) 100%,
+    calc(var(--radius-ui) * 0.618) calc(100% - calc(var(--radius-ui) * 0.076)),
+    calc(var(--radius-ui) * 0.076) calc(100% - calc(var(--radius-ui) * 0.618)),
+    0 calc(100% - var(--radius-ui)),
+    0 var(--ui-chamfer)
+  );
+  /* TR/BL chamfer; TL/BR: quarter-circle approximation. */
+  --ui-chamfer-clip-tr-bl: polygon(
+    0 var(--radius-ui),
+    calc(var(--radius-ui) * 0.076) calc(var(--radius-ui) * 0.618),
+    calc(var(--radius-ui) * 0.618) calc(var(--radius-ui) * 0.076),
+    var(--radius-ui) 0,
+    calc(100% - var(--ui-chamfer)) 0,
+    100% var(--ui-chamfer),
+    100% calc(100% - var(--radius-ui)),
+    calc(100% - calc(var(--radius-ui) * 0.076)) calc(100% - calc(var(--radius-ui) * 0.618)),
+    calc(100% - calc(var(--radius-ui) * 0.618)) calc(100% - calc(var(--radius-ui) * 0.076)),
+    calc(100% - var(--radius-ui)) 100%,
+    var(--ui-chamfer) 100%,
+    0 calc(100% - var(--ui-chamfer))
+  );
+  /* TL + TR chamfer; BL + BR: quarter-circle approximation. */
+  --ui-chamfer-clip-tl-tr: polygon(
+    var(--ui-chamfer) 0,
+    calc(100% - var(--ui-chamfer)) 0,
+    100% var(--ui-chamfer),
+    100% calc(100% - var(--radius-ui)),
+    calc(100% - calc(var(--radius-ui) * 0.076)) calc(100% - calc(var(--radius-ui) * 0.618)),
+    calc(100% - calc(var(--radius-ui) * 0.618)) calc(100% - calc(var(--radius-ui) * 0.076)),
+    calc(100% - var(--radius-ui)) 100%,
+    var(--radius-ui) 100%,
+    calc(var(--radius-ui) * 0.618) calc(100% - calc(var(--radius-ui) * 0.076)),
+    calc(var(--radius-ui) * 0.076) calc(100% - calc(var(--radius-ui) * 0.618)),
+    0 calc(100% - var(--radius-ui)),
+    0 var(--ui-chamfer)
+  );
+  /* Chamfer on all four corners (TL, TR, BR, BL). */
+  --ui-chamfer-clip-four: polygon(
+    var(--ui-chamfer) 0,
+    calc(100% - var(--ui-chamfer)) 0,
+    100% var(--ui-chamfer),
+    100% calc(100% - var(--ui-chamfer)),
+    calc(100% - var(--ui-chamfer)) 100%,
+    var(--ui-chamfer) 100%,
+    0 calc(100% - var(--ui-chamfer)),
+    0 var(--ui-chamfer)
+  );
+}
+.ui-chamfer-panel,
+.main-page .bottleneck-field,
+.main-page .bottleneck-chart,
+.main-page .about-section,
+.main-page .brand-color-row,
+.main-page .brand-logo-row,
+.main-page .app-card,
+.main-page #edpi-results,
+.main-page #sens-results,
+.main-page #lineups-game-panel,
+.main-page .aim-trainer-browser,
+.settings-modal-panel,
+.brand-logo-modal-panel,
+.cafe-presence-modal-panel,
+#lineups-video-modal .lineups-video-modal-panel,
+#aim-trainer-settings-modal .settings-modal-panel {
+  border: none;
+  border-radius: 0;
+  clip-path: var(--ui-chamfer-clip);
+}
+.settings-modal-panel,
+.brand-logo-modal-panel,
+.cafe-presence-modal-panel,
+#lineups-video-modal .lineups-video-modal-panel,
+#aim-trainer-settings-modal .settings-modal-panel {
+  --ui-chamfer: 1.25rem;
 }
 html {
   scroll-behavior: smooth;
@@ -230,11 +314,31 @@ textarea:focus {
     transform var(--motion-duration) var(--motion-ease),
     visibility 0s linear var(--motion-duration);
 }
+#topbar-actions .discord-auth-profile-btn.topbar-action-btn {
+  background-color: #141418;
+  border-color: #1a1a1e;
+  color: #e2e8f0;
+}
+#topbar-actions .discord-auth-profile-btn.topbar-action-btn:hover,
+#topbar-actions .discord-auth-profile-btn.topbar-action-btn:focus-visible {
+  background-color: #141418;
+  border-color: #1a1a1e;
+  color: #e2e8f0;
+}
+#topbar-actions .discord-auth-profile-btn.topbar-action-btn[aria-expanded=true] {
+  background-color: #1a1a1e;
+  color: #fff;
+}
 .discord-auth-profile-btn .discord-auth-chevron {
-  transition: transform var(--motion-duration) var(--motion-ease);
+  color: #94a3b8;
+  transition-property: color, transform;
+  transition-duration: var(--motion-duration);
+  transition-timing-function: var(--motion-ease);
+  transform: rotate(0deg);
 }
 .discord-auth-profile-btn[aria-expanded=true] .discord-auth-chevron {
   transform: rotate(180deg);
+  color: #ff1e43;
 }
 html.reduce-motion .discord-auth-profile-btn .discord-auth-chevron {
   transition: none;
@@ -242,9 +346,6 @@ html.reduce-motion .discord-auth-profile-btn .discord-auth-chevron {
 #notification-dropdown[data-notification-portaled="1"],
 .discord-auth-menu[data-discord-menu-portaled="1"] {
   position: fixed;
-}
-#notification-dropdown.dropdown-open,
-.discord-auth-menu.dropdown-open {
   z-index: 10300;
 }
 #notification-dropdown.dropdown-open,
@@ -266,6 +367,15 @@ html.reduce-motion .discord-auth-profile-btn .discord-auth-chevron {
   transform: translate3d(0, -0.25rem, 0);
   visibility: hidden;
   pointer-events: none;
+  transition:
+    opacity var(--motion-duration) var(--motion-ease),
+    transform var(--motion-duration) var(--motion-ease),
+    visibility 0s linear var(--motion-duration);
+}
+html.reduce-motion #notification-dropdown,
+html.reduce-motion .discord-auth-menu,
+html.reduce-motion .tool-picklist-menu {
+  transition: none;
 }
 body {
   background-color: #0a0a0c;
@@ -760,6 +870,19 @@ body.layout-mobile .scroll-to-top-btn {
   width: calc((100% - 1.5rem) / 3);
   max-width: calc((100% - 1.5rem) / 3);
 }
+#page-branding #brand-color-list > .brand-color-row:first-child,
+#page-branding #brand-color-list > .brand-color-list-centered-row:nth-child(4) > .brand-color-row:first-child,
+#page-branding #brand-color-list > .brand-color-list-centered-row:nth-child(5) > .brand-color-row:first-child,
+#page-branding #brand-logo-list > .brand-logo-list-centered-row:nth-child(1) > .brand-logo-row:first-child {
+  clip-path: var(--ui-chamfer-clip-tr-bl);
+}
+#page-branding #brand-color-list > .brand-color-row:nth-child(2),
+#page-branding #brand-color-list > .brand-color-list-centered-row:nth-child(5) > .brand-color-row:nth-child(2) {
+  clip-path: var(--ui-chamfer-clip-tl-tr);
+}
+#page-branding #brand-logo-list > .brand-logo-list-centered-row:nth-child(2) > .brand-logo-row {
+  clip-path: var(--ui-chamfer-clip-tl-tr);
+}
 body.brand-logo-modal-open,
 body.settings-modal-open,
 body.cafe-presence-modal-open,
@@ -818,8 +941,8 @@ body.bl-roster-player-modal-open {
 }
 .settings-tab-row {
   --settings-tab-gap: 0.25rem;
-  --settings-tab-padding: 0.25rem;
-  --settings-tab-btn-height: calc(2.8125rem - (var(--settings-tab-padding) * 2) - 2px);
+  --settings-tab-padding: 0.5rem;
+  --settings-tab-btn-height: 2.1875rem;
   box-sizing: border-box;
   position: relative;
   display: flex;
@@ -827,8 +950,9 @@ body.bl-roster-player-modal-open {
   gap: var(--settings-tab-gap);
   padding: var(--settings-tab-padding);
   background-color: #141418;
-  border: 1px solid #1a1a1e;
+  border: none;
   border-radius: var(--radius-ui);
+  clip-path: none;
   min-width: 7.25rem;
   overflow: hidden;
 }
@@ -837,7 +961,9 @@ body.bl-roster-player-modal-open {
   left: var(--settings-tab-padding);
   right: var(--settings-tab-padding);
   z-index: 0;
+  border: none;
   border-radius: var(--radius-ui);
+  clip-path: none;
   background-color: #1a1a1e;
   pointer-events: none;
   transition: top var(--motion-duration) var(--motion-ease), height var(--motion-duration) var(--motion-ease);
@@ -859,7 +985,8 @@ html.reduce-motion .settings-tab-glider {
   min-height: var(--settings-tab-btn-height);
   padding: 0 0.75rem;
   border: none;
-  border-radius: var(--radius-ui);
+  border-radius: 0;
+  clip-path: var(--settings-tab-btn-clip);
   background: transparent;
   font-family: inherit;
   font-size: 0.875rem;
@@ -1221,6 +1348,10 @@ html.reduce-motion *::after {
 .about-section {
   border: 1px solid #1a1a1e;
 }
+#page-fuziveer .grid.grid-cols-2 > .about-section:nth-child(2),
+#page-fuziveer .grid.grid-cols-2 > .about-section:nth-child(3) {
+  clip-path: var(--ui-chamfer-clip-tr-bl);
+}
 .bl-roster-page {
   position: relative;
 }
@@ -1547,7 +1678,7 @@ html.reduce-motion .bl-roster-igl-focus-row::before {
 }
 .bl-roster-card {
   --bl-roster-chamfer: 1.35rem;
-  --bl-roster-clip: polygon( var(--bl-roster-chamfer) 0, calc(100% - var(--radius-ui)) 0, calc(100% - 0.075rem) 0.075rem, 100% var(--radius-ui), 100% calc(100% - var(--bl-roster-chamfer)), calc(100% - var(--bl-roster-chamfer)) 100%, var(--radius-ui) 100%, 0.075rem calc(100% - 0.075rem), 0 calc(100% - var(--radius-ui)), 0 var(--bl-roster-chamfer) );
+  --bl-roster-clip: polygon( var(--bl-roster-chamfer) 0, calc(100% - var(--radius-ui)) 0, calc(100% - calc(var(--radius-ui) * 0.618)) calc(var(--radius-ui) * 0.076), calc(100% - calc(var(--radius-ui) * 0.076)) calc(var(--radius-ui) * 0.618), 100% var(--radius-ui), 100% calc(100% - var(--bl-roster-chamfer)), calc(100% - var(--bl-roster-chamfer)) 100%, var(--radius-ui) 100%, calc(var(--radius-ui) * 0.618) calc(100% - calc(var(--radius-ui) * 0.076)), calc(var(--radius-ui) * 0.076) calc(100% - calc(var(--radius-ui) * 0.618)), 0 calc(100% - var(--radius-ui)), 0 var(--bl-roster-chamfer) );
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1737,11 +1868,14 @@ html.reduce-motion .bl-roster-igl-focus-row::before {
   display: none;
 }
 .bl-roster-modal-peak-rail-inner {
+  --ui-chamfer: 0.65rem;
   box-sizing: border-box;
   padding: 0.75rem 0.875rem;
   background-color: #141418;
-  border: 1px solid #1a1a1e;
-  border-radius: var(--radius-ui);
+  border: none;
+  border-radius: 0;
+  clip-path: var(--ui-chamfer-clip-tr-bl);
+  overflow: hidden;
   text-align: center;
 }
 .bl-roster-modal-peak-icon {
@@ -2094,6 +2228,72 @@ html.reduce-motion .bl-roster-igl-focus-row::before {
 .legal-page a {
   text-decoration: none;
 }
+.legal-accordion-heading {
+  margin: 0;
+}
+.legal-accordion-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.legal-accordion-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ff1e43;
+}
+.legal-accordion-chevron {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  transition: transform var(--motion-duration) var(--motion-ease), color var(--motion-duration) var(--motion-ease);
+}
+.legal-accordion.is-open .legal-accordion-chevron {
+  transform: rotate(180deg);
+  color: #94a3b8;
+}
+.legal-accordion-trigger:hover .legal-accordion-chevron,
+.legal-accordion-trigger:focus-visible .legal-accordion-chevron {
+  color: #e2e8f0;
+}
+.legal-accordion-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--motion-duration) var(--motion-ease);
+}
+.legal-accordion.is-open .legal-accordion-panel {
+  grid-template-rows: 1fr;
+}
+.legal-accordion-body {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0;
+  opacity: 0;
+  transition: opacity var(--motion-duration) var(--motion-ease), padding-top var(--motion-duration) var(--motion-ease);
+}
+.legal-accordion.is-open .legal-accordion-body {
+  padding-top: 0.75rem;
+  opacity: 1;
+}
+html.reduce-motion .legal-accordion-chevron,
+html.reduce-motion .legal-accordion-panel,
+html.reduce-motion .legal-accordion-body {
+  transition: none;
+}
 .page-intro {
   text-align: center;
 }
@@ -2101,12 +2301,109 @@ html.reduce-motion .bl-roster-igl-focus-row::before {
   justify-content: center;
 }
 .app-card {
-  border: 1px solid #1a1a1e;
+  border: none;
+}
+.home-hub {
+  --home-chip-chamfer: 0.55rem;
+  --home-chip-clip: polygon(
+    var(--home-chip-chamfer) 0,
+    calc(100% - var(--radius-ui)) 0,
+    calc(100% - calc(var(--radius-ui) * 0.618)) calc(var(--radius-ui) * 0.076),
+    calc(100% - calc(var(--radius-ui) * 0.076)) calc(var(--radius-ui) * 0.618),
+    100% var(--radius-ui),
+    100% calc(100% - var(--home-chip-chamfer)),
+    calc(100% - var(--home-chip-chamfer)) 100%,
+    var(--radius-ui) 100%,
+    calc(var(--radius-ui) * 0.618) calc(100% - calc(var(--radius-ui) * 0.076)),
+    calc(var(--radius-ui) * 0.076) calc(100% - calc(var(--radius-ui) * 0.618)),
+    0 calc(100% - var(--radius-ui)),
+    0 var(--home-chip-chamfer)
+  );
+  --home-feature-chamfer: 1.25rem;
+  --home-feature-clip: polygon(
+    var(--home-feature-chamfer) 0,
+    calc(100% - var(--radius-ui)) 0,
+    calc(100% - calc(var(--radius-ui) * 0.618)) calc(var(--radius-ui) * 0.076),
+    calc(100% - calc(var(--radius-ui) * 0.076)) calc(var(--radius-ui) * 0.618),
+    100% var(--radius-ui),
+    100% calc(100% - var(--home-feature-chamfer)),
+    calc(100% - var(--home-feature-chamfer)) 100%,
+    var(--radius-ui) 100%,
+    calc(var(--radius-ui) * 0.618) calc(100% - calc(var(--radius-ui) * 0.076)),
+    calc(var(--radius-ui) * 0.076) calc(100% - calc(var(--radius-ui) * 0.618)),
+    0 calc(100% - var(--radius-ui)),
+    0 var(--home-feature-chamfer)
+  );
+}
+.home-hub .home-hero-game-chip {
+  border: none;
+  border-radius: 0;
+  clip-path: var(--home-chip-clip);
+}
+.home-hub .home-feature-card {
+  border: none;
+  border-radius: 0;
+  clip-path: var(--home-feature-clip);
+}
+.home-hub .home-tools-layout .home-section-grid--three > .home-feature-card:nth-child(1) {
+  --ui-chamfer: var(--home-feature-chamfer);
+  clip-path: var(--ui-chamfer-clip-tr-bl);
+}
+.home-hub .home-tools-layout .home-section-grid--three > .home-feature-card:nth-child(1) .home-feature-card-body {
+  clip-path: var(--ui-chamfer-clip-tr-bl);
+  border-radius: 0;
+}
+.home-hub .home-tools-layout .home-section-grid--three > .home-feature-card:nth-child(2),
+.home-hub .home-tools-layout .home-section-grid--three > .home-feature-card:nth-child(3) {
+  --ui-chamfer: var(--home-feature-chamfer);
+  clip-path: var(--ui-chamfer-clip-tl-tr);
+}
+.home-hub .home-tools-layout .home-section-grid--three > .home-feature-card:nth-child(2) .home-feature-card-body,
+.home-hub .home-tools-layout .home-section-grid--three > .home-feature-card:nth-child(3) .home-feature-card-body {
+  clip-path: var(--ui-chamfer-clip-tl-tr);
+  border-radius: 0;
+}
+.home-hub .home-section-split > .home-section--split:nth-child(1) .home-section-grid--pair > .home-feature-card {
+  --ui-chamfer: var(--home-feature-chamfer);
+  clip-path: var(--ui-chamfer-clip-tr-bl);
+}
+.home-hub .home-section-split > .home-section--split:nth-child(1) .home-section-grid--pair > .home-feature-card .home-feature-card-body {
+  clip-path: var(--ui-chamfer-clip-tr-bl);
+  border-radius: 0;
+}
+.home-hub .home-section-split > .home-section--split:nth-child(2) .home-section-grid--pair > .home-feature-card:nth-child(1) {
+  --ui-chamfer: var(--home-feature-chamfer);
+  clip-path: var(--ui-chamfer-clip-tl-tr);
+}
+.home-hub .home-section-split > .home-section--split:nth-child(2) .home-section-grid--pair > .home-feature-card:nth-child(1) .home-feature-card-body {
+  clip-path: var(--ui-chamfer-clip-tl-tr);
+  border-radius: 0;
+}
+.home-hub > section.home-section:last-of-type .home-section-grid--three > .home-feature-card:nth-child(1) {
+  --ui-chamfer: var(--home-feature-chamfer);
+  clip-path: var(--ui-chamfer-clip-tr-bl);
+}
+.home-hub > section.home-section:last-of-type .home-section-grid--three > .home-feature-card:nth-child(1) .home-feature-card-body {
+  clip-path: var(--ui-chamfer-clip-tr-bl);
+  border-radius: 0;
+}
+.home-hub .home-feature-card.ui-interactive:hover,
+.home-hub .home-feature-card--featured {
+  border: none;
+}
+.home-hub .home-feature-card-icon-wrap {
+  border: none;
+}
+.home-hub .home-feature-card-bg,
+.home-hub .home-feature-card-body,
+.home-hub .home-feature-card-body::before,
+.home-hub .home-feature-card .js-tilt-glare {
+  border-radius: 0;
 }
 .home-hero-panel {
   --home-hero-marquee-duration: 3600s;
   --home-hero-chamfer: 3rem;
-  --home-hero-panel-clip: polygon( var(--home-hero-chamfer) 0, calc(100% - var(--radius-ui)) 0, calc(100% - 0.075rem) 0.075rem, 100% var(--radius-ui), 100% calc(100% - var(--home-hero-chamfer)), calc(100% - var(--home-hero-chamfer)) 100%, var(--radius-ui) 100%, 0.075rem calc(100% - 0.075rem), 0 calc(100% - var(--radius-ui)), 0 var(--home-hero-chamfer) );
+  --home-hero-panel-clip: polygon( var(--home-hero-chamfer) 0, calc(100% - var(--radius-ui)) 0, calc(100% - calc(var(--radius-ui) * 0.618)) calc(var(--radius-ui) * 0.076), calc(100% - calc(var(--radius-ui) * 0.076)) calc(var(--radius-ui) * 0.618), 100% var(--radius-ui), 100% calc(100% - var(--home-hero-chamfer)), calc(100% - var(--home-hero-chamfer)) 100%, var(--radius-ui) 100%, calc(var(--radius-ui) * 0.618) calc(100% - calc(var(--radius-ui) * 0.076)), calc(var(--radius-ui) * 0.076) calc(100% - calc(var(--radius-ui) * 0.618)), 0 calc(100% - var(--radius-ui)), 0 var(--home-hero-chamfer) );
   position: relative;
   overflow: hidden;
   isolation: isolate;
@@ -3619,6 +3916,10 @@ body.mobile-nav-open .mobile-nav-backdrop {
     width: 100%;
     opacity: 0.85;
   }
+  .home-hub {
+    --home-chip-chamfer: 0.45rem;
+    --home-feature-chamfer: 1rem;
+  }
   .home-hero-game-chip {
     width: 3.75rem;
     height: 5rem;
@@ -3730,6 +4031,26 @@ body.mobile-nav-open .mobile-nav-backdrop {
     margin: 0;
     border-radius: 0;
     max-height: 100dvh;
+  }
+  .ui-chamfer-panel,
+  .main-page .bottleneck-field,
+  .main-page .bottleneck-chart,
+  .main-page .about-section,
+  .main-page .brand-color-row,
+  .main-page .brand-logo-row,
+  .main-page .app-card,
+  .main-page #edpi-results,
+  .main-page #sens-results,
+  .main-page #lineups-game-panel,
+  .main-page .aim-trainer-browser {
+    --ui-chamfer: 0.75rem;
+  }
+  .settings-modal-panel,
+  .brand-logo-modal-panel,
+  .cafe-presence-modal-panel,
+  #lineups-video-modal .lineups-video-modal-panel,
+  #aim-trainer-settings-modal .settings-modal-panel {
+    --ui-chamfer: 1rem;
   }
   .legal-page .about-section {
     padding: 1rem !important;

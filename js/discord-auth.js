@@ -38,6 +38,7 @@
     const menu = byId("discord-profile-menu");
     const btn = byId("discord-profile-btn");
     if (!menu || !btn) return;
+    portalDiscordProfileMenu();
     const rect = btn.getBoundingClientRect();
     const gap = 4;
     menu.style.top = `${Math.round(rect.bottom + gap)}px`;
@@ -57,35 +58,26 @@
     document.getElementById("main-content")?.addEventListener("scroll", reposition, { passive: true });
   }
   window.closeDiscordProfileMenu = function closeDiscordProfileMenu() {
-    const menu = byId("discord-profile-menu");
-    const btn = byId("discord-profile-btn");
-    if (!menu || !btn || !menu.classList.contains("dropdown-open")) return;
-    menu.classList.remove("dropdown-open");
-    menu.classList.add("dropdown-closed");
-    btn.setAttribute("aria-expanded", "false");
+    window.setDiscordProfileMenuOpen(false);
   };
   window.setDiscordProfileMenuOpen = function setDiscordProfileMenuOpen(open) {
     const menu = byId("discord-profile-menu");
     const btn = byId("discord-profile-btn");
     if (!menu || !btn) return;
-    portalDiscordProfileMenu();
     bindDiscordMenuPositionListeners();
     if (open) {
       window.__cafeCorePicklist?.closeAll?.();
       window.closeNotificationDropdown?.();
-      layoutDiscordProfileMenu();
-      menu.classList.remove("dropdown-open");
-      menu.classList.add("dropdown-closed");
-      void menu.offsetHeight;
-      requestAnimationFrame(() => {
-        menu.classList.remove("dropdown-closed");
-        menu.classList.add("dropdown-open");
+      menu._discordMenuOpenToken = (menu._discordMenuOpenToken || 0) + 1;
+      const openToken = menu._discordMenuOpenToken;
+      window.runDropdownPanelOpenMotion?.(menu, layoutDiscordProfileMenu, () => {
+        if (openToken !== menu._discordMenuOpenToken) return false;
         btn.setAttribute("aria-expanded", "true");
-        layoutDiscordProfileMenu();
+        return true;
       });
     } else {
-      menu.classList.remove("dropdown-open");
-      menu.classList.add("dropdown-closed");
+      menu._discordMenuOpenToken = (menu._discordMenuOpenToken || 0) + 1;
+      window.runDropdownPanelCloseMotion?.(menu);
       btn.setAttribute("aria-expanded", "false");
     }
   };
@@ -219,7 +211,7 @@
                 <button
                     type="button"
                     id="discord-profile-btn"
-                    class="discord-auth-profile-btn topbar-action-btn ui-interactive flex items-center gap-2 h-9 pl-1 pr-2 rounded-lg text-slate-300 hover:text-white hover:bg-matte-800 border border-matte-800 hover:border-matte-700 max-w-[11rem]"
+                    class="discord-auth-profile-btn topbar-action-btn ui-interactive flex items-center gap-2 h-9 pl-1 pr-2 rounded-lg border max-w-[11rem]"
                     aria-expanded="false"
                     aria-haspopup="menu"
                     aria-controls="discord-profile-menu"
@@ -234,7 +226,7 @@
                         decoding="async"
                     />
                     <span class="discord-auth-name text-[10px] font-bold tracking-wide uppercase truncate min-w-0">${escapeHtml(name)}</span>
-                    <i class="discord-auth-chevron fa-solid fa-chevron-down text-[9px] opacity-60 shrink-0" aria-hidden="true"></i>
+                    <i class="discord-auth-chevron fa-solid fa-chevron-down text-xs shrink-0" aria-hidden="true"></i>
                 </button>
                 <div
                     id="discord-profile-menu"
@@ -276,7 +268,6 @@
       }
       window.location.assign(buildLogoutUrl(authBase));
     });
-    portalDiscordProfileMenu();
   }
   async function loadAuthConfig(authBaseGuess) {
     const bases = [];

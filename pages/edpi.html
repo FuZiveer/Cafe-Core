@@ -4,7 +4,7 @@
                     <p class="text-sm text-slate-400 mt-2 tracking-wide">Calculates eDPI for your selected game</p>
                 </div>
                 <div class="grid grid-cols-6 gap-3 mb-3">
-                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 flex flex-col gap-3 min-w-0">
                         <span class="text-sm font-bold tracking-widest uppercase text-white">Game</span>
                         <div id="edpi-game-pick" class="tool-picklist w-full" data-value="">
                             <div class="tool-picklist-control tool-picklist-control--has-icon ui-interactive">
@@ -15,14 +15,14 @@
                             <div id="edpi-game-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Game options"></div>
                         </div>
                     </div>
-                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 flex flex-col gap-3 min-w-0">
                         <span class="text-sm font-bold tracking-widest uppercase text-white">Sensitivity</span>
                         <div class="tool-picklist-control tool-field-input ui-interactive">
                             <i class="ri-crosshair-2-line tool-field-icon" aria-hidden="true"></i>
                             <input id="edpi-sens-value" type="text" inputmode="decimal" class="tool-picklist-input tool-picklist-input--field w-full" placeholder="Enter sensitivity" autocomplete="off" spellcheck="false">
                         </div>
                     </div>
-                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 border border-matte-800 flex flex-col gap-3 min-w-0">
+                    <div class="bottleneck-field col-span-2 bg-matte-900 rounded-lg p-4 flex flex-col gap-3 min-w-0">
                         <span class="text-sm font-bold tracking-widest uppercase text-white">DPI</span>
                         <div class="tool-picklist-control tool-field-input ui-interactive">
                             <i class="ri-mouse-line tool-field-icon" aria-hidden="true"></i>
@@ -30,7 +30,7 @@
                         </div>
                     </div>
                 </div>
-                <section id="edpi-results" class="bg-matte-900 rounded-lg border border-matte-800 overflow-hidden flex flex-col min-h-[12rem]" aria-live="polite">
+                <section id="edpi-results" class="bg-matte-900 rounded-lg overflow-hidden flex flex-col min-h-[12rem]" aria-live="polite">
                     <div class="tool-results-hero relative flex flex-col items-center justify-center px-6 py-8 text-center flex-1">
                         <p class="text-xs font-bold tracking-widest uppercase text-slate-500 mb-2.5">Your eDPI</p>
                         <p id="edpi-result-value" class="text-5xl font-semibold text-redneon-500 leading-none tabular-nums mb-4">—</p>
