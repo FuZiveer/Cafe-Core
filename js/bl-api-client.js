@@ -60,10 +60,15 @@
   }
   function applyScrimPayload(wins, losses) {
     const state = window.__cafeBlApi;
-    state.scrim = {
-      wins: Math.max(0, Math.round(Number(wins) || 0)),
-      losses: Math.max(0, Math.round(Number(losses) || 0))
-    };
+    const nextWins = Math.max(0, Math.round(Number(wins) || 0));
+    const nextLosses = Math.max(0, Math.round(Number(losses) || 0));
+    if (
+      state.scrim?.wins === nextWins &&
+      state.scrim?.losses === nextLosses
+    ) {
+      return;
+    }
+    state.scrim = { wins: nextWins, losses: nextLosses };
     state.available = true;
     dispatchBlApiUpdated();
   }

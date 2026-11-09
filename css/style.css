@@ -1268,10 +1268,14 @@ html.reduce-motion *::after {
 .bl-roster-hero-title {
   letter-spacing: 0.14em;
 }
+.bl-roster-scrim-section {
+  width: 100%;
+  margin-bottom: 2.5rem;
+}
 .bl-scrim-counter.home-hero-panel {
   --home-hero-chamfer: 2rem;
   min-height: 0;
-  margin-bottom: 2.5rem;
+  margin-bottom: 0;
   padding: 1.25rem 1.5rem 1.5rem;
   background:
     linear-gradient(
@@ -1280,24 +1284,39 @@ html.reduce-motion *::after {
       #141418 100%);
   text-align: center;
 }
-.bl-scrim-counter-label {
-  margin: 0 0 0.75rem;
+.bl-roster-section-title--scrim {
+  color: #94a3b8;
 }
 .bl-scrim-counter-score {
-  display: flex;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: max-content auto max-content;
+  grid-template-rows: auto;
+  column-gap: 0.2rem;
+  align-items: center;
   justify-content: center;
-  gap: 0.625rem;
+  justify-items: center;
   width: 100%;
   max-width: 100%;
   margin-inline: auto;
 }
-.bl-scrim-counter-side {
+.bl-scrim-counter-side-row--wins {
+  grid-column: 1;
+  grid-row: 1;
+}
+.bl-scrim-counter-colon {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+}
+.bl-scrim-counter-side-row--losses {
+  grid-column: 3;
+  grid-row: 1;
+}
+.bl-scrim-counter-score-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
-  min-width: 0;
 }
 .bl-scrim-counter-side-label {
   font-size: 0.625rem;
@@ -1306,11 +1325,12 @@ html.reduce-motion *::after {
   text-transform: uppercase;
   padding: 0 0.15rem;
   user-select: none;
+  line-height: 1.2;
 }
-.bl-scrim-counter-side--wins .bl-scrim-counter-side-label {
+.bl-scrim-counter-side-row--wins .bl-scrim-counter-side-label {
   color: #86efac;
 }
-.bl-scrim-counter-side--losses .bl-scrim-counter-side-label {
+.bl-scrim-counter-side-row--losses .bl-scrim-counter-side-label {
   color: #fca5a5;
 }
 .bl-scrim-counter-side-row {
@@ -1318,6 +1338,7 @@ html.reduce-motion *::after {
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
+  min-width: 0;
 }
 .bl-scrim-counter-adjust-stack {
   display: none;
@@ -1364,7 +1385,7 @@ html.reduce-motion *::after {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 300ms ease-out;
   will-change: transform;
 }
 .bl-scrim-digit {
@@ -1379,17 +1400,14 @@ html.reduce-motion *::after {
 html.reduce-motion .bl-scrim-digit-strip {
   transition: none !important;
 }
-.bl-scrim-counter-side--wins .bl-scrim-counter-num {
+.bl-scrim-counter-side-row--wins .bl-scrim-counter-num {
   color: #ecfdf5;
 }
-.bl-scrim-counter-side--losses .bl-scrim-counter-num {
+.bl-scrim-counter-side-row--losses .bl-scrim-counter-num {
   color: #fef2f2;
 }
 .bl-scrim-counter-colon {
-  flex: 0 0 auto;
-  align-self: flex-end;
-  margin-bottom: 0.08em;
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-size: clamp(2rem, 5vw, 2.75rem);
   font-weight: 700;
   line-height: 1;
   color: #64748b;
@@ -1397,6 +1415,7 @@ html.reduce-motion .bl-scrim-digit-strip {
 }
 .bl-scrim-counter-adjust {
   display: none;
+  touch-action: manipulation;
 }
 #bl-scrim-counter .topbar-action-btn i {
   transition: color var(--motion-duration) var(--motion-ease);
@@ -3719,7 +3738,7 @@ body.mobile-nav-open .mobile-nav-backdrop {
     min-width: 0;
   }
   .bl-scrim-counter-score {
-    gap: 0.35rem;
+    column-gap: 0.15rem;
   }
   .bl-scrim-counter-num {
     font-size: clamp(1.5rem, 8vw, 2.25rem);

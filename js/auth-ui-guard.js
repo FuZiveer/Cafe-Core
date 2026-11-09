@@ -13,11 +13,12 @@
     });
   }
   function enforceRestrictedUi() {
-    if (!canEditScrim()) {
-      removeScrimAdjustControls();
-    }
     if (typeof window.syncBlScrimEditControls === "function") {
       window.syncBlScrimEditControls();
+      return;
+    }
+    if (!canEditScrim()) {
+      removeScrimAdjustControls();
     }
   }
   function onDomMutation() {

@@ -429,19 +429,56 @@
     }
     return { wins: 0, losses: 0 };
   }
+  let blScrimSaveQueued = null;
+  let blScrimSaveRunning = false;
   async function saveBlScrimRecord(record) {
-    if (!window.__cafeBlApi?.available || typeof window.patchCafeScrimRecord !== "function") {
+    if (typeof window.patchCafeScrimRecord !== "function") {
       return false;
     }
     await window.patchCafeScrimRecord(record);
     return true;
+  }
+  async function flushBlScrimSaveQueue() {
+    if (blScrimSaveRunning) return;
+    const record = blScrimSaveQueued;
+    if (!record) return;
+    blScrimSaveRunning = true;
+    const snapshot = { wins: record.wins, losses: record.losses };
+    blScrimSaveQueued = null;
+    try {
+      const ok = await saveBlScrimRecord(snapshot);
+      if (!ok) throw new Error("save_failed");
+    } catch {
+      const loaded = loadBlScrimRecord();
+      const keepOptimistic =
+        blScrimSaveQueued &&
+        (blScrimSaveQueued.wins !== loaded.wins ||
+          blScrimSaveQueued.losses !== loaded.losses);
+      if (!keepOptimistic) {
+        blScrimRecordState = loaded;
+        paintBlScrimRecord();
+      }
+      window.CafeCore?.Toast?.show?.("Could not update scrim record");
+    } finally {
+      blScrimSaveRunning = false;
+      if (blScrimSaveQueued) {
+        void flushBlScrimSaveQueue();
+      }
+    }
+  }
+  function queueBlScrimSave(record) {
+    blScrimSaveQueued = {
+      wins: Math.max(0, Math.round(Number(record?.wins) || 0)),
+      losses: Math.max(0, Math.round(Number(record?.losses) || 0))
+    };
+    void flushBlScrimSaveQueue();
   }
   function canEditBlScrimCounter() {
     return typeof window.canEditBlScrimRecord === "function" && window.canEditBlScrimRecord();
   }
   let blScrimRecordState = { wins: 0, losses: 0 };
   let blScrimDisplayed = { wins: null, losses: null };
-  const BL_SCRIM_DIGIT_TRANSITION = "transform 0.55s cubic-bezier(0.22, 1, 0.36, 1)";
+  const BL_SCRIM_DIGIT_TRANSITION = "transform 300ms ease-out";
   function scrimDigitMotionEnabled() {
     return !document.documentElement.classList.contains("reduce-motion");
   }
@@ -476,11 +513,24 @@
     }
     return { group, text };
   }
-  function setBlScrimDigitSlot(slot, digitChar, animate, delayMs) {
+  function blScrimDigitAtRight(text, posFromRight) {
+    const idx = text.length - 1 - posFromRight;
+    return idx >= 0 ? text.charAt(idx) : null;
+  }
+  function setBlScrimDigitSlot(slot, digitChar, prevDigitChar, animate, delayMs) {
     const strip = slot.querySelector(".bl-scrim-digit-strip");
     if (!strip) return;
     const d = Math.max(0, Math.min(9, Number(digitChar) || 0));
-    if (!animate || !scrimDigitMotionEnabled()) {
+    const hasPrev =
+      prevDigitChar !== null &&
+      prevDigitChar !== undefined &&
+      prevDigitChar !== "";
+    const fromD = hasPrev
+      ? Math.max(0, Math.min(9, Number(prevDigitChar) || 0))
+      : d;
+    const shouldAnimate =
+      animate && scrimDigitMotionEnabled() && (hasPrev ? fromD !== d : false);
+    if (!shouldAnimate) {
       strip.style.transition = "none";
       strip.style.transitionDelay = "0ms";
       strip.style.transform = `translate3d(0, calc(${-d} * var(--bl-scrim-digit-step, 1em)), 0)`;
@@ -488,18 +538,53 @@
       strip.style.transition = BL_SCRIM_DIGIT_TRANSITION;
       return;
     }
-    strip.style.transitionDelay = `${delayMs}ms`;
-    strip.style.transform = `translate3d(0, calc(${-d} * var(--bl-scrim-digit-step, 1em)), 0)`;
+    const rollFrom = hasPrev ? fromD : 0;
+    const toTransform = `translate3d(0, calc(${-d} * var(--bl-scrim-digit-step, 1em)), 0)`;
+    const fromTransform = `translate3d(0, calc(${-rollFrom} * var(--bl-scrim-digit-step, 1em)), 0)`;
+    strip.style.transition = "none";
+    strip.style.transitionDelay = "0ms";
+    strip.style.transform = fromTransform;
+    void strip.offsetHeight;
+    window.requestAnimationFrame(() => {
+      if (!slot.isConnected) return;
+      const live = slot.querySelector(".bl-scrim-digit-strip");
+      if (!live) return;
+      live.style.transition = "none";
+      live.style.transitionDelay = "0ms";
+      live.style.transform = fromTransform;
+      void live.offsetHeight;
+      window.requestAnimationFrame(() => {
+        if (!live.isConnected) return;
+        live.style.transition = BL_SCRIM_DIGIT_TRANSITION;
+        live.style.transitionDelay = `${delayMs}ms`;
+        live.style.transform = toTransform;
+      });
+    });
   }
   function paintBlScrimAnimatedNumber(container, value, previousValue) {
-    const animate = previousValue !== null && previousValue !== value && scrimDigitMotionEnabled();
+    const motion = scrimDigitMotionEnabled();
+    const animate =
+      motion && previousValue !== null && previousValue !== value;
     const { text } = ensureBlScrimDigitGroup(container, value);
     const slots = container.querySelectorAll(".bl-scrim-digit-slot");
-    const prevText = previousValue === null ? text : String(Math.max(0, Math.round(Number(previousValue) || 0)));
+    const prevText =
+      previousValue === null
+        ? text
+        : String(Math.max(0, Math.round(Number(previousValue) || 0)));
     const maxLen = Math.max(text.length, prevText.length);
     text.split("").forEach((ch, index) => {
-      const delay = animate ? (maxLen - 1 - index) * 45 : 0;
-      setBlScrimDigitSlot(slots[index], ch, animate, delay);
+      const posFromRight = text.length - 1 - index;
+      const prevCh = blScrimDigitAtRight(prevText, posFromRight);
+      const slotAnimate = animate && prevText !== text;
+      const delay = slotAnimate ? (maxLen - 1 - index) * 45 : 0;
+      const rollInNew = animate && prevCh === null;
+      setBlScrimDigitSlot(
+        slots[index],
+        ch,
+        rollInNew ? "0" : prevCh,
+        slotAnimate || rollInNew,
+        delay
+      );
     });
     container.setAttribute("aria-label", text);
   }
@@ -511,9 +596,31 @@
     paintBlScrimAnimatedNumber(lossesEl, blScrimRecordState.losses, blScrimDisplayed.losses);
     blScrimDisplayed = { wins: blScrimRecordState.wins, losses: blScrimRecordState.losses };
   }
+  function blScrimRecordMatchesDisplayed(record) {
+    return (
+      record.wins === blScrimDisplayed.wins &&
+      record.losses === blScrimDisplayed.losses
+    );
+  }
+  function loadedScrimIsStale(loaded) {
+    if (!blScrimSaveRunning && !blScrimSaveQueued) return false;
+    return (
+      loaded.wins !== blScrimRecordState.wins ||
+      loaded.losses !== blScrimRecordState.losses
+    );
+  }
   function applyBlScrimRecordFromStore() {
-    blScrimRecordState = loadBlScrimRecord();
-    paintBlScrimRecord();
+    const loaded = loadBlScrimRecord();
+    if (loadedScrimIsStale(loaded)) {
+      window.syncBlScrimEditControls?.();
+      return;
+    }
+    blScrimRecordState = loaded;
+    if (blScrimDisplayed.wins === null && blScrimDisplayed.losses === null) {
+      paintBlScrimRecord();
+    } else if (!blScrimRecordMatchesDisplayed(loaded)) {
+      paintBlScrimRecord();
+    }
     window.syncBlScrimEditControls?.();
   }
   async function refreshBlScrimFromServer() {
@@ -545,16 +652,28 @@
       : '<i class="fa-solid fa-minus text-xs" aria-hidden="true"></i>';
     return btn;
   }
+  function scrimStackHasControls(stack, key) {
+    return (
+      stack.querySelector(`[data-scrim-delta="${key},1"]`) &&
+      stack.querySelector(`[data-scrim-delta="${key},-1"]`)
+    );
+  }
   window.syncBlScrimEditControls = function syncBlScrimEditControls() {
-    stripScrimAdjustControls();
-    if (!canEditBlScrimCounter()) return;
     const section = document.getElementById("bl-scrim-counter");
     if (!section) return;
+    if (!canEditBlScrimCounter()) {
+      stripScrimAdjustControls();
+      return;
+    }
     section.classList.add("bl-scrim-counter--editable");
     section.querySelectorAll("[data-bl-scrim-edit]").forEach((stack) => {
       const key = stack.dataset.blScrimEdit;
       if (key !== "wins" && key !== "losses") return;
       stack.hidden = false;
+      if (scrimStackHasControls(stack, key)) return;
+      stack
+        .querySelectorAll(".bl-scrim-counter-adjust")
+        .forEach((el) => el.remove());
       stack.appendChild(createScrimAdjustButton(key, 1));
       stack.appendChild(createScrimAdjustButton(key, -1));
     });
@@ -575,19 +694,15 @@
         const delta = Number(parts[1]);
         if (key !== "wins" && key !== "losses") return;
         if (!Number.isFinite(delta)) return;
+        if (delta < 0 && blScrimRecordState[key] <= 0) return;
         const next = {
           ...blScrimRecordState,
           [key]: Math.max(0, blScrimRecordState[key] + delta)
         };
-        void (async () => {
-          try {
-            const ok = await saveBlScrimRecord(next);
-            if (!ok) throw new Error("save_failed");
-            applyBlScrimRecordFromStore();
-          } catch {
-            window.CafeCore?.Toast?.show?.("Could not update scrim record");
-          }
-        })();
+        if (next[key] === blScrimRecordState[key]) return;
+        blScrimRecordState = next;
+        paintBlScrimRecord();
+        queueBlScrimSave(next);
       });
       window.addEventListener("cafe-bl-api-updated", () => {
         if (!document.getElementById("bl-scrim-counter")) return;
@@ -601,6 +716,9 @@
     document.querySelectorAll("#bl-roster-player-modal").forEach((el) => el.remove());
     document.body.classList.remove("bl-roster-player-modal-open");
     blRosterModalBound = false;
+    blScrimDisplayed = { wins: null, losses: null };
+    blScrimSaveQueued = null;
+    blScrimSaveRunning = false;
     window.disconnectCafeScrimWebSocket?.();
   };
   window.initBlackListedPage = function initBlackListedPage() {
