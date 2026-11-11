@@ -17,7 +17,7 @@ export function statsLookupForMember(member) {
   const link = member?.statsCc && typeof member.statsCc === "object" ? member.statsCc : {};
   const vanity = String(link.vanity || member.statsVanity || "").trim();
   const profileId = String(link.profileId || link.profile_id || "").trim();
-  const platform = String(link.platform || member.statsPlatform || "uplay").trim().toLowerCase();
+  const platform = String(link.platform || member.statsPlatform || "pc").trim().toLowerCase();
   let username = String(link.username || member.ubisoftUsername || "").trim();
   if (!vanity && !profileId && !username) {
     username = ubisoftNameFromBlHandle(member?.name);

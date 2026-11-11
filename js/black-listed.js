@@ -158,20 +158,6 @@
             ${iglOrnament("right")}
         </div>`;
   }
-  function renderApplyToJoinSlot() {
-    return `
-        <button
-            type="button"
-            class="bl-roster-card bl-roster-card--sub bl-roster-card--apply bl-roster-card--apply-disabled"
-            disabled
-            aria-disabled="true"
-            aria-label="Apply to join Black-Listed roster (currently unavailable)"
-        >
-            <div class="bl-roster-card-body bl-roster-card-body--apply">
-                <p class="bl-roster-apply-label">Apply to join</p>
-            </div>
-        </button>`;
-  }
   function getRoster() {
     const roster = window.BLACK_LISTED_ROSTER;
     return Array.isArray(roster) ? roster : [];
@@ -309,6 +295,56 @@
       });
     });
   }
+  const BL_MODAL_STATS_RAIL_HTML = `
+            <aside id="bl-roster-player-modal-stats" class="bl-roster-modal-stats-rail bl-roster-modal-stats-rail--shell-bottom-right" aria-label="View on Stats.cc">
+                <a id="bl-roster-player-modal-stats-link" class="bl-roster-modal-stats-chip ui-interactive" href="https://stats.cc/siege" target="_blank" rel="noopener noreferrer">
+                    <span class="bl-roster-modal-stats-chip-label">Data by Stats.cc</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square bl-roster-modal-stats-chip-icon" aria-hidden="true"></i>
+                </a>
+            </aside>`;
+  function ensureBlRosterModalPeakRail() {
+    const peak = document.getElementById("bl-roster-player-modal-peak");
+    const panel = document.querySelector("#bl-roster-player-modal .bl-roster-player-modal-panel");
+    const body = document.getElementById("bl-roster-player-modal-body");
+    if (!peak || !panel || !body || panel.contains(peak)) return;
+    peak.classList.add("bl-roster-modal-peak-rail--in-panel");
+    body.insertAdjacentElement("afterend", peak);
+  }
+  function ensureBlRosterModalStatsRail() {
+    ensureBlRosterModalPeakRail();
+    const shell = document.querySelector("#bl-roster-player-modal .bl-roster-player-modal-shell");
+    const panel = shell?.querySelector(".bl-roster-player-modal-panel");
+    if (!shell || !panel) return;
+    let rail = document.getElementById("bl-roster-player-modal-stats");
+    if (!rail) {
+      shell.insertAdjacentHTML("beforeend", BL_MODAL_STATS_RAIL_HTML);
+      return;
+    }
+    rail.classList.remove(
+      "bl-roster-modal-stats-rail--panel-foot",
+      "bl-roster-modal-stats-rail--shell-right",
+      "bl-roster-modal-stats-rail--panel-bottom-right",
+    );
+    rail.classList.add("bl-roster-modal-stats-rail--shell-bottom-right");
+    if (panel.contains(rail)) {
+      panel.insertAdjacentElement("afterend", rail);
+    } else if (!shell.contains(rail)) {
+      shell.appendChild(rail);
+    }
+  }
+  function statsProfileUrlForMember(member) {
+    const live = liveStatsForMember(member?.id);
+    const url = live?.statsProfileUrl || member?.statsProfileUrl;
+    if (typeof url === "string" && url.trim()) return url.trim();
+    return "https://stats.cc/siege";
+  }
+  function renderStatsCcRail(member) {
+    const link = document.getElementById("bl-roster-player-modal-stats-link");
+    if (!link) return;
+    const href = statsProfileUrlForMember(member);
+    link.href = href;
+    link.setAttribute("aria-label", `Stats.cc profile (${href})`);
+  }
   function renderTeamRankRail(member) {
     const railEl = document.getElementById("bl-roster-player-modal-team-rank");
     if (!railEl) return;
@@ -355,14 +391,11 @@
     const current = currentRankDisplay(member);
     const hasPeak = Boolean(peakLabel);
     const hasCurrent = Boolean(current.text);
-    const shell = peakEl.closest(".bl-roster-player-modal-shell");
     if (!hasPeak && !hasCurrent) {
       peakEl.hidden = true;
       peakEl.innerHTML = "";
-      shell?.classList.remove("bl-roster-player-modal-shell--has-rank-rail");
       return;
     }
-    shell?.classList.add("bl-roster-player-modal-shell--has-rank-rail");
     const currentCell = hasCurrent
       ? rankRailCell(member, "Current rank", current.text, current.iconLabel)
       : rankRailCell(member, "Current rank", "\u2014", "");
@@ -399,6 +432,7 @@
     clearTimeout(blRosterModalCloseTimer);
     blRosterModalCloseTimer = null;
     if (open) {
+      ensureBlRosterModalStatsRail();
       portalModalToBody();
       modal.classList.remove("hidden");
       modal.setAttribute("aria-hidden", "false");
@@ -425,6 +459,7 @@
     if (!member) return;
     renderTeamRankRail(member);
     renderPeakRankRail(member);
+    renderStatsCcRail(member);
   }
   function openBlRosterPlayerModal(memberId) {
     const member = memberForDisplay(findMemberById(memberId));
@@ -444,6 +479,7 @@
     modal.dataset.blOpenMemberId = memberId;
     renderTeamRankRail(member);
     renderPeakRankRail(member);
+    renderStatsCcRail(member);
     bindOperatorIconFallback(body);
     setBlRosterPlayerModalOpen(true);
   }
@@ -452,6 +488,7 @@
     const backdrop = document.getElementById("bl-roster-player-modal-backdrop");
     const closeBtn = document.getElementById("bl-roster-player-modal-close");
     if (!modal) return;
+    ensureBlRosterModalStatsRail();
     portalModalToBody();
     if (blRosterModalBound) return;
     blRosterModalBound = true;
@@ -494,7 +531,7 @@
     if (subsHost && subsSection) {
       if (subs.length) {
         subsSection.classList.remove("hidden");
-        subsHost.innerHTML = subs.map((member) => renderMemberCard(member)).join("") + renderApplyToJoinSlot();
+        subsHost.innerHTML = subs.map((member) => renderMemberCard(member)).join("");
       } else {
         subsSection.classList.add("hidden");
         subsHost.innerHTML = "";

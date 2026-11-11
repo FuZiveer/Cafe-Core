@@ -191,10 +191,33 @@ function mapProfileToPlayerStats(profile, config, platform, username) {
   };
 }
 
+const PROFILE_PLATFORM_TRY = ["pc", "uplay", "xbox", "psn"];
+
 async function fetchProfileById(profileId) {
   return statsCcFetch(
     `/v2/profiles/${encodeURIComponent(profileId)}?increment_views=false`
   );
+}
+
+async function fetchProfileByPlatformUsername(preferredPlatform, username) {
+  const preferred = String(preferredPlatform || "pc").trim().toLowerCase();
+  const platforms = [
+    preferred,
+    ...PROFILE_PLATFORM_TRY.filter((p) => p !== preferred)
+  ];
+  let lastErr;
+  for (const platform of platforms) {
+    try {
+      const profile = await statsCcFetch(
+        `/v2/profiles/${encodeURIComponent(platform)}/${encodeURIComponent(username)}?increment_views=false`
+      );
+      return { profile, platform };
+    } catch (err) {
+      lastErr = err;
+      if (err?.code !== "stats_cc_not_found") throw err;
+    }
+  }
+  throw lastErr || new Error("stats_cc_not_found");
 }
 
 async function fetchProfile(member, rosterMemberId) {
@@ -202,21 +225,23 @@ async function fetchProfile(member, rosterMemberId) {
   const cachedId = rosterMemberId ? memberProfileIdByRosterId.get(rosterMemberId) : "";
   const profileId = lookup.profileId || cachedId || "";
   if (profileId) {
-    return fetchProfileById(profileId);
+    const profile = await fetchProfileById(profileId);
+    const platform = profile?.platform || lookup.platform || "pc";
+    return { profile, platform };
   }
   if (lookup.vanity) {
-    return statsCcFetch(
+    const profile = await statsCcFetch(
       `/v2/profiles/vanity/${encodeURIComponent(lookup.vanity.toLowerCase())}?increment_views=false`
     );
+    const platform = profile?.platform || lookup.platform || "pc";
+    return { profile, platform };
   }
   if (!lookup.username) {
     const err = new Error("not_linked");
     err.code = "not_linked";
     throw err;
   }
-  return statsCcFetch(
-    `/v2/profiles/${encodeURIComponent(lookup.platform)}/${encodeURIComponent(lookup.username)}?increment_views=false`
-  );
+  return fetchProfileByPlatformUsername(lookup.platform, lookup.username);
 }
 
 async function resolveMemberStats(member, config) {
@@ -240,14 +265,14 @@ async function resolveMemberStats(member, config) {
     return { ...cached.result, memberId: id };
   }
   try {
-    const profile = await fetchProfile(member, id);
+    const { profile, platform: resolvedPlatform } = await fetchProfile(member, id);
     if (profile?.id) {
       memberProfileIdByRosterId.set(id, profile.id);
     }
     const result = mapProfileToPlayerStats(
       profile,
       config,
-      lookup.platform,
+      resolvedPlatform || lookup.platform,
       lookup.username || profile?.username || ""
     );
     profileCache.set(cacheKey, { at: now, result });

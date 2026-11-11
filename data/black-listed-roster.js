@@ -5,6 +5,10 @@ window.BLACK_LISTED_ROSTER = [
     role: "Fragger / Intel",
     teamRank: 4,
     peakRank: "Diamond 1",
+    statsCc: {
+      profileId: "be17aef1-c0e8-4a75-be5b-a644fb8c2a18",
+      vanity: "FuZiveer.BL"
+    },
     attackers: ["Solid Snake", "Twitch"],
     defenders: ["Solis", "Lesion"]
   },
@@ -14,6 +18,10 @@ window.BLACK_LISTED_ROSTER = [
     role: "Support / Intel",
     teamRank: 5,
     peakRank: "Platinum 1",
+    statsCc: {
+      profileId: "1b1dbdd3-b859-4d81-a93a-cae152e7c482",
+      vanity: "Dis.BL"
+    },
     attackers: ["Thatcher", "Lion"],
     defenders: ["Thorn", "Lesion"]
   },
@@ -23,6 +31,10 @@ window.BLACK_LISTED_ROSTER = [
     role: "Fragger / Flex",
     teamRank: 1,
     peakRank: "Emerald 4",
+    statsCc: {
+      profileId: "710fb77e-9333-4722-8ca9-652c7aafb6cf",
+      vanity: "TrustGod.BL"
+    },
     attackers: ["Ash", "Solid Snake"],
     defenders: ["Vigil", "Solis"],
     igl: true,
@@ -35,6 +47,10 @@ window.BLACK_LISTED_ROSTER = [
     coIgl: true,
     teamRank: 2,
     peakRank: "Emerald 4",
+    statsCc: {
+      profileId: "f7f3de9c-a6a6-484b-a5be-963be38cea6b",
+      vanity: "KK.BL"
+    },
     attackers: ["Thermite", "Nomad"],
     defenders: ["Castle", "Azami"]
   },
@@ -44,6 +60,10 @@ window.BLACK_LISTED_ROSTER = [
     role: "Flex / Support",
     teamRank: 3,
     peakRank: "Diamond 2",
+    statsCc: {
+      profileId: "7fe1ccb1-2396-44f7-88b4-d92175b6a5f4",
+      vanity: "Zofia.BL"
+    },
     attackers: ["Blitz", "Zofia"],
     defenders: ["Smoke", "Ela"]
   },
@@ -53,8 +73,24 @@ window.BLACK_LISTED_ROSTER = [
     role: "Support",
     teamRank: 6,
     peakRank: "Emerald 5",
+    statsCc: {
+      profileId: "60eadc1d-8459-46dc-a937-cbb1cf5d9d09",
+      vanity: "Horde.BL"
+    },
     attackers: ["Ace", "Thermite"],
     defenders: ["Kapkan", "Frost"],
+    substitute: true
+  },
+  {
+    id: "zxrqxs",
+    name: "Zxrqxs.BL",
+    role: "Flex",
+    statsCc: {
+      profileId: "936867ae-a3eb-4617-a1b1-8db50fabc7df",
+      vanity: "Zxrqxs"
+    },
+    attackers: [],
+    defenders: [],
     substitute: true
   }
 ];
