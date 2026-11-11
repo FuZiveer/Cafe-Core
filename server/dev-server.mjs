@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { getAuthConfig, handleDiscordAuthRequest } from "./discord-auth.mjs";
 import { handleBlApiRequest } from "./bl-api.mjs";
 import { handleScrimUpgrade } from "./bl-scrim-ws.mjs";
+import { usesUpstashRedis } from "./upstash-redis.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PORT = Number(process.env.PORT || 8787);
@@ -139,4 +140,11 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`  Local:  http://127.0.0.1:${PORT}`);
   if (origin !== `http://127.0.0.1:${PORT}`) console.log(`  Public: ${origin}`);
   console.log("Discord sign-in: set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI in .env");
+  if (!usesUpstashRedis()) {
+    console.warn(
+      "[cafe] Scrim record is stored on the local filesystem only (data/bl-scrim-record.json). On Render this resets when the service sleeps or redeploys. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for durable storage."
+    );
+  } else {
+    console.log("[cafe] Scrim record persistence: Upstash Redis");
+  }
 });

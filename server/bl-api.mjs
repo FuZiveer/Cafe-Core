@@ -1,5 +1,6 @@
 import { applyCors, getSessionUser, sendJson } from "./discord-auth.mjs";
 import { readScrimRecord, writeScrimRecord } from "./bl-scrim-store.mjs";
+import { usesUpstashRedis } from "./upstash-redis.mjs";
 import { broadcastScrimRecord } from "./bl-scrim-ws.mjs";
 import { loadBlackListedRoster } from "./bl-roster-data.mjs";
 import { buildRosterStatsPayload } from "./stats-cc-client.mjs";
@@ -35,7 +36,8 @@ export async function handleBlApiRequest(req, res, url, cfg) {
     sendJson(res, 200, {
       wins: record.wins,
       losses: record.losses,
-      canEdit: canEditScrim(user)
+      canEdit: canEditScrim(user),
+      persistence: usesUpstashRedis() ? "redis" : "ephemeral"
     });
     return true;
   }

@@ -37,16 +37,44 @@
       );
     });
   }
+  function bindBlRosterAvatarFallback(root) {
+    if (!root) return;
+    root.querySelectorAll(".bl-roster-avatar-img").forEach((img) => {
+      img.addEventListener(
+        "error",
+        () => {
+          const wrap = img.closest(".bl-roster-avatar");
+          const initials = wrap?.dataset?.blAvatarFallback || "?";
+          if (!wrap) return;
+          wrap.classList.remove("bl-roster-avatar--photo");
+          wrap.textContent = initials;
+        },
+        { once: true }
+      );
+    });
+  }
+  function rosterAvatarUrlFromMember(member) {
+    const link = member?.statsCc;
+    const profileId = String(link?.profileId || link?.profile_id || "").trim();
+    if (!profileId) return "";
+    return `https://ubisoft-avatars.akamaized.net/${encodeURIComponent(profileId)}/default_146_146.png`;
+  }
   function escapeHtml(text) {
     return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   function renderCardAvatar(member, recruiting, name) {
     const baseClass = recruiting ? "bl-roster-avatar bl-roster-avatar--recruiting" : "bl-roster-avatar";
-    const n = Number(member.teamRank);
-    if (!recruiting && Number.isFinite(n) && n >= 1) {
-      return `<div class="${baseClass} bl-roster-avatar--team-rank" title="Team rank #${n}" aria-hidden="true">#${n}</div>`;
+    const initials = initialsFromName(name);
+    const avatarUrl = String(member.avatarUrl || rosterAvatarUrlFromMember(member) || "").trim();
+    if (!recruiting && avatarUrl) {
+      return `<div class="${baseClass} bl-roster-avatar--photo" data-bl-avatar-fallback="${escapeHtml(initials)}" aria-hidden="true"><img class="bl-roster-avatar-img" src="${escapeHtml(avatarUrl)}" alt="" width="52" height="52" loading="lazy" decoding="async"></div>`;
     }
-    return `<div class="${baseClass}" aria-hidden="true">${escapeHtml(initialsFromName(name))}</div>`;
+    return `<div class="${baseClass}" aria-hidden="true">${escapeHtml(initials)}</div>`;
+  }
+  function renderCardTeamRankPill(member) {
+    const n = Number(member.teamRank);
+    if (!Number.isFinite(n) || n < 1) return "";
+    return `<span class="bl-roster-badge bl-roster-badge--team-rank bl-roster-badge--pastel-tint" title="Team rank #${n}">#${escapeHtml(String(n))}</span>`;
   }
   function formatPlayerName(name) {
     const raw = String(name);
@@ -89,6 +117,31 @@
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
+  const BL_ROSTER_PASTELS = [
+    { accent: "#f9a8d4", soft: "rgba(249, 168, 212, 0.16)", border: "rgba(249, 168, 212, 0.34)", ink: "#fce7f3" },
+    { accent: "#fdba74", soft: "rgba(253, 186, 116, 0.16)", border: "rgba(253, 186, 116, 0.34)", ink: "#ffedd5" },
+    { accent: "#fde68a", soft: "rgba(253, 230, 138, 0.14)", border: "rgba(253, 230, 138, 0.32)", ink: "#fef9c3" },
+    { accent: "#86efac", soft: "rgba(134, 239, 172, 0.14)", border: "rgba(134, 239, 172, 0.32)", ink: "#dcfce7" },
+    { accent: "#7dd3fc", soft: "rgba(125, 211, 252, 0.14)", border: "rgba(125, 211, 252, 0.32)", ink: "#e0f2fe" },
+    { accent: "#c4b5fd", soft: "rgba(196, 181, 253, 0.16)", border: "rgba(196, 181, 253, 0.34)", ink: "#ede9fe" },
+    { accent: "#f0abfc", soft: "rgba(240, 171, 252, 0.14)", border: "rgba(240, 171, 252, 0.32)", ink: "#fae8ff" },
+    { accent: "#a5f3fc", soft: "rgba(165, 243, 252, 0.14)", border: "rgba(165, 243, 252, 0.32)", ink: "#cffafe" }
+  ];
+  function blRosterPastelIndex(memberId) {
+    const id = String(memberId || "");
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    }
+    return hash % BL_ROSTER_PASTELS.length;
+  }
+  function blRosterPastelForMember(member) {
+    return BL_ROSTER_PASTELS[blRosterPastelIndex(member?.id)] || BL_ROSTER_PASTELS[0];
+  }
+  function blRosterPastelStyleAttr(member) {
+    const p = blRosterPastelForMember(member);
+    return ` style="--bl-player-accent:${p.accent};--bl-player-soft:${p.soft};--bl-player-border:${p.border}"`;
+  }
   function renderOperatorPills(operators, side) {
     const list = (Array.isArray(operators) ? operators.filter(Boolean) : []).slice();
     if (!list.length) {
@@ -107,18 +160,23 @@
     const name = member.name || "TBD";
     const role = member.role || "Role";
     const badges = [];
-    if (captain) {
-      badges.push('<span class="bl-roster-badge bl-roster-badge--captain">Captain</span>');
-    }
-    if (recruiting) {
-      badges.push('<span class="bl-roster-badge bl-roster-badge--recruiting">Recruiting</span>');
-    }
     if (member.igl) {
       badges.push('<span class="bl-roster-badge bl-roster-badge--igl">IGL</span>');
     }
     if (member.coIgl) {
       badges.push('<span class="bl-roster-badge bl-roster-badge--co-igl">Co-IGL</span>');
     }
+    if (captain) {
+      badges.push('<span class="bl-roster-badge bl-roster-badge--captain bl-roster-badge--pastel-tint">Captain</span>');
+    }
+    if (recruiting) {
+      badges.push('<span class="bl-roster-badge bl-roster-badge--recruiting bl-roster-badge--pastel-tint">Recruiting</span>');
+    }
+    const teamRankPill = renderCardTeamRankPill(member);
+    const tagMarkup =
+      badges.length || teamRankPill
+        ? `<div class="bl-roster-name-row-tags"${blRosterPastelStyleAttr(member)}>${teamRankPill}${badges.join("")}</div>`
+        : "";
     let cardClass = "bl-roster-card";
     if (member.substitute) cardClass += " bl-roster-card--sub";
     const iglFocus = Boolean(member.igl && member.gridCenter);
@@ -133,7 +191,7 @@
                         <div class="bl-roster-card-meta min-w-0 flex-1">
                             <div class="bl-roster-name-row">
                                 <h3 class="bl-roster-player-name">${formatPlayerName(name)}</h3>
-                                ${badges.length ? `<div class="bl-roster-badges">${badges.join("")}</div>` : ""}
+                                ${tagMarkup}
                             </div>
                             <p class="bl-roster-role">${formatRoleDisplay(role)}</p>
                         </div>
@@ -275,6 +333,7 @@
       if (live.displayName) merged.name = live.displayName;
       else if (live.username) merged.name = `${String(live.username).trim()}.BL`;
       if (live.statsProfileUrl) merged.statsProfileUrl = live.statsProfileUrl;
+      if (live.avatarUrl) merged.avatarUrl = live.avatarUrl;
       if (Array.isArray(live.attackers) && live.attackers.length) {
         merged.attackers = live.attackers.slice(0, 2);
       }
@@ -283,6 +342,10 @@
       }
     }
     applyLiveTeamRankToMember(merged);
+    if (!merged.avatarUrl) {
+      const avatarUrl = rosterAvatarUrlFromMember(merged);
+      if (avatarUrl) merged.avatarUrl = avatarUrl;
+    }
     return merged;
   }
   function renderMemberOps(member) {
@@ -541,7 +604,7 @@
     railEl.innerHTML = `
             <div class="bl-roster-modal-peak-rail-inner">
                 <p class="bl-roster-modal-peak-label">Team rank</p>
-                <p class="bl-roster-modal-peak-value"><span class="text-redneon-500">#${escapeHtml(String(n))}</span></p>
+                <p class="bl-roster-modal-peak-value">#${escapeHtml(String(n))}</p>
             </div>`;
   }
   function currentRankDisplay(member) {
@@ -928,6 +991,8 @@
     }
     bindOperatorIconFallback(host);
     bindOperatorIconFallback(subsHost);
+    bindBlRosterAvatarFallback(host);
+    bindBlRosterAvatarFallback(subsHost);
   }
   function loadBlScrimRecord() {
     if (typeof window.isCafeScrimWsConnected === "function" && !window.isCafeScrimWsConnected()) {

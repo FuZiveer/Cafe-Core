@@ -1458,6 +1458,15 @@ html.reduce-motion .bl-roster-igl-focus-row::before {
   border-radius: var(--radius-ui);
   clip-path: none;
 }
+.bl-roster-badge--pastel-tint,
+.bl-roster-badge--team-rank-tint {
+  border: 1px solid var(--bl-player-border, rgba(255, 30, 67, 0.45));
+  color: #fff;
+  background: var(--bl-player-soft, rgba(255, 30, 67, 0.12));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--bl-player-accent, #ff1e43) 18%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--bl-player-accent, #ff1e43) 12%, transparent);
+}
 .bl-roster-card--apply {
   cursor: pointer;
   font: inherit;
@@ -1928,7 +1937,7 @@ html.reduce-motion #bl-roster-player-modal-reload i.bl-roster-modal-reload-icon-
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: #fff;
   cursor: pointer;
   transition:
     color var(--motion-duration) var(--motion-ease),
@@ -2019,12 +2028,59 @@ html.reduce-motion #bl-roster-player-modal-reload i.bl-roster-modal-reload-icon-
   border-style: dashed;
   background-color: var(--matte-900);
 }
+.bl-roster-avatar--photo {
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--matte-900);
+}
+.bl-roster-avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .bl-roster-name-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
+}
+.bl-roster-name-row-tags {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.bl-roster-name-row-tags .bl-roster-badge {
+  color: #fff;
+}
+.bl-roster-name-row-tags .bl-roster-badge--pastel-tint {
+  border-color: var(--bl-player-border, rgba(255, 30, 67, 0.45));
+  background: var(--bl-player-soft, rgba(255, 30, 67, 0.12));
+}
+.bl-roster-name-row-tags .bl-roster-badge--igl,
+.bl-roster-name-row-tags .bl-roster-badge--co-igl {
+  color: #ff1e43;
+}
+.bl-roster-modal-tags .bl-roster-badge,
+.bl-roster-player-modal .bl-roster-name-row-tags .bl-roster-badge {
+  color: #fff;
+}
+.bl-roster-player-modal .bl-roster-name-row-tags .bl-roster-badge--igl,
+.bl-roster-player-modal .bl-roster-name-row-tags .bl-roster-badge--co-igl,
+.bl-roster-modal-tags .bl-roster-badge--igl,
+.bl-roster-modal-tags .bl-roster-badge--co-igl {
+  color: #ff1e43;
+}
+.bl-roster-modal-team-rank-rail .bl-roster-modal-peak-value {
+  color: #fff;
+}
+.bl-roster-badge--team-rank {
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
 }
 .bl-roster-player-name {
   font-size: 0.875rem;
@@ -2088,26 +2144,26 @@ html.reduce-motion #bl-roster-player-modal-reload i.bl-roster-modal-reload-icon-
 .bl-roster-badge--captain {
   border-color: var(--ui-border-color);
   color: #fff;
-  background-color: rgba(255, 30, 67, 0.12);
 }
 .bl-roster-badge--igl {
-  border-color: var(--ui-border-color);
-  color: #fde68a;
-  background-color: rgba(234, 179, 8, 0.14);
+  border: 1px solid rgba(255, 30, 67, 0.45);
+  color: #ff1e43;
+  background-color: rgba(255, 30, 67, 0.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 30, 67, 0.14),
+    0 0 0 1px rgba(255, 30, 67, 0.1);
 }
 .bl-roster-badge--co-igl {
-  border-color: var(--ui-border-color);
-  color: #f1f5f9;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(148, 163, 184, 0.22) 0%,
-      rgba(100, 116, 139, 0.12) 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 30, 67, 0.45);
+  color: #ff1e43;
+  background-color: rgba(255, 30, 67, 0.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 30, 67, 0.12),
+    0 0 0 1px rgba(255, 30, 67, 0.08);
 }
 .bl-roster-badge--recruiting {
   border-color: var(--ui-border-color);
-  color: #64748b;
+  color: #fff;
 }
 .bl-roster-badge--sub {
   border-color: var(--ui-border-color);

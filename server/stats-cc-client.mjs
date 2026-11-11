@@ -280,6 +280,14 @@ function lastPlayedFromProfile(profile) {
   return null;
 }
 
+const UBISOFT_AVATAR_CDN = "https://ubisoft-avatars.akamaized.net";
+
+function profileAvatarUrl(profile, lookup = {}) {
+  const profileId = String(profile?.id || lookup.profileId || "").trim();
+  if (!profileId) return null;
+  return `${UBISOFT_AVATAR_CDN}/${encodeURIComponent(profileId)}/default_146_146.png`;
+}
+
 function profileStatsUrl(profile, platform, username, lookup = {}) {
   const profileId = String(profile?.id || lookup.profileId || "").trim();
   if (profileId) {
@@ -386,6 +394,7 @@ function mapProfileToPlayerStats(profile, config, platform, username, lookup = {
     peakRank: peak?.rankLabel || null,
     peakSeason: peak?.seasonLabel || null,
     statsProfileUrl: profileStatsUrl(profile, platform, username, lookup),
+    avatarUrl: profileAvatarUrl(profile, lookup),
     fetchedAt
   };
 }
