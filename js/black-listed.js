@@ -90,7 +90,7 @@
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
   function renderOperatorPills(operators, side) {
-    const list = (Array.isArray(operators) ? operators.filter(Boolean) : []).slice().sort((a, b) => String(a).localeCompare(String(b), void 0, { sensitivity: "base" }));
+    const list = (Array.isArray(operators) ? operators.filter(Boolean) : []).slice();
     if (!list.length) {
       return '<span class="bl-roster-op-empty">\u2014</span>';
     }
@@ -101,6 +101,7 @@
     }).join("");
   }
   function renderMemberCard(member) {
+    member = memberForDisplay(member);
     const recruiting = Boolean(member.recruiting);
     const captain = Boolean(member.captain);
     const name = member.name || "TBD";
@@ -187,23 +188,13 @@
     if (live.displayName) merged.name = live.displayName;
     else if (live.username) merged.name = `${String(live.username).trim()}.BL`;
     if (live.statsProfileUrl) merged.statsProfileUrl = live.statsProfileUrl;
-    return merged;
-  }
-  function paintBlStatsAttribution() {
-    const el = document.getElementById("bl-stats-attribution");
-    if (!el) return;
-    const stats = window.__cafeBlApi?.rosterStats;
-    if (!stats?.configured) {
-      el.hidden = true;
-      el.classList.add("hidden");
-      el.innerHTML = "";
-      return;
+    if (Array.isArray(live.attackers) && live.attackers.length) {
+      merged.attackers = live.attackers.slice(0, 2);
     }
-    const url = stats.attribution?.url || "https://stats.cc/siege";
-    const label = stats.attribution?.text || "Data by Stats.cc";
-    el.innerHTML = `Siege rank data by <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label.replace(/^Data by\s+/i, "Stats.cc") || "Stats.cc")}</a>`;
-    el.hidden = false;
-    el.classList.remove("hidden");
+    if (Array.isArray(live.defenders) && live.defenders.length) {
+      merged.defenders = live.defenders.slice(0, 2);
+    }
+    return merged;
   }
   function renderMemberOps(member) {
     return `
@@ -260,6 +251,17 @@
     if (Number.isFinite(n) && n >= 1 && n <= 5) return n;
     return null;
   }
+  function rankTierFromLabel(label) {
+    const text = String(label || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\./g, " ")
+      .replace(/\s+/g, " ");
+    if (!text || text === "\u2014") return "";
+    if (text.startsWith("champion")) return "champion";
+    const match = text.match(/^(copper|bronze|silver|gold|platinum|emerald|diamond)/);
+    return match ? match[1] : "";
+  }
   function peakRankLabelToIconId(label) {
     let text = String(label).trim().toLowerCase().replace(/\./g, " ").replace(/\s+/g, " ").trim();
     if (!text) return null;
@@ -295,13 +297,6 @@
       });
     });
   }
-  const BL_MODAL_STATS_RAIL_HTML = `
-            <aside id="bl-roster-player-modal-stats" class="bl-roster-modal-stats-rail bl-roster-modal-stats-rail--shell-bottom-right" aria-label="View on Stats.cc">
-                <a id="bl-roster-player-modal-stats-link" class="bl-roster-modal-stats-chip ui-interactive" href="https://stats.cc/siege" target="_blank" rel="noopener noreferrer">
-                    <span class="bl-roster-modal-stats-chip-label">Data by Stats.cc</span>
-                    <i class="fa-solid fa-arrow-up-right-from-square bl-roster-modal-stats-chip-icon" aria-hidden="true"></i>
-                </a>
-            </aside>`;
   function ensureBlRosterModalPeakRail() {
     const peak = document.getElementById("bl-roster-player-modal-peak");
     const panel = document.querySelector("#bl-roster-player-modal .bl-roster-player-modal-panel");
@@ -310,40 +305,139 @@
     peak.classList.add("bl-roster-modal-peak-rail--in-panel");
     body.insertAdjacentElement("afterend", peak);
   }
+  function ensureBlRosterModalReloadButton() {
+    const headRow = document.querySelector(
+      "#bl-roster-player-modal .bl-roster-modal-head-row"
+    );
+    if (!headRow) return;
+    document.getElementById("bl-roster-modal-update-rail")?.remove();
+    const legacyBtn = document.getElementById("bl-roster-modal-stats-update");
+    legacyBtn?.remove();
+    let reloadBtn = document.getElementById("bl-roster-player-modal-reload");
+    const closeBtn = document.getElementById("bl-roster-player-modal-close");
+    const statsOpenMarkup = `<a id="bl-roster-player-modal-stats-open" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0" href="https://stats.cc/siege" target="_blank" rel="noopener noreferrer" aria-label="Open Stats.cc profile">
+                    <i class="fa-solid fa-arrow-up-right-from-square text-sm" aria-hidden="true"></i>
+                </a>`;
+    if (!reloadBtn && closeBtn) {
+      const wrap =
+        closeBtn.closest(".bl-roster-modal-head-actions") ||
+        (() => {
+          const actions = document.createElement("div");
+          actions.className =
+            "bl-roster-modal-head-actions flex items-center gap-1 shrink-0";
+          closeBtn.replaceWith(actions);
+          actions.appendChild(closeBtn);
+          return actions;
+        })();
+      wrap.insertAdjacentHTML(
+        "afterbegin",
+        `${statsOpenMarkup}<button type="button" id="bl-roster-player-modal-reload" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0" disabled aria-label="Refresh Stats.cc data for this roster">
+                    <i class="fa-solid fa-arrows-rotate text-sm" aria-hidden="true"></i>
+                </button>`
+      );
+      reloadBtn = document.getElementById("bl-roster-player-modal-reload");
+    } else if (!document.getElementById("bl-roster-player-modal-stats-open") && reloadBtn) {
+      reloadBtn.insertAdjacentHTML("beforebegin", statsOpenMarkup);
+    }
+    if (reloadBtn && closeBtn) {
+      const actions = reloadBtn.closest(".bl-roster-modal-head-actions");
+      if (actions && !actions.contains(closeBtn)) {
+        actions.appendChild(closeBtn);
+      }
+      const statsOpen = document.getElementById("bl-roster-player-modal-stats-open");
+      if (statsOpen && !actions.contains(statsOpen)) {
+        actions.insertBefore(statsOpen, reloadBtn);
+      }
+    }
+  }
+  const BL_MODAL_STATS_RAIL_HTML = `
+            <aside id="bl-roster-player-modal-stats" class="bl-roster-modal-stats-rail bl-roster-modal-stats-rail--shell-bottom-right" aria-label="View on Stats.cc">
+                <a id="bl-roster-player-modal-stats-link" class="bl-roster-modal-stats-chip ui-interactive" href="https://stats.cc/siege" target="_blank" rel="noopener noreferrer" tabindex="-1">
+                    <span class="bl-roster-modal-stats-chip-label">Data by Stats.cc</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square bl-roster-modal-stats-chip-icon" aria-hidden="true"></i>
+                </a>
+            </aside>`;
   function ensureBlRosterModalStatsRail() {
     ensureBlRosterModalPeakRail();
-    const shell = document.querySelector("#bl-roster-player-modal .bl-roster-player-modal-shell");
+    ensureBlRosterModalReloadButton();
+    document.getElementById("bl-roster-modal-update-rail")?.remove();
+    document.getElementById("bl-roster-modal-shell-foot")?.remove();
+    const shell = document.querySelector(
+      "#bl-roster-player-modal .bl-roster-player-modal-shell"
+    );
     const panel = shell?.querySelector(".bl-roster-player-modal-panel");
     if (!shell || !panel) return;
-    let rail = document.getElementById("bl-roster-player-modal-stats");
-    if (!rail) {
-      shell.insertAdjacentHTML("beforeend", BL_MODAL_STATS_RAIL_HTML);
-      return;
+    let statsRail = document.getElementById("bl-roster-player-modal-stats");
+    if (!statsRail) {
+      panel.insertAdjacentHTML("afterend", BL_MODAL_STATS_RAIL_HTML);
+      statsRail = document.getElementById("bl-roster-player-modal-stats");
+    } else if (statsRail.parentElement !== shell) {
+      panel.insertAdjacentElement("afterend", statsRail);
     }
-    rail.classList.remove(
+    if (!statsRail) return;
+    statsRail.classList.add("bl-roster-modal-stats-rail");
+    statsRail.classList.remove(
+      "bl-roster-modal-stats-rail--shell-top-right",
       "bl-roster-modal-stats-rail--panel-foot",
       "bl-roster-modal-stats-rail--shell-right",
-      "bl-roster-modal-stats-rail--panel-bottom-right",
+      "bl-roster-modal-stats-rail--panel-bottom-right"
     );
-    rail.classList.add("bl-roster-modal-stats-rail--shell-bottom-right");
-    if (panel.contains(rail)) {
-      panel.insertAdjacentElement("afterend", rail);
-    } else if (!shell.contains(rail)) {
-      shell.appendChild(rail);
+    statsRail.classList.add("bl-roster-modal-stats-rail--shell-bottom-right");
+  }
+  function statsProfileUrlFromRosterLink(member) {
+    const link = member?.statsCc;
+    if (!link || typeof link !== "object") return "";
+    const profileId = String(link.profileId || link.profile_id || "").trim();
+    if (profileId) {
+      return `https://stats.cc/siege/-/${encodeURIComponent(profileId)}`;
+    }
+    const vanity = String(link.vanity || "").trim();
+    if (vanity) {
+      return `https://stats.cc/siege/@${encodeURIComponent(vanity.toLowerCase())}`;
+    }
+    const username = String(link.username || "").trim();
+    const platform = String(link.platform || "pc").trim().toLowerCase();
+    if (username) {
+      return `https://stats.cc/siege/${encodeURIComponent(platform)}/${encodeURIComponent(username)}`;
+    }
+    return "";
+  }
+  function isStaleStatsCcPlatformUrl(url) {
+    if (typeof url !== "string" || !url.trim()) return false;
+    try {
+      return /\/siege\/(?:pc|uplay|xbox|psn)\/[^/]+\/?$/i.test(new URL(url).pathname);
+    } catch {
+      return false;
     }
   }
   function statsProfileUrlForMember(member) {
+    const rosterUrl = statsProfileUrlFromRosterLink(member);
     const live = liveStatsForMember(member?.id);
-    const url = live?.statsProfileUrl || member?.statsProfileUrl;
-    if (typeof url === "string" && url.trim()) return url.trim();
-    return "https://stats.cc/siege";
+    let url = live?.statsProfileUrl || member?.statsProfileUrl || "";
+    if (typeof url === "string") url = url.trim();
+    if (rosterUrl) {
+      if (!url || isStaleStatsCcPlatformUrl(url)) return rosterUrl;
+    }
+    if (url) return url;
+    return rosterUrl || "https://stats.cc/siege";
   }
+  const BL_STATS_CC_ATTRIBUTION_URL = "https://stats.cc/siege";
   function renderStatsCcRail(member) {
-    const link = document.getElementById("bl-roster-player-modal-stats-link");
-    if (!link) return;
-    const href = statsProfileUrlForMember(member);
-    link.href = href;
-    link.setAttribute("aria-label", `Stats.cc profile (${href})`);
+    const profileHref = statsProfileUrlForMember(member);
+    const profileLabel = `Stats.cc profile (${profileHref})`;
+    const headOpen = document.getElementById("bl-roster-player-modal-stats-open");
+    if (headOpen) {
+      headOpen.href = profileHref;
+      headOpen.setAttribute("aria-label", `Open ${profileLabel}`);
+    }
+    const statsLink = document.getElementById("bl-roster-player-modal-stats-link");
+    if (statsLink) {
+      statsLink.href = BL_STATS_CC_ATTRIBUTION_URL;
+      statsLink.setAttribute(
+        "aria-label",
+        `Data by Stats.cc (${BL_STATS_CC_ATTRIBUTION_URL})`
+      );
+    }
   }
   function renderTeamRankRail(member) {
     const railEl = document.getElementById("bl-roster-player-modal-team-rank");
@@ -370,17 +464,158 @@
     const text = season ? `${rank} \xB7 ${season}` : rank;
     return { text, iconLabel: rank };
   }
+  const BL_ROSTER_STATS_UPDATE_COOLDOWN_MS = 3 * 60 * 1000;
+  const BL_ROSTER_STATS_COOLDOWN_STORAGE_KEY = "cafeBlRosterStatsUpdateUntil";
+  let blRosterStatsUpdateUntil = 0;
+  let blRosterStatsUpdateTimer = null;
+  function loadBlRosterStatsUpdateCooldown() {
+    try {
+      const raw = localStorage.getItem(BL_ROSTER_STATS_COOLDOWN_STORAGE_KEY);
+      const until = Number(raw);
+      if (Number.isFinite(until) && until > Date.now()) {
+        blRosterStatsUpdateUntil = until;
+        return;
+      }
+      blRosterStatsUpdateUntil = 0;
+      if (raw != null) localStorage.removeItem(BL_ROSTER_STATS_COOLDOWN_STORAGE_KEY);
+    } catch {
+      blRosterStatsUpdateUntil = 0;
+    }
+  }
+  function saveBlRosterStatsUpdateCooldown(until) {
+    try {
+      if (Number.isFinite(until) && until > Date.now()) {
+        localStorage.setItem(BL_ROSTER_STATS_COOLDOWN_STORAGE_KEY, String(until));
+      } else {
+        localStorage.removeItem(BL_ROSTER_STATS_COOLDOWN_STORAGE_KEY);
+      }
+    } catch {
+    }
+  }
+  loadBlRosterStatsUpdateCooldown();
+  function formatBlSeasonKd(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return "\u2014";
+    return n.toFixed(2);
+  }
+  function formatBlLastPlayed(iso) {
+    if (!iso) return "\u2014";
+    const then = new Date(iso).getTime();
+    if (!Number.isFinite(then)) return "\u2014";
+    const diffMs = Date.now() - then;
+    if (diffMs < 45_000) return "Just now";
+    const min = Math.floor(diffMs / 60_000);
+    if (min < 60) return `${min}m ago`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr}h ago`;
+    const day = Math.floor(hr / 24);
+    if (day < 14) return `${day} day${day === 1 ? "" : "s"} ago`;
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    }).format(then);
+  }
+  function blRosterStatsUpdateCooldownLeft() {
+    return Math.max(0, blRosterStatsUpdateUntil - Date.now());
+  }
+  function blRosterStatsUpdateAriaHint() {
+    const left = blRosterStatsUpdateCooldownLeft();
+    if (left <= 0) return "Refresh Stats.cc data for this roster";
+    const sec = Math.ceil(left / 1000);
+    if (sec >= 60) {
+      const min = Math.ceil(sec / 60);
+      return `Refresh Stats.cc data (available in ${min} minute${min === 1 ? "" : "s"})`;
+    }
+    return `Refresh Stats.cc data (available in ${sec} seconds)`;
+  }
+  function stopBlRosterStatsUpdateTimer() {
+    clearInterval(blRosterStatsUpdateTimer);
+    blRosterStatsUpdateTimer = null;
+  }
+  function syncBlRosterStatsUpdateButton() {
+    const btn = document.getElementById("bl-roster-player-modal-reload");
+    if (!btn) return;
+    const configured = window.__cafeBlApi?.rosterStats?.configured === true;
+    const cooling = blRosterStatsUpdateCooldownLeft() > 0;
+    btn.disabled = cooling || !configured;
+    btn.classList.toggle("bl-roster-modal-reload--cooldown", cooling);
+    btn.setAttribute("aria-label", blRosterStatsUpdateAriaHint());
+    if (!cooling) {
+      saveBlRosterStatsUpdateCooldown(0);
+      stopBlRosterStatsUpdateTimer();
+    }
+  }
+  function playBlRosterReloadIconSpin(btn) {
+    const icon = btn?.querySelector("i");
+    if (!icon) return;
+    icon.classList.remove("bl-roster-modal-reload-icon--spin");
+    void icon.offsetWidth;
+    const onEnd = () => {
+      icon.classList.remove("bl-roster-modal-reload-icon--spin");
+      icon.removeEventListener("animationend", onEnd);
+    };
+    icon.addEventListener("animationend", onEnd);
+    icon.classList.add("bl-roster-modal-reload-icon--spin");
+  }
+  function startBlRosterStatsUpdateTimer() {
+    if (blRosterStatsUpdateTimer) return;
+    syncBlRosterStatsUpdateButton();
+    blRosterStatsUpdateTimer = setInterval(() => {
+      syncBlRosterStatsUpdateButton();
+      if (blRosterStatsUpdateCooldownLeft() <= 0) stopBlRosterStatsUpdateTimer();
+    }, 500);
+  }
+  async function requestBlRosterStatsForceUpdate() {
+    const left = blRosterStatsUpdateCooldownLeft();
+    if (left > 0) return;
+    blRosterStatsUpdateUntil = Date.now() + BL_ROSTER_STATS_UPDATE_COOLDOWN_MS;
+    saveBlRosterStatsUpdateCooldown(blRosterStatsUpdateUntil);
+    startBlRosterStatsUpdateTimer();
+    const btn = document.getElementById("bl-roster-player-modal-reload");
+    btn?.setAttribute("aria-busy", "true");
+    try {
+      await window.refreshCafeBlApiState?.({ forceRoster: true });
+      refreshOpenBlRosterPlayerModal();
+      renderBlackListedRoster();
+    } catch {
+      window.CafeCore?.Toast?.show?.("Could not refresh roster stats");
+    } finally {
+      btn?.removeAttribute("aria-busy");
+    }
+  }
+  function renderBlModalExtraStatsRow(member) {
+    const live = liveStatsForMember(member.id);
+    const kd = formatBlSeasonKd(live?.seasonKd);
+    const lastOn = formatBlLastPlayed(live?.lastPlayedAt);
+    return `
+            <div class="bl-roster-modal-extra-stats" role="group" aria-label="Season stats">
+                <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-stat-cell">
+                    <p class="bl-roster-modal-peak-label">KD</p>
+                    <p class="bl-roster-modal-peak-value bl-roster-modal-stat-kd">${escapeHtml(kd)}</p>
+                </div>
+                <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-stat-cell">
+                    <p class="bl-roster-modal-peak-label">Last on</p>
+                    <p class="bl-roster-modal-peak-value bl-roster-modal-stat-last">${escapeHtml(lastOn)}</p>
+                </div>
+            </div>`;
+  }
   function rankRailCell(member, heading, valueText, iconLabel) {
     if (!valueText) return "";
     const iconUrl = peakRankIconUrl(member, iconLabel || valueText);
     const iconMarkup = iconUrl
       ? `<img class="bl-roster-modal-peak-icon" src="${escapeHtml(iconUrl)}" alt="" width="56" height="56" loading="lazy" decoding="async">`
       : "";
+    const tierSource =
+      iconLabel ||
+      String(valueText).split("\xB7")[0].trim();
+    const tier = rankTierFromLabel(tierSource);
+    const tierClass = tier ? ` bl-roster-modal-peak-value--${tier}` : "";
     return `
             <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-rank-cell">
                 ${iconMarkup}
                 <p class="bl-roster-modal-peak-label">${escapeHtml(heading)}</p>
-                <p class="bl-roster-modal-peak-value">${escapeHtml(valueText)}</p>
+                <p class="bl-roster-modal-peak-value${tierClass}">${escapeHtml(valueText)}</p>
             </div>`;
   }
   function renderPeakRankRail(member) {
@@ -391,7 +626,8 @@
     const current = currentRankDisplay(member);
     const hasPeak = Boolean(peakLabel);
     const hasCurrent = Boolean(current.text);
-    if (!hasPeak && !hasCurrent) {
+    const statsConfigured = window.__cafeBlApi?.rosterStats?.configured === true;
+    if (!hasPeak && !hasCurrent && !statsConfigured) {
       peakEl.hidden = true;
       peakEl.innerHTML = "";
       return;
@@ -407,8 +643,11 @@
             <div class="bl-roster-modal-rank-stack">
                 ${currentCell}
                 ${peakCell}
+                ${renderBlModalExtraStatsRow(member)}
             </div>`;
     bindPeakRankIconFallback(peakEl);
+    syncBlRosterStatsUpdateButton();
+    if (blRosterStatsUpdateCooldownLeft() > 0) startBlRosterStatsUpdateTimer();
   }
   function renderPlayerModalContent(member) {
     const notes = member.notes || member.more || "";
@@ -480,6 +719,7 @@
     renderTeamRankRail(member);
     renderPeakRankRail(member);
     renderStatsCcRail(member);
+    syncBlRosterStatsUpdateButton();
     bindOperatorIconFallback(body);
     setBlRosterPlayerModalOpen(true);
   }
@@ -489,6 +729,7 @@
     const closeBtn = document.getElementById("bl-roster-player-modal-close");
     if (!modal) return;
     ensureBlRosterModalStatsRail();
+    syncBlRosterStatsUpdateButton();
     portalModalToBody();
     if (blRosterModalBound) return;
     blRosterModalBound = true;
@@ -500,6 +741,16 @@
       const liveModal = document.getElementById("bl-roster-player-modal");
       if (!liveModal?.classList.contains("is-open")) return;
       close();
+    });
+    modal.addEventListener("click", (event) => {
+      const btn = event.target.closest?.("#bl-roster-player-modal-reload");
+      if (!btn || !modal.contains(btn)) return;
+      event.preventDefault();
+      void requestBlRosterStatsForceUpdate();
+    });
+    window.addEventListener("cafe-bl-api-updated", () => {
+      if (!modal.classList.contains("is-open")) return;
+      refreshOpenBlRosterPlayerModal();
     });
   }
   function bindBlRosterMoreButtons() {
@@ -541,6 +792,9 @@
     bindOperatorIconFallback(subsHost);
   }
   function loadBlScrimRecord() {
+    if (typeof window.isCafeScrimWsConnected === "function" && !window.isCafeScrimWsConnected()) {
+      return { wins: 0, losses: 0 };
+    }
     const s = window.__cafeBlApi?.scrim;
     if (s) {
       return {
@@ -595,6 +849,9 @@
     void flushBlScrimSaveQueue();
   }
   function canEditBlScrimCounter() {
+    if (typeof window.isCafeScrimWsConnected === "function" && !window.isCafeScrimWsConnected()) {
+      return false;
+    }
     return typeof window.canEditBlScrimRecord === "function" && window.canEditBlScrimRecord();
   }
   let blScrimRecordState = { wins: 0, losses: 0 };
@@ -748,8 +1005,12 @@
     if (!document.getElementById("bl-scrim-counter")) return;
     if (!document.getElementById("page-black-listed")) return;
     await window.refreshCafeBlApiState?.();
-    applyBlScrimRecordFromStore();
-    paintBlStatsAttribution();
+    if (window.isCafeScrimWsConnected?.()) {
+      applyBlScrimRecordFromStore();
+    }
+    if (typeof window.syncTopBarServerWakeup === "function") {
+      window.syncTopBarServerWakeup();
+    }
     if (document.getElementById("black-listed-roster")) {
       renderBlackListedRoster();
       refreshOpenBlRosterPlayerModal();
@@ -805,11 +1066,27 @@
       stack.appendChild(createScrimAdjustButton(key, -1));
     });
   };
+  function onBlScrimWsStatus(event) {
+    if (!document.getElementById("bl-scrim-counter")) return;
+    if (event?.detail?.connected) {
+      applyBlScrimRecordFromStore();
+    } else {
+      blScrimRecordState = { wins: 0, losses: 0 };
+      paintBlScrimRecord();
+      stripScrimAdjustControls();
+    }
+    window.syncBlScrimEditControls?.();
+  }
   function initBlScrimCounter() {
     const section = document.getElementById("bl-scrim-counter");
     if (!section) return;
     if (!document.getElementById("bl-scrim-wins") || !document.getElementById("bl-scrim-losses")) return;
-    applyBlScrimRecordFromStore();
+    if (window.isCafeScrimWsConnected?.()) {
+      applyBlScrimRecordFromStore();
+    } else {
+      blScrimRecordState = { wins: 0, losses: 0 };
+      paintBlScrimRecord();
+    }
     if (section.dataset.scrimBound !== "1") {
       section.dataset.scrimBound = "1";
       section.addEventListener("click", (event) => {
@@ -834,13 +1111,15 @@
       window.addEventListener("cafe-bl-api-updated", () => {
         if (!document.getElementById("bl-scrim-counter")) return;
         if (!document.getElementById("page-black-listed")) return;
-        applyBlScrimRecordFromStore();
-        paintBlStatsAttribution();
+        if (window.isCafeScrimWsConnected?.()) {
+          applyBlScrimRecordFromStore();
+        }
         if (document.getElementById("black-listed-roster")) {
           renderBlackListedRoster();
           refreshOpenBlRosterPlayerModal();
         }
       });
+      window.addEventListener("cafe-scrim-ws-status", onBlScrimWsStatus);
     }
   }
   window.teardownBlackListedPage = function teardownBlackListedPage() {
@@ -852,13 +1131,17 @@
     blScrimDisplayed = { wins: null, losses: null };
     blScrimSaveQueued = null;
     blScrimSaveRunning = false;
-    window.disconnectCafeScrimWebSocket?.();
+    window.syncTopBarServerWakeup?.();
   };
   window.initBlackListedPage = function initBlackListedPage() {
+    loadBlRosterStatsUpdateCooldown();
+    if (blRosterStatsUpdateCooldownLeft() > 0) startBlRosterStatsUpdateTimer();
     initBlRosterPlayerModal();
     bindBlRosterMoreButtons();
     renderBlackListedRoster();
     initBlScrimCounter();
+    window.syncTopBarServerWakeup?.();
+    window.connectCafeScrimWebSocket?.();
     void refreshBlScrimFromServer();
   };
 })();

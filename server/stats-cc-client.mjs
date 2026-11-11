@@ -6,8 +6,10 @@ import {
 
 const STATS_CC_BASE = "https://api.stats.cc/siege";
 const CONFIG_TTL_MS = 24 * 60 * 60 * 1000;
-const PROFILE_TTL_MS = 12 * 60 * 1000;
-const PROFILE_ERROR_TTL_MS = 2 * 60 * 1000;
+const PROFILE_TTL_MS = 20 * 60 * 1000;
+const PROFILE_ERROR_TTL_MS = 10 * 60 * 1000;
+const ROSTER_PAYLOAD_TTL_MS = 20 * 60 * 1000;
+const STATS_CC_PLAYER_GAP_MS = 150;
 
 export const STATS_CC_ATTRIBUTION = {
   text: "Data by Stats.cc",
@@ -17,6 +19,12 @@ export const STATS_CC_ATTRIBUTION = {
 let configCache = { at: 0, data: null };
 const profileCache = new Map();
 const memberProfileIdByRosterId = new Map();
+let rosterPayloadCache = { at: 0, data: null };
+let rosterPayloadInflight = null;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function apiKey() {
   return process.env.STATS_CC_API_KEY?.trim() || "";
@@ -97,13 +105,116 @@ function seasonLabel(config, seasonKey) {
   return localizedDisplay(ent?.display) || "";
 }
 
-function profileStatsUrl(profile, platform, username) {
-  const vanity = profile?.vanity;
-  if (typeof vanity === "string" && vanity.trim()) {
+function operatorDisplayName(config, slug) {
+  const key = String(slug || "").trim();
+  if (!key) return "";
+  const ent = config?.operators?.[key];
+  const label = localizedDisplay(ent?.display);
+  if (label) return label;
+  return key
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function topOperatorsBySide(operatorRows, config, side, limit = 2) {
+  const wantSide = String(side || "").trim().toLowerCase();
+  if (!wantSide) return [];
+  const rows = (Array.isArray(operatorRows) ? operatorRows : [])
+    .map((row) => ({
+      slug: String(row?.operator || "").trim(),
+      rounds: Number(row?.rounds_played) || 0
+    }))
+    .filter((row) => {
+      if (!row.slug || row.rounds < 1) return false;
+      const opSide = String(config?.operators?.[row.slug]?.side || "").toLowerCase();
+      return opSide === wantSide;
+    })
+    .sort((a, b) => b.rounds - a.rounds);
+  const names = [];
+  for (const row of rows) {
+    const name = operatorDisplayName(config, row.slug);
+    if (name && !names.includes(name)) names.push(name);
+    if (names.length >= limit) break;
+  }
+  return names;
+}
+
+async function fetchRankedOperatorRows(profileId) {
+  const id = String(profileId || "").trim();
+  if (!id) return [];
+  return statsCcFetch(
+    `/v2/profiles/${encodeURIComponent(id)}/operators?playlist=ranked`
+  );
+}
+
+function parseStatsTimestamp(value) {
+  if (value == null || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const ms = value > 1e12 ? value : value * 1000;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  const text = String(value).trim();
+  if (!text) return null;
+  const d = new Date(text);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function kdFromSeasonRecord(record) {
+  if (!record || typeof record !== "object") return null;
+  const nested =
+    record.stats && typeof record.stats === "object" ? record.stats : record;
+  const seasonStats =
+    record.season_statistics && typeof record.season_statistics === "object"
+      ? record.season_statistics
+      : null;
+  for (const source of [record, nested, seasonStats].filter(Boolean)) {
+    const direct = Number(source.kd ?? source.kd_ratio);
+    if (Number.isFinite(direct) && direct >= 0) {
+      return Math.round(direct * 100) / 100;
+    }
+    const kills = Number(source.kills);
+    const deaths = Number(source.deaths);
+    if (Number.isFinite(kills) && Number.isFinite(deaths)) {
+      if (deaths > 0) return Math.round((kills / deaths) * 100) / 100;
+      if (kills > 0 && deaths === 0) return kills;
+    }
+  }
+  return null;
+}
+
+function lastPlayedFromProfile(profile) {
+  const keys = [
+    "last_played_at",
+    "last_seen_at",
+    "last_seen",
+    "last_played",
+    "updated_at"
+  ];
+  for (const key of keys) {
+    const iso = parseStatsTimestamp(profile?.[key]);
+    if (iso) return iso;
+  }
+  return null;
+}
+
+function profileStatsUrl(profile, platform, username, lookup = {}) {
+  const profileId = String(profile?.id || lookup.profileId || "").trim();
+  if (profileId) {
+    return `https://stats.cc/siege/-/${encodeURIComponent(profileId)}`;
+  }
+  const vanity =
+    (typeof profile?.vanity === "string" && profile.vanity.trim()) ||
+    (typeof lookup.vanity === "string" && lookup.vanity.trim()) ||
+    "";
+  if (vanity) {
     return `https://stats.cc/siege/@${encodeURIComponent(vanity.trim().toLowerCase())}`;
   }
-  if (platform && username) {
-    return `https://stats.cc/siege/${encodeURIComponent(platform)}/${encodeURIComponent(username)}`;
+  const uname = String(profile?.username || username || "").trim();
+  if (platform && uname) {
+    return `https://stats.cc/siege/${encodeURIComponent(platform)}/${encodeURIComponent(uname)}`;
   }
   return STATS_CC_ATTRIBUTION.url;
 }
@@ -157,7 +268,7 @@ function peakFromProfile(profile, config) {
   };
 }
 
-function mapProfileToPlayerStats(profile, config, platform, username) {
+function mapProfileToPlayerStats(profile, config, platform, username, lookup = {}) {
   const current = currentSeasonRecord(profile, config);
   const unrankedKey = config?.constants?.slugs?.unranked_rank;
   let currentRank = "";
@@ -175,6 +286,9 @@ function mapProfileToPlayerStats(profile, config, platform, username) {
   }
   const peak = peakFromProfile(profile, config);
   const liveName = profile?.username || username || null;
+  const seasonKd = current?.record ? kdFromSeasonRecord(current.record) : null;
+  const lastPlayedAt = lastPlayedFromProfile(profile);
+  const fetchedAt = parseStatsTimestamp(profile?.fetched_at);
   return {
     ok: true,
     profileId: profile?.id || null,
@@ -184,10 +298,12 @@ function mapProfileToPlayerStats(profile, config, platform, username) {
     currentRank: currentRank || null,
     currentSeason: currentSeason || null,
     rankPoints,
+    seasonKd,
+    lastPlayedAt,
     peakRank: peak?.rankLabel || null,
     peakSeason: peak?.seasonLabel || null,
-    statsProfileUrl: profileStatsUrl(profile, platform, username),
-    fetchedAt: profile?.fetched_at || null
+    statsProfileUrl: profileStatsUrl(profile, platform, username, lookup),
+    fetchedAt
   };
 }
 
@@ -244,7 +360,7 @@ async function fetchProfile(member, rosterMemberId) {
   return fetchProfileByPlatformUsername(lookup.platform, lookup.username);
 }
 
-async function resolveMemberStats(member, config) {
+async function resolveMemberStats(member, config, options = {}) {
   const id = member?.id;
   if (!id) {
     return { ok: false, error: "missing_id" };
@@ -252,6 +368,7 @@ async function resolveMemberStats(member, config) {
   if (!memberHasStatsLookup(member) && !memberProfileIdByRosterId.has(id)) {
     return { ok: false, error: "not_linked" };
   }
+  const force = options.force === true;
   const lookup = statsLookupForMember(member);
   const pinnedId = lookup.profileId || memberProfileIdByRosterId.get(id) || "";
   const cacheKey = pinnedId
@@ -261,7 +378,11 @@ async function resolveMemberStats(member, config) {
       : `member:${id}:${lookup.platform}:${lookup.username.toLowerCase()}`;
   const cached = profileCache.get(cacheKey);
   const now = Date.now();
-  if (cached && now - cached.at < (cached.result?.ok ? PROFILE_TTL_MS : PROFILE_ERROR_TTL_MS)) {
+  if (
+    !force &&
+    cached &&
+    now - cached.at < (cached.result?.ok ? PROFILE_TTL_MS : PROFILE_ERROR_TTL_MS)
+  ) {
     return { ...cached.result, memberId: id };
   }
   try {
@@ -269,12 +390,31 @@ async function resolveMemberStats(member, config) {
     if (profile?.id) {
       memberProfileIdByRosterId.set(id, profile.id);
     }
-    const result = mapProfileToPlayerStats(
+    const mapped = mapProfileToPlayerStats(
       profile,
       config,
       resolvedPlatform || lookup.platform,
-      lookup.username || profile?.username || ""
+      lookup.username || profile?.username || "",
+      lookup
     );
+    let attackers = null;
+    let defenders = null;
+    const profileIdForOps = profile?.id || pinnedId;
+    if (profileIdForOps) {
+      try {
+        const operatorRows = await fetchRankedOperatorRows(profileIdForOps);
+        const topAtk = topOperatorsBySide(operatorRows, config, "attacker", 2);
+        const topDef = topOperatorsBySide(operatorRows, config, "defender", 2);
+        if (topAtk.length) attackers = topAtk;
+        if (topDef.length) defenders = topDef;
+      } catch {
+      }
+    }
+    const result = {
+      ...mapped,
+      attackers,
+      defenders
+    };
     profileCache.set(cacheKey, { at: now, result });
     if (profile?.id) {
       profileCache.set(`id:${profile.id}`, { at: now, result });
@@ -288,7 +428,7 @@ async function resolveMemberStats(member, config) {
   }
 }
 
-export async function buildRosterStatsPayload(roster) {
+async function buildRosterStatsPayloadUncached(roster, options = {}) {
   const attribution = STATS_CC_ATTRIBUTION;
   if (!statsCcConfigured()) {
     return { configured: false, attribution, players: {} };
@@ -306,9 +446,51 @@ export async function buildRosterStatsPayload(roster) {
   }
   const players = {};
   const list = Array.isArray(roster) ? roster : [];
+  let coldFetchGap = false;
   for (const member of list) {
     if (!member?.id) continue;
-    players[member.id] = await resolveMemberStats(member, config);
+    const lookup = statsLookupForMember(member);
+    const pinnedId = lookup.profileId || memberProfileIdByRosterId.get(member.id) || "";
+    const cacheKey = pinnedId
+      ? `id:${pinnedId}`
+      : lookup.vanity
+        ? `vanity:${lookup.vanity.toLowerCase()}`
+        : `member:${member.id}:${lookup.platform}:${lookup.username.toLowerCase()}`;
+    const cached = profileCache.get(cacheKey);
+    const cacheFresh =
+      cached &&
+      Date.now() - cached.at <
+        (cached.result?.ok ? PROFILE_TTL_MS : PROFILE_ERROR_TTL_MS);
+    if (!cacheFresh) {
+      if (coldFetchGap) await sleep(STATS_CC_PLAYER_GAP_MS);
+      coldFetchGap = true;
+    }
+    players[member.id] = await resolveMemberStats(member, config, options);
   }
   return { configured: true, attribution, players };
+}
+
+export async function buildRosterStatsPayload(roster, options = {}) {
+  const force = options.force === true;
+  const now = Date.now();
+  if (
+    !force &&
+    rosterPayloadCache.data &&
+    now - rosterPayloadCache.at < ROSTER_PAYLOAD_TTL_MS
+  ) {
+    return rosterPayloadCache.data;
+  }
+  if (rosterPayloadInflight && !force) {
+    return rosterPayloadInflight;
+  }
+  rosterPayloadInflight = (async () => {
+    try {
+      const payload = await buildRosterStatsPayloadUncached(roster, options);
+      rosterPayloadCache = { at: Date.now(), data: payload };
+      return payload;
+    } finally {
+      rosterPayloadInflight = null;
+    }
+  })();
+  return rosterPayloadInflight;
 }

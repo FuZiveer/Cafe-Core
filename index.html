@@ -138,6 +138,17 @@
 
     <main class="flex-1 flex flex-col h-full min-w-0 bg-matte-950 overflow-hidden">
         <header id="top-bar" class="h-[64px] shrink-0 bg-matte-900 border-b border-matte-800 flex items-center justify-between p-4 relative z-20">
+            <div
+                id="topbar-bl-wakeup"
+                class="topbar-bl-wakeup pointer-events-none absolute inset-0 z-[5] hidden flex items-center justify-center"
+                aria-live="polite"
+                aria-atomic="true"
+                aria-hidden="true"
+            >
+                <span class="topbar-bl-wakeup__text text-xs font-bold tracking-widest uppercase whitespace-nowrap">
+                    <span>Server is waking up</span><span id="topbar-bl-wakeup-dots" class="topbar-bl-wakeup__dots" aria-hidden="true"></span>
+                </span>
+            </div>
             <div class="flex items-center min-w-0 flex-1 overflow-hidden relative z-10 gap-2">
                 <button type="button" id="mobile-menu-btn" class="mobile-menu-btn topbar-action-btn ui-interactive w-9 h-9 rounded-lg items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 shrink-0" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
                     <i id="mobile-menu-icon" class="fa-solid fa-bars text-sm" aria-hidden="true"></i>

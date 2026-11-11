@@ -67,7 +67,8 @@ export async function handleBlApiRequest(req, res, url, cfg) {
   if (pathname === "/api/bl/roster-stats" && req.method === "GET") {
     applyCors(req, res, cfg);
     const roster = loadBlackListedRoster();
-    const payload = await buildRosterStatsPayload(roster);
+    const force = url.searchParams.get("force") === "1";
+    const payload = await buildRosterStatsPayload(roster, { force });
     sendJson(res, 200, payload);
     return true;
   }

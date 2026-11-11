@@ -50,20 +50,27 @@
                                 <h3 id="bl-roster-player-modal-title" class="bl-roster-player-name text-sm font-bold tracking-widest uppercase text-white truncate min-w-0">Player</h3>
                                 <p id="bl-roster-player-modal-role" class="bl-roster-role bl-roster-modal-head-role"></p>
                             </div>
-                            <button type="button" id="bl-roster-player-modal-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0" aria-label="Close">
-                                <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
-                            </button>
+                            <div class="bl-roster-modal-head-actions flex items-center gap-1 shrink-0">
+                                <a id="bl-roster-player-modal-stats-open" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0" href="https://stats.cc/siege" target="_blank" rel="noopener noreferrer" aria-label="Open Stats.cc profile">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-sm" aria-hidden="true"></i>
+                                </a>
+                                <button type="button" id="bl-roster-player-modal-reload" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0" disabled aria-label="Refresh Stats.cc data for this roster">
+                                    <i class="fa-solid fa-arrows-rotate text-sm" aria-hidden="true"></i>
+                                </button>
+                                <button type="button" id="bl-roster-player-modal-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative shrink-0" aria-label="Close">
+                                    <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+                                </button>
+                            </div>
                         </div>
                         <div id="bl-roster-player-modal-body" class="bl-roster-player-modal-body shrink-0 text-sm text-slate-300 tracking-wide leading-relaxed"></div>
                         <aside id="bl-roster-player-modal-peak" class="bl-roster-modal-peak-rail bl-roster-modal-peak-rail--in-panel" hidden aria-label="Peak and current rank"></aside>
                         </div>
                         <aside id="bl-roster-player-modal-stats" class="bl-roster-modal-stats-rail bl-roster-modal-stats-rail--shell-bottom-right" aria-label="View on Stats.cc">
-                            <a id="bl-roster-player-modal-stats-link" class="bl-roster-modal-stats-chip ui-interactive" href="https://stats.cc/siege" target="_blank" rel="noopener noreferrer">
+                            <a id="bl-roster-player-modal-stats-link" class="bl-roster-modal-stats-chip ui-interactive" href="https://stats.cc/siege" target="_blank" rel="noopener noreferrer" tabindex="-1">
                                 <span class="bl-roster-modal-stats-chip-label">Data by Stats.cc</span>
                                 <i class="fa-solid fa-arrow-up-right-from-square bl-roster-modal-stats-chip-icon" aria-hidden="true"></i>
                             </a>
                         </aside>
                     </div>
                 </div>
-                <p id="bl-stats-attribution" class="bl-stats-attribution text-xs text-slate-500 tracking-wide text-center mt-10 hidden" hidden></p>
             </div>
