@@ -1734,6 +1734,12 @@ html.reduce-motion #bl-roster-player-modal-reload i.bl-roster-modal-reload-icon-
 .bl-roster-modal-stat-cell .bl-roster-modal-peak-value {
   color: #fff;
 }
+.bl-roster-modal-stat-cell .bl-roster-modal-peak-value.bl-roster-modal-stat-kd--good {
+  color: #2ecc71;
+}
+.bl-roster-modal-stat-cell .bl-roster-modal-peak-value.bl-roster-modal-stat-kd--low {
+  color: #ef4444;
+}
 @keyframes bl-roster-stats-update-spin {
   from {
     transform: rotate(0deg);

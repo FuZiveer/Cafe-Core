@@ -187,24 +187,82 @@ function kdFromSeasonRecord(record) {
 
 const RANKED_MODE_KEYS = ["ranked-bomb", "ranked", "ranked-standard"];
 
-function seasonKdFromProfile(profile, config) {
+function currentSeasonRankedModeRow(profile, config) {
   const seasonKey = config?.constants?.slugs?.current_season;
   if (!seasonKey) return null;
   const modes = profile?.season_mode_records?.[seasonKey];
-  if (modes && typeof modes === "object") {
-    for (const modeKey of RANKED_MODE_KEYS) {
-      const kd = kdFromSeasonRecord(modes[modeKey]);
-      if (kd != null) return kd;
+  if (!modes || typeof modes !== "object") return null;
+  for (const modeKey of RANKED_MODE_KEYS) {
+    const row = modes[modeKey];
+    if (row && typeof row === "object") return row;
+  }
+  for (const [modeKey, row] of Object.entries(modes)) {
+    if (!row || typeof row !== "object") continue;
+    const modeSlug = String(row.mode || modeKey).toLowerCase();
+    if (modeSlug.startsWith("ranked")) return row;
+  }
+  return null;
+}
+
+function winRatePercentFromRow(row) {
+  if (!row || typeof row !== "object") return null;
+  const direct = Number(row.wr ?? row.win_rate);
+  if (Number.isFinite(direct)) {
+    const pct = direct > 0 && direct <= 1 ? direct * 100 : direct;
+    return Math.round(pct * 10) / 10;
+  }
+  const matches = Number(row.matches);
+  const wins = Number(row.wins);
+  if (Number.isFinite(matches) && matches > 0 && Number.isFinite(wins)) {
+    return Math.round((wins / matches) * 1000) / 10;
+  }
+  const losses = Number(row.losses);
+  if (Number.isFinite(wins) && Number.isFinite(losses) && wins + losses > 0) {
+    return Math.round((wins / (wins + losses)) * 1000) / 10;
+  }
+  return null;
+}
+
+function headshotPercentFromRow(row, profile) {
+  if (row && typeof row === "object") {
+    const direct = Number(row.hs ?? row.headshot_percent);
+    if (Number.isFinite(direct) && direct >= 0) {
+      const pct = direct > 0 && direct <= 1 ? direct * 100 : direct;
+      return Math.round(pct * 10) / 10;
     }
-    for (const [modeKey, row] of Object.entries(modes)) {
-      const modeSlug = String(row?.mode || modeKey).toLowerCase();
-      if (!modeSlug.startsWith("ranked")) continue;
-      const kd = kdFromSeasonRecord(row);
-      if (kd != null) return kd;
+    const kills = Number(row.kills);
+    const headshots = Number(row.headshots);
+    if (Number.isFinite(kills) && kills > 0 && Number.isFinite(headshots)) {
+      return Math.round((headshots / kills) * 1000) / 10;
     }
   }
-  const current = currentSeasonRecord(profile, config);
-  return current?.record ? kdFromSeasonRecord(current.record) : null;
+  const profileHs = Number(profile?.hs);
+  if (Number.isFinite(profileHs) && profileHs >= 0) {
+    const pct = profileHs > 0 && profileHs <= 1 ? profileHs * 100 : profileHs;
+    return Math.round(pct * 10) / 10;
+  }
+  return null;
+}
+
+function seasonRankedPerformanceFromProfile(profile, config) {
+  const row = currentSeasonRankedModeRow(profile, config);
+  if (!row) {
+    const current = currentSeasonRecord(profile, config);
+    const kd = current?.record ? kdFromSeasonRecord(current.record) : null;
+    return {
+      seasonKd: kd,
+      seasonWinRate: null,
+      seasonHeadshotPct: headshotPercentFromRow(null, profile),
+      seasonRankedMatches: null
+    };
+  }
+  const matches = Number(row.matches);
+  return {
+    seasonKd: kdFromSeasonRecord(row),
+    seasonWinRate: winRatePercentFromRow(row),
+    seasonHeadshotPct: headshotPercentFromRow(row, profile),
+    seasonRankedMatches: Number.isFinite(matches) ? matches : null
+  };
 }
 
 function lastPlayedFromProfile(profile) {
@@ -308,7 +366,7 @@ function mapProfileToPlayerStats(profile, config, platform, username, lookup = {
   }
   const peak = peakFromProfile(profile, config);
   const liveName = profile?.username || username || null;
-  const seasonKd = seasonKdFromProfile(profile, config);
+  const rankedPerf = seasonRankedPerformanceFromProfile(profile, config);
   const lastPlayedAt = lastPlayedFromProfile(profile);
   const fetchedAt = parseStatsTimestamp(profile?.fetched_at);
   return {
@@ -320,7 +378,10 @@ function mapProfileToPlayerStats(profile, config, platform, username, lookup = {
     currentRank: currentRank || null,
     currentSeason: currentSeason || null,
     rankPoints,
-    seasonKd,
+    seasonKd: rankedPerf.seasonKd,
+    seasonWinRate: rankedPerf.seasonWinRate,
+    seasonHeadshotPct: rankedPerf.seasonHeadshotPct,
+    seasonRankedMatches: rankedPerf.seasonRankedMatches,
     lastPlayedAt,
     peakRank: peak?.rankLabel || null,
     peakSeason: peak?.seasonLabel || null,

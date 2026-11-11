@@ -173,27 +173,116 @@
     const row = players[memberId];
     return row && row.ok === true ? row : null;
   }
+  let blLiveTeamRankCache = null;
+  function clearBlLiveTeamRankCache() {
+    blLiveTeamRankCache = null;
+  }
+  const BL_TEAM_RANK_MIN_RANKED_MATCHES = 10;
+  const BL_TEAM_RANK_WEIGHTS = { kd: 0.4, wr: 0.35, hs: 0.25 };
+  function blNormalizePct(value, max = 100) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return Math.min(Math.max(n, 0), max) / max;
+  }
+  function blTeamContributionScore(live) {
+    const kd = Number(live?.seasonKd);
+    const wr = Number(live?.seasonWinRate);
+    const hs = Number(live?.seasonHeadshotPct);
+    const kdNorm = Number.isFinite(kd) && kd >= 0 ? Math.min(kd / 2, 1) : null;
+    const wrNorm = blNormalizePct(wr, 100);
+    const hsNorm = blNormalizePct(hs, 100);
+    const w = BL_TEAM_RANK_WEIGHTS;
+    let total = 0;
+    let weight = 0;
+    if (kdNorm != null) {
+      total += kdNorm * w.kd;
+      weight += w.kd;
+    }
+    if (wrNorm != null) {
+      total += wrNorm * w.wr;
+      weight += w.wr;
+    }
+    if (hsNorm != null) {
+      total += hsNorm * w.hs;
+      weight += w.hs;
+    }
+    if (!weight) return null;
+    return total / weight;
+  }
+  function computeBlLiveTeamRankMap() {
+    if (window.__cafeBlApi?.rosterStats?.configured !== true) return null;
+    const starters = getRoster().filter((m) => !m.substitute);
+    const scored = starters
+      .map((m) => {
+        const live = liveStatsForMember(m.id);
+        const matches = Number(live?.seasonRankedMatches);
+        const score = blTeamContributionScore(live);
+        const kd = Number(live?.seasonKd);
+        const wr = Number(live?.seasonWinRate);
+        const hs = Number(live?.seasonHeadshotPct);
+        const eligible =
+          score != null &&
+          Number.isFinite(kd) &&
+          Number.isFinite(wr) &&
+          (!Number.isFinite(matches) || matches >= BL_TEAM_RANK_MIN_RANKED_MATCHES);
+        return {
+          id: m.id,
+          eligible,
+          score,
+          kd,
+          wr,
+          hs: Number.isFinite(hs) ? hs : -1
+        };
+      })
+      .filter((row) => row.eligible);
+    if (!scored.length) return null;
+    scored.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (b.wr !== a.wr) return b.wr - a.wr;
+      if (b.kd !== a.kd) return b.kd - a.kd;
+      if (b.hs !== a.hs) return b.hs - a.hs;
+      return 0;
+    });
+    const map = new Map();
+    scored.forEach((row, index) => map.set(row.id, index + 1));
+    return map;
+  }
+  function getBlLiveTeamRankMap() {
+    if (blLiveTeamRankCache) return blLiveTeamRankCache;
+    blLiveTeamRankCache = computeBlLiveTeamRankMap();
+    return blLiveTeamRankCache;
+  }
+  function applyLiveTeamRankToMember(member) {
+    if (!member || member.substitute) {
+      if (member) member.teamRank = undefined;
+      return;
+    }
+    const map = getBlLiveTeamRankMap();
+    if (map?.has(member.id)) member.teamRank = map.get(member.id);
+  }
   function memberForDisplay(member) {
     if (!member) return member;
-    const live = liveStatsForMember(member.id);
-    if (!live) return member;
     const merged = { ...member };
-    if (live.currentRank) merged.currentRank = live.currentRank;
-    if (live.peakRank) {
-      merged.peakRank = {
-        rank: live.peakRank,
-        season: live.peakSeason || ""
-      };
+    const live = liveStatsForMember(member.id);
+    if (live) {
+      if (live.currentRank) merged.currentRank = live.currentRank;
+      if (live.peakRank) {
+        merged.peakRank = {
+          rank: live.peakRank,
+          season: live.peakSeason || ""
+        };
+      }
+      if (live.displayName) merged.name = live.displayName;
+      else if (live.username) merged.name = `${String(live.username).trim()}.BL`;
+      if (live.statsProfileUrl) merged.statsProfileUrl = live.statsProfileUrl;
+      if (Array.isArray(live.attackers) && live.attackers.length) {
+        merged.attackers = live.attackers.slice(0, 2);
+      }
+      if (Array.isArray(live.defenders) && live.defenders.length) {
+        merged.defenders = live.defenders.slice(0, 2);
+      }
     }
-    if (live.displayName) merged.name = live.displayName;
-    else if (live.username) merged.name = `${String(live.username).trim()}.BL`;
-    if (live.statsProfileUrl) merged.statsProfileUrl = live.statsProfileUrl;
-    if (Array.isArray(live.attackers) && live.attackers.length) {
-      merged.attackers = live.attackers.slice(0, 2);
-    }
-    if (Array.isArray(live.defenders) && live.defenders.length) {
-      merged.defenders = live.defenders.slice(0, 2);
-    }
+    applyLiveTeamRankToMember(merged);
     return merged;
   }
   function renderMemberOps(member) {
@@ -498,6 +587,11 @@
     if (!Number.isFinite(n) || n < 0) return "\u2014";
     return n.toFixed(2);
   }
+  function blSeasonKdToneClass(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return "";
+    return n >= 1 ? " bl-roster-modal-stat-kd--good" : " bl-roster-modal-stat-kd--low";
+  }
   function formatBlLastPlayed(iso) {
     if (!iso) return "\u2014";
     const then = new Date(iso).getTime();
@@ -586,13 +680,15 @@
   }
   function renderBlModalExtraStatsRow(member) {
     const live = liveStatsForMember(member.id);
-    const kd = formatBlSeasonKd(live?.seasonKd);
+    const kdRaw = live?.seasonKd;
+    const kd = formatBlSeasonKd(kdRaw);
+    const kdTone = blSeasonKdToneClass(kdRaw);
     const lastOn = formatBlLastPlayed(live?.lastPlayedAt);
     return `
             <div class="bl-roster-modal-extra-stats" role="group" aria-label="Season stats">
                 <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-stat-cell">
                     <p class="bl-roster-modal-peak-label">KD</p>
-                    <p class="bl-roster-modal-peak-value bl-roster-modal-stat-kd">${escapeHtml(kd)}</p>
+                    <p class="bl-roster-modal-peak-value bl-roster-modal-stat-kd${kdTone}">${escapeHtml(kd)}</p>
                 </div>
                 <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-stat-cell">
                     <p class="bl-roster-modal-peak-label">Last on</p>
@@ -749,6 +845,7 @@
       void requestBlRosterStatsForceUpdate();
     });
     window.addEventListener("cafe-bl-api-updated", () => {
+      clearBlLiveTeamRankCache();
       if (!modal.classList.contains("is-open")) return;
       refreshOpenBlRosterPlayerModal();
     });
@@ -770,6 +867,7 @@
     const subsHost = document.getElementById("black-listed-subs");
     const subsSection = document.getElementById("black-listed-subs-section");
     if (!host) return;
+    clearBlLiveTeamRankCache();
     const roster = getRoster();
     const starters = roster.filter((member) => !member.substitute);
     const subs = roster.filter((member) => member.substitute);
@@ -1111,6 +1209,7 @@
       window.addEventListener("cafe-bl-api-updated", () => {
         if (!document.getElementById("bl-scrim-counter")) return;
         if (!document.getElementById("page-black-listed")) return;
+        clearBlLiveTeamRankCache();
         if (window.isCafeScrimWsConnected?.()) {
           applyBlScrimRecordFromStore();
         }
