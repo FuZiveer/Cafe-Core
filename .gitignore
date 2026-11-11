@@ -1,5 +1,6 @@
 .env
 .env.*
+.tmp/
 *.pem
 *.key
 credentials.json

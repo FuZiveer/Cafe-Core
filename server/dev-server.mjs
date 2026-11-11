@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import { getAuthConfig, handleDiscordAuthRequest } from "./discord-auth.mjs";
 import { handleBlApiRequest } from "./bl-api.mjs";
 import { handleScrimUpgrade } from "./bl-scrim-ws.mjs";
-import { handlePresenceUpgrade } from "./presence-ws.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const PORT = Number(process.env.PORT || 8787);
@@ -120,7 +119,6 @@ server.on("upgrade", (request, socket, head) => {
     return;
   }
   if (handleScrimUpgrade(request, socket, head, pathname)) return;
-  if (handlePresenceUpgrade(request, socket, head, pathname)) return;
   socket.destroy();
 });
 server.on("error", (err) => {

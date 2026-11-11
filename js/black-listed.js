@@ -180,6 +180,45 @@
     if (!memberId) return null;
     return getRoster().find((entry) => entry.id === memberId) || null;
   }
+  function liveStatsForMember(memberId) {
+    const players = window.__cafeBlApi?.rosterStats?.players;
+    if (!players || !memberId) return null;
+    const row = players[memberId];
+    return row && row.ok === true ? row : null;
+  }
+  function memberForDisplay(member) {
+    if (!member) return member;
+    const live = liveStatsForMember(member.id);
+    if (!live) return member;
+    const merged = { ...member };
+    if (live.currentRank) merged.currentRank = live.currentRank;
+    if (live.peakRank) {
+      merged.peakRank = {
+        rank: live.peakRank,
+        season: live.peakSeason || ""
+      };
+    }
+    if (live.displayName) merged.name = live.displayName;
+    else if (live.username) merged.name = `${String(live.username).trim()}.BL`;
+    if (live.statsProfileUrl) merged.statsProfileUrl = live.statsProfileUrl;
+    return merged;
+  }
+  function paintBlStatsAttribution() {
+    const el = document.getElementById("bl-stats-attribution");
+    if (!el) return;
+    const stats = window.__cafeBlApi?.rosterStats;
+    if (!stats?.configured) {
+      el.hidden = true;
+      el.classList.add("hidden");
+      el.innerHTML = "";
+      return;
+    }
+    const url = stats.attribution?.url || "https://stats.cc/siege";
+    const label = stats.attribution?.text || "Data by Stats.cc";
+    el.innerHTML = `Siege rank data by <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label.replace(/^Data by\s+/i, "Stats.cc") || "Stats.cc")}</a>`;
+    el.hidden = false;
+    el.classList.remove("hidden");
+  }
   function renderMemberOps(member) {
     return `
                 <div class="bl-roster-ops">
@@ -248,12 +287,15 @@
     if (division == null) return base + 2;
     return base + (5 - division);
   }
-  function peakRankIconUrl(member) {
+  function peakRankIconUrl(member, labelOverride) {
     const explicit = Number(member.peakRankIconId);
     if (Number.isFinite(explicit) && explicit >= 0 && explicit <= 36) {
       return `${R6_RANK_ICON_CDN}/${explicit}.png`;
     }
-    const id = peakRankLabelToIconId(peakRankRawLabel(member));
+    const label = labelOverride != null && String(labelOverride).trim()
+      ? String(labelOverride).trim()
+      : peakRankRawLabel(member);
+    const id = peakRankLabelToIconId(label);
     if (id == null) return "";
     return `${R6_RANK_ICON_CDN}/${id}.png`;
   }
@@ -283,23 +325,55 @@
                 <p class="bl-roster-modal-peak-value"><span class="text-redneon-500">#${escapeHtml(String(n))}</span></p>
             </div>`;
   }
+  function currentRankDisplay(member) {
+    const live = liveStatsForMember(member.id);
+    const rankRaw = live?.currentRank ?? member.currentRank;
+    const rank = rankRaw != null ? String(rankRaw).trim() : "";
+    if (!rank) return { text: "", iconLabel: "" };
+    const season = live?.currentSeason != null ? String(live.currentSeason).trim() : "";
+    const text = season ? `${rank} \xB7 ${season}` : rank;
+    return { text, iconLabel: rank };
+  }
+  function rankRailCell(member, heading, valueText, iconLabel) {
+    if (!valueText) return "";
+    const iconUrl = peakRankIconUrl(member, iconLabel || valueText);
+    const iconMarkup = iconUrl
+      ? `<img class="bl-roster-modal-peak-icon" src="${escapeHtml(iconUrl)}" alt="" width="56" height="56" loading="lazy" decoding="async">`
+      : "";
+    return `
+            <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-rank-cell">
+                ${iconMarkup}
+                <p class="bl-roster-modal-peak-label">${escapeHtml(heading)}</p>
+                <p class="bl-roster-modal-peak-value">${escapeHtml(valueText)}</p>
+            </div>`;
+  }
   function renderPeakRankRail(member) {
+    member = memberForDisplay(member);
     const peakEl = document.getElementById("bl-roster-player-modal-peak");
     if (!peakEl) return;
     const peakLabel = formatPeakRank(member);
-    if (!peakLabel) {
+    const current = currentRankDisplay(member);
+    const hasPeak = Boolean(peakLabel);
+    const hasCurrent = Boolean(current.text);
+    const shell = peakEl.closest(".bl-roster-player-modal-shell");
+    if (!hasPeak && !hasCurrent) {
       peakEl.hidden = true;
       peakEl.innerHTML = "";
+      shell?.classList.remove("bl-roster-player-modal-shell--has-rank-rail");
       return;
     }
-    const iconUrl = peakRankIconUrl(member);
-    const iconMarkup = iconUrl ? `<img class="bl-roster-modal-peak-icon" src="${escapeHtml(iconUrl)}" alt="" width="56" height="56" loading="lazy" decoding="async">` : "";
+    shell?.classList.add("bl-roster-player-modal-shell--has-rank-rail");
+    const currentCell = hasCurrent
+      ? rankRailCell(member, "Current rank", current.text, current.iconLabel)
+      : rankRailCell(member, "Current rank", "\u2014", "");
+    const peakCell = hasPeak
+      ? rankRailCell(member, "Peak rank", peakLabel, peakRankRawLabel(member))
+      : rankRailCell(member, "Peak rank", "\u2014", "");
     peakEl.hidden = false;
     peakEl.innerHTML = `
-            <div class="bl-roster-modal-peak-rail-inner">
-                ${iconMarkup}
-                <p class="bl-roster-modal-peak-label">Peak rank</p>
-                <p class="bl-roster-modal-peak-value">${escapeHtml(peakLabel)}</p>
+            <div class="bl-roster-modal-rank-stack">
+                ${currentCell}
+                ${peakCell}
             </div>`;
     bindPeakRankIconFallback(peakEl);
   }
@@ -342,8 +416,18 @@
       blRosterModalCloseTimer = null;
     }, 150);
   }
+  function refreshOpenBlRosterPlayerModal() {
+    const modal = document.getElementById("bl-roster-player-modal");
+    if (!modal?.classList.contains("is-open")) return;
+    const memberId = modal.dataset.blOpenMemberId;
+    if (!memberId) return;
+    const member = memberForDisplay(findMemberById(memberId));
+    if (!member) return;
+    renderTeamRankRail(member);
+    renderPeakRankRail(member);
+  }
   function openBlRosterPlayerModal(memberId) {
-    const member = findMemberById(memberId);
+    const member = memberForDisplay(findMemberById(memberId));
     if (!member) return;
     const modal = document.getElementById("bl-roster-player-modal");
     const title = document.getElementById("bl-roster-player-modal-title");
@@ -357,6 +441,7 @@
       roleEl.hidden = !role;
     }
     body.innerHTML = renderPlayerModalContent(member);
+    modal.dataset.blOpenMemberId = memberId;
     renderTeamRankRail(member);
     renderPeakRankRail(member);
     bindOperatorIconFallback(body);
@@ -624,8 +709,14 @@
   }
   async function refreshBlScrimFromServer() {
     if (!document.getElementById("bl-scrim-counter")) return;
+    if (!document.getElementById("page-black-listed")) return;
     await window.refreshCafeBlApiState?.();
     applyBlScrimRecordFromStore();
+    paintBlStatsAttribution();
+    if (document.getElementById("black-listed-roster")) {
+      renderBlackListedRoster();
+      refreshOpenBlRosterPlayerModal();
+    }
   }
   function stripScrimAdjustControls() {
     document.querySelectorAll(".bl-scrim-counter-adjust").forEach((el) => el.remove());
@@ -705,7 +796,13 @@
       });
       window.addEventListener("cafe-bl-api-updated", () => {
         if (!document.getElementById("bl-scrim-counter")) return;
+        if (!document.getElementById("page-black-listed")) return;
         applyBlScrimRecordFromStore();
+        paintBlStatsAttribution();
+        if (document.getElementById("black-listed-roster")) {
+          renderBlackListedRoster();
+          refreshOpenBlRosterPlayerModal();
+        }
       });
     }
   }

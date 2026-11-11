@@ -3,7 +3,8 @@
   window.__cafeBlApi = {
     available: false,
     scrimCanEdit: false,
-    scrim: { wins: 0, losses: 0 }
+    scrim: { wins: 0, losses: 0 },
+    rosterStats: null
   };
   let scrimWs = null;
   let scrimWsReconnectTimer = null;
@@ -132,18 +133,29 @@
   window.refreshCafeBlApiState = async function refreshCafeBlApiState() {
     const state = window.__cafeBlApi;
     let scrimOk = false;
-    try {
-      const scrim = await fetchJson("/api/bl/scrim-record");
+    let rosterStatsOk = false;
+    const [scrimSettled, rosterStatsSettled] = await Promise.allSettled([
+      fetchJson("/api/bl/scrim-record"),
+      fetchJson("/api/bl/roster-stats")
+    ]);
+    if (scrimSettled.status === "fulfilled") {
+      const scrim = scrimSettled.value;
       scrimOk = true;
       state.scrim = {
         wins: Math.max(0, Math.round(Number(scrim.wins) || 0)),
         losses: Math.max(0, Math.round(Number(scrim.losses) || 0))
       };
       state.scrimCanEdit = scrim.canEdit === true;
-    } catch {
+    } else {
       state.scrimCanEdit = false;
     }
-    state.available = scrimOk;
+    if (rosterStatsSettled.status === "fulfilled") {
+      state.rosterStats = rosterStatsSettled.value;
+      rosterStatsOk = state.rosterStats?.configured === true;
+    } else {
+      state.rosterStats = null;
+    }
+    state.available = scrimOk || rosterStatsOk;
     if (scrimOk) {
       window.connectCafeScrimWebSocket?.();
     } else {

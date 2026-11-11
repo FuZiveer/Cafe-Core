@@ -1,6 +1,8 @@
 import { applyCors, getSessionUser, sendJson } from "./discord-auth.mjs";
 import { readScrimRecord, writeScrimRecord } from "./bl-scrim-store.mjs";
 import { broadcastScrimRecord } from "./bl-scrim-ws.mjs";
+import { loadBlackListedRoster } from "./bl-roster-data.mjs";
+import { buildRosterStatsPayload } from "./stats-cc-client.mjs";
 
 const BL_SCRIM_RECORD_EDITORS = new Set(["fuziveer", "rawenge", "rjwarrior", "jobless___", "kkv060", "two4ne"]);
 
@@ -60,6 +62,13 @@ export async function handleBlApiRequest(req, res, url, cfg) {
       losses: record.losses,
       canEdit: true
     });
+    return true;
+  }
+  if (pathname === "/api/bl/roster-stats" && req.method === "GET") {
+    applyCors(req, res, cfg);
+    const roster = loadBlackListedRoster();
+    const payload = await buildRosterStatsPayload(roster);
+    sendJson(res, 200, payload);
     return true;
   }
   return false;
