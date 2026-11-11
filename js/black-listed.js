@@ -587,10 +587,25 @@
     if (!Number.isFinite(n) || n < 0) return "\u2014";
     return n.toFixed(2);
   }
+  function formatBlPercentStat(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return "\u2014";
+    return `${n.toFixed(1)}%`;
+  }
   function blSeasonKdToneClass(value) {
     const n = Number(value);
     if (!Number.isFinite(n) || n < 0) return "";
     return n >= 1 ? " bl-roster-modal-stat-kd--good" : " bl-roster-modal-stat-kd--low";
+  }
+  function blSeasonHsToneClass(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return "";
+    return n >= 25 ? " bl-roster-modal-stat-hs--good" : " bl-roster-modal-stat-hs--low";
+  }
+  function blSeasonWrToneClass(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return "";
+    return n >= 48 ? " bl-roster-modal-stat-wr--good" : " bl-roster-modal-stat-wr--low";
   }
   function formatBlLastPlayed(iso) {
     if (!iso) return "\u2014";
@@ -696,6 +711,26 @@
                 </div>
             </div>`;
   }
+  function renderBlModalPeakPerfRow(member) {
+    const live = liveStatsForMember(member.id);
+    const wrRaw = live?.seasonWinRate;
+    const wr = formatBlPercentStat(wrRaw);
+    const wrTone = blSeasonWrToneClass(wrRaw);
+    const hsRaw = live?.seasonHeadshotPct;
+    const hs = formatBlPercentStat(hsRaw);
+    const hsTone = blSeasonHsToneClass(hsRaw);
+    return `
+            <div class="bl-roster-modal-peak-extra-stats" role="group" aria-label="Season win rate and headshot percentage">
+                <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-stat-cell">
+                    <p class="bl-roster-modal-peak-label">WR</p>
+                    <p class="bl-roster-modal-peak-value bl-roster-modal-stat-wr${wrTone}">${escapeHtml(wr)}</p>
+                </div>
+                <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-stat-cell">
+                    <p class="bl-roster-modal-peak-label">HS</p>
+                    <p class="bl-roster-modal-peak-value bl-roster-modal-stat-hs${hsTone}">${escapeHtml(hs)}</p>
+                </div>
+            </div>`;
+  }
   function rankRailCell(member, heading, valueText, iconLabel) {
     if (!valueText) return "";
     const iconUrl = peakRankIconUrl(member, iconLabel || valueText);
@@ -737,9 +772,14 @@
     peakEl.hidden = false;
     peakEl.innerHTML = `
             <div class="bl-roster-modal-rank-stack">
-                ${currentCell}
-                ${peakCell}
-                ${renderBlModalExtraStatsRow(member)}
+                <div class="bl-roster-modal-current-stack">
+                    ${currentCell}
+                    ${renderBlModalExtraStatsRow(member)}
+                </div>
+                <div class="bl-roster-modal-peak-stack">
+                    ${peakCell}
+                    ${renderBlModalPeakPerfRow(member)}
+                </div>
             </div>`;
     bindPeakRankIconFallback(peakEl);
     syncBlRosterStatsUpdateButton();

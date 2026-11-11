@@ -76,12 +76,12 @@ window.BLACK_LISTED_ROSTER = [
     substitute: true
   },
   {
-    id: "zxrqxs",
-    name: "Zxrqxs.BL",
+    id: "zurg0s",
+    name: "ZurG0s.BL",
     role: "Flex",
     statsCc: {
-      profileId: "936867ae-a3eb-4617-a1b1-8db50fabc7df",
-      vanity: "Zxrqxs"
+      profileId: "6f731da3-eeeb-434a-b68f-21d79a3fec48",
+      vanity: "ZurG0s.BL"
     },
     attackers: [],
     defenders: [],
