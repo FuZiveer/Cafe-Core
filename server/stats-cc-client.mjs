@@ -185,6 +185,28 @@ function kdFromSeasonRecord(record) {
   return null;
 }
 
+const RANKED_MODE_KEYS = ["ranked-bomb", "ranked", "ranked-standard"];
+
+function seasonKdFromProfile(profile, config) {
+  const seasonKey = config?.constants?.slugs?.current_season;
+  if (!seasonKey) return null;
+  const modes = profile?.season_mode_records?.[seasonKey];
+  if (modes && typeof modes === "object") {
+    for (const modeKey of RANKED_MODE_KEYS) {
+      const kd = kdFromSeasonRecord(modes[modeKey]);
+      if (kd != null) return kd;
+    }
+    for (const [modeKey, row] of Object.entries(modes)) {
+      const modeSlug = String(row?.mode || modeKey).toLowerCase();
+      if (!modeSlug.startsWith("ranked")) continue;
+      const kd = kdFromSeasonRecord(row);
+      if (kd != null) return kd;
+    }
+  }
+  const current = currentSeasonRecord(profile, config);
+  return current?.record ? kdFromSeasonRecord(current.record) : null;
+}
+
 function lastPlayedFromProfile(profile) {
   const keys = [
     "last_played_at",
@@ -286,7 +308,7 @@ function mapProfileToPlayerStats(profile, config, platform, username, lookup = {
   }
   const peak = peakFromProfile(profile, config);
   const liveName = profile?.username || username || null;
-  const seasonKd = current?.record ? kdFromSeasonRecord(current.record) : null;
+  const seasonKd = seasonKdFromProfile(profile, config);
   const lastPlayedAt = lastPlayedFromProfile(profile);
   const fetchedAt = parseStatsTimestamp(profile?.fetched_at);
   return {
