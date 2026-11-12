@@ -88,8 +88,16 @@ html {
     height: 0;
 }
 .motion-standard {
-    transition-duration: var(--motion-duration) !important;
-    transition-timing-function: var(--motion-ease) !important;
+  transition-duration: var(--motion-duration) !important;
+  transition-timing-function: var(--motion-ease-close) !important;
+}
+.nav-btn:hover .motion-standard,
+.nav-btn:focus-visible .motion-standard,
+.nav-btn[aria-expanded="true"] .motion-standard,
+button:hover .motion-standard,
+button:focus-visible .motion-standard,
+button[aria-expanded="true"] .motion-standard {
+  transition-timing-function: var(--motion-ease-open) !important;
 }
 .ui-interactive {
   transition-property:
@@ -103,8 +111,15 @@ html {
     max-width,
     filter,
     backdrop-filter;
-    transition-duration: var(--motion-duration);
-    transition-timing-function: var(--motion-ease);
+  transition-duration: var(--motion-duration);
+  transition-timing-function: var(--motion-ease-close);
+}
+.ui-interactive:hover:not(:disabled),
+button.ui-interactive:hover:not(:disabled),
+label.ui-interactive:hover,
+.ui-interactive:focus-visible,
+.ui-interactive[aria-expanded="true"] {
+  transition-timing-function: var(--motion-ease-open);
 }
 .ui-interactive:disabled,
 button.ui-interactive:disabled,
@@ -119,7 +134,10 @@ button.topbar-action-btn:disabled,
 .tool-picklist-control,
 .tool-field-input,
 .lineups-video-card,
-.home-feature-card {
+.home-feature-card,
+#sidebar-nav .nav-btn,
+#flyout-panel button,
+#flyout-panel .flyout-item {
   transition-property:
     color,
     background-color,
@@ -132,7 +150,22 @@ button.topbar-action-btn:disabled,
     filter,
     backdrop-filter;
   transition-duration: var(--motion-duration);
-  transition-timing-function: var(--motion-ease);
+  transition-timing-function: var(--motion-ease-close);
+}
+.glide-selector:hover,
+.lazer-toggle:hover,
+.tool-picklist-control:hover,
+.tool-field-input:hover,
+.lineups-video-card:hover,
+.home-feature-card:hover:not(:disabled),
+#sidebar-nav .nav-btn:hover,
+#sidebar-nav .nav-btn:focus-visible,
+#flyout-panel button:hover:not(:disabled),
+#flyout-panel button:focus-visible,
+#flyout-panel button[aria-expanded="true"],
+#flyout-panel .flyout-item:hover,
+#flyout-panel .flyout-item:focus-visible {
+  transition-timing-function: var(--motion-ease-open);
 }
 .lazer-toggle:has(input:disabled) {
   opacity: var(--ui-disabled-opacity);
@@ -185,21 +218,6 @@ select:disabled {
 .transition-none {
     transition-duration: 0s !important;
     transition-timing-function: var(--motion-ease) !important;
-}
-.topbar-action-btn,
-a.topbar-action-btn,
-button.topbar-action-btn {
-  transition: none !important;
-}
-.topbar-action-btn i {
-  transition: none !important;
-}
-#sidebar-nav .nav-btn,
-#flyout-panel button,
-#flyout-panel button i,
-#flyout-panel .flyout-item,
-#flyout-panel .flyout-item i {
-  transition: none !important;
 }
 .lineups-video-search-control {
     position: relative;
@@ -268,8 +286,13 @@ textarea:focus {
   color: #94a3b8;
   transition-property: color, transform;
   transition-duration: var(--motion-duration);
-  transition-timing-function: var(--motion-ease);
+  transition-timing-function: var(--motion-ease-close);
   transform: rotate(0deg);
+}
+.discord-auth-profile-btn:hover .discord-auth-chevron,
+.discord-auth-profile-btn:focus-visible .discord-auth-chevron,
+.discord-auth-profile-btn[aria-expanded="true"] .discord-auth-chevron {
+  transition-timing-function: var(--motion-ease-open);
 }
 .discord-auth-profile-btn[aria-expanded=true] .discord-auth-chevron {
   transform: rotate(180deg);
@@ -634,10 +657,18 @@ body.sidebar-collapsed #sidebar-nav .btn-label.sidebar-slide-fade {
 #sidebar-nav .nav-btn > i:not(.chevron-icon),
 #sidebar-nav .nav-btn .flex.items-center > i:first-child,
 #sidebar-nav .nav-btn .chevron-icon {
-  transition:
-    color var(--motion-duration) var(--motion-ease),
-    opacity var(--motion-duration) var(--motion-ease),
-    transform var(--motion-duration) var(--motion-ease) !important;
+  transition-property: color, opacity, transform;
+  transition-duration: var(--motion-duration);
+  transition-timing-function: var(--motion-ease-close) !important;
+}
+#sidebar-nav .nav-btn:hover > i:not(.chevron-icon),
+#sidebar-nav .nav-btn:focus-visible > i:not(.chevron-icon),
+#sidebar-nav .nav-btn:hover .flex.items-center > i:first-child,
+#sidebar-nav .nav-btn:focus-visible .flex.items-center > i:first-child,
+#sidebar-nav .nav-btn:hover .chevron-icon,
+#sidebar-nav .nav-btn:focus-visible .chevron-icon,
+#sidebar-nav .nav-btn[aria-expanded="true"] .chevron-icon {
+  transition-timing-function: var(--motion-ease-open) !important;
 }
 .cafe-ui-tooltip {
     position: fixed;
@@ -659,8 +690,29 @@ body.sidebar-collapsed #sidebar-nav .btn-label.sidebar-slide-fade {
     line-height: 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: none !important;
     animation: none !important;
+    opacity: 0;
+    visibility: hidden;
+  transition:
+    opacity var(--motion-duration) var(--motion-ease-close),
+    visibility 0s linear var(--motion-duration);
+}
+.cafe-ui-tooltip.tooltip-open {
+    opacity: 1;
+    visibility: visible;
+  transition:
+    opacity var(--motion-duration) var(--motion-ease-open),
+    visibility 0s linear 0s;
+}
+.cafe-ui-tooltip.tooltip-closed {
+    opacity: 0;
+    visibility: hidden;
+  transition:
+    opacity var(--motion-duration) var(--motion-ease-close),
+    visibility 0s linear var(--motion-duration);
+}
+html.reduce-motion .cafe-ui-tooltip {
+    transition: none !important;
 }
 .sidebar-nav-tooltip.sidebar-nav-tooltip--behind-flyout {
     z-index: 50;
@@ -724,7 +776,7 @@ body.layout-mobile #sidebar-nav-tooltip {
     line-height: 1;
     height: 1.25rem;
     transform: translateY(-0.5px);
-    transition: color var(--motion-duration) var(--motion-ease);
+  transition: color var(--motion-duration) var(--motion-ease-close);
 }
 #main-content {
     position: relative;
@@ -768,9 +820,13 @@ body.layout-mobile #sidebar-nav-tooltip {
   transition:
     transform var(--motion-duration) var(--motion-ease-open),
     opacity var(--motion-duration) var(--motion-ease-open),
-    color var(--motion-duration) var(--motion-ease),
-    background-color var(--motion-duration) var(--motion-ease),
-    border-color var(--motion-duration) var(--motion-ease);
+    color var(--motion-duration) var(--motion-ease-close),
+    background-color var(--motion-duration) var(--motion-ease-close),
+    border-color var(--motion-duration) var(--motion-ease-close);
+}
+.scroll-to-top-btn.is-visible:hover,
+.scroll-to-top-btn.is-visible:focus-visible {
+  transition-timing-function: var(--motion-ease-open);
 }
 .scroll-to-top-btn:hover {
   color: #ff1e43;
@@ -985,11 +1041,13 @@ html.reduce-motion .settings-tab-glider {
     text-transform: uppercase;
     color: #94a3b8;
     cursor: pointer;
-  transition: color var(--motion-duration) var(--motion-ease), background-color var(--motion-duration) var(--motion-ease);
+  transition: color var(--motion-duration) var(--motion-ease-close), background-color var(--motion-duration) var(--motion-ease-close);
 }
-.settings-tab-btn:hover:not(.active) {
-    color: #fff;
-    background-color: #1a1a1e;
+.settings-tab-btn:hover:not(.active),
+.settings-tab-btn:focus-visible:not(.active) {
+  transition-timing-function: var(--motion-ease-open);
+  color: #fff;
+  background-color: #1a1a1e;
 }
 .settings-tab-btn.active {
     color: #ff1e43;
@@ -3029,45 +3087,20 @@ html.reduce-motion .home-feature-card:hover .home-feature-card-body::before {
 .bottleneck-part-header {
     min-height: 2.25rem;
 }
-.bottleneck-detect-gpu-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    height: 2.25rem;
-    padding: 0 0.875rem;
-  border: var(--ui-panel-border);
-    border-radius: var(--radius-ui);
-    background-color: #1a1a1e;
-    color: #fff;
-    font-family: inherit;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    line-height: 1;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition:
-        color var(--motion-duration) var(--motion-ease),
-        border-color var(--motion-duration) var(--motion-ease),
-        background-color var(--motion-duration) var(--motion-ease);
+.bottleneck-gpu-pick-row {
+    gap: var(--modal-side-rail-gap);
+    align-items: stretch;
 }
-.bottleneck-detect-gpu-btn i {
-    font-size: 0.8125rem;
-    line-height: 1;
-    color: #ff1e43;
-}
-.bottleneck-detect-gpu-btn span {
-    line-height: 1;
-}
-.bottleneck-detect-gpu-btn:hover {
-  border-color: var(--ui-border-color);
-  background-color: var(--matte-900);
-    color: #ff1e43;
-}
-.bottleneck-detect-gpu-btn:hover i {
-    color: #ff1e43;
+.bottleneck-gpu-pick-row .bottleneck-detect-gpu-btn {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: 1;
+    align-self: stretch;
+    padding: 0;
 }
 .lineups-game-toolbar {
     display: flex;
@@ -3681,9 +3714,31 @@ html.reduce-motion .home-feature-card:hover .home-feature-card-body::before {
     font-weight: 700;
     letter-spacing: 0.06em;
     color: #e2e8f0;
+    opacity: 0;
+    visibility: hidden;
+  transition:
+    opacity var(--motion-duration) var(--motion-ease-close),
+    visibility 0s linear var(--motion-duration);
+}
+.lineups-player-volume-tooltip.tooltip-open {
+    opacity: 1;
+    visibility: visible;
+  transition:
+    opacity var(--motion-duration) var(--motion-ease-open),
+    visibility 0s linear 0s;
+}
+.lineups-player-volume-tooltip.tooltip-closed {
+    opacity: 0;
+    visibility: hidden;
+  transition:
+    opacity var(--motion-duration) var(--motion-ease-close),
+    visibility 0s linear var(--motion-duration);
 }
 .lineups-player-volume-tooltip[hidden] {
     display: none !important;
+}
+html.reduce-motion .lineups-player-volume-tooltip {
+    transition: none !important;
 }
 @media (max-width: 639px) {
     .lineups-player-volume-wrap {

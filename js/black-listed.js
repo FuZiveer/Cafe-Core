@@ -928,7 +928,7 @@
     if (tip) return tip;
     tip = document.createElement("div");
     tip.id = "bl-roster-modal-head-tooltip";
-    tip.className = "cafe-ui-tooltip bl-roster-modal-head-tooltip hidden";
+    tip.className = "cafe-ui-tooltip bl-roster-modal-head-tooltip tooltip-closed hidden";
     tip.setAttribute("role", "tooltip");
     tip.setAttribute("aria-hidden", "true");
     document.body.appendChild(tip);
@@ -937,9 +937,8 @@
   function hideBlRosterModalHeadTooltip() {
     const tip = document.getElementById("bl-roster-modal-head-tooltip");
     if (!tip) return;
-    tip.classList.add("hidden");
-    tip.setAttribute("aria-hidden", "true");
     blRosterModalHeadTipTarget = null;
+    window.hideCafeTooltip?.(tip);
   }
   function blRosterModalHeadActionTooltipLabel(el) {
     if (!el) return "";
@@ -959,16 +958,18 @@
       return;
     }
     tip.textContent = label;
-    const panelRect = panel.getBoundingClientRect();
-    const btnRect = btn.getBoundingClientRect();
-    const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const gap = 0.25 * rootPx;
-    tip.style.left = `${btnRect.left + btnRect.width / 2}px`;
-    tip.style.top = `${panelRect.top - gap}px`;
-    tip.style.transform = "translate(-50%, -100%)";
-    tip.classList.remove("hidden");
+    const layout = () => {
+      const panelRect = panel.getBoundingClientRect();
+      const btnRect = btn.getBoundingClientRect();
+      const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const gap = 0.25 * rootPx;
+      tip.style.left = `${btnRect.left + btnRect.width / 2}px`;
+      tip.style.top = `${panelRect.top - gap}px`;
+      tip.style.transform = "translate(-50%, -100%)";
+    };
     tip.setAttribute("aria-hidden", "false");
     blRosterModalHeadTipTarget = btn;
+    window.revealCafeTooltip?.(tip, layout);
   }
   function bindBlRosterModalHeadTooltipButtons() {
     const modal = document.getElementById("bl-roster-player-modal");

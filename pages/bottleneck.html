@@ -19,17 +19,18 @@
                     <div class="bottleneck-field bg-matte-900 rounded-lg p-4 flex flex-col gap-3 min-w-0">
                         <div class="bottleneck-part-header flex items-center justify-between gap-2 min-w-0 min-h-9">
                             <span class="text-sm font-bold tracking-widest uppercase text-white shrink-0">GPU</span>
-                            <button type="button" id="bottleneck-detect-gpu-btn" class="bottleneck-detect-gpu-btn ui-interactive" aria-label="Automatically set GPU via WebGL">
-                                <i class="fa-solid fa-microchip" aria-hidden="true"></i>
-                                <span>Automatically set GPU</span>
-                            </button>
                         </div>
-                        <div id="bottleneck-gpu-pick" class="tool-picklist w-full" data-value="">
-                            <div class="tool-picklist-control ui-interactive">
-                                <input id="bottleneck-gpu-input" type="text" class="tool-picklist-input w-full" placeholder="Choose GPU" autocomplete="off" spellcheck="false">
-                                <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
+                        <div class="bottleneck-gpu-pick-row flex min-w-0 w-full">
+                            <button type="button" id="bottleneck-detect-gpu-btn" class="bottleneck-detect-gpu-btn topbar-action-btn ui-interactive rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative" aria-label="Automatically Set GPU">
+                                <i class="fa-solid fa-microchip text-sm" aria-hidden="true"></i>
+                            </button>
+                            <div id="bottleneck-gpu-pick" class="tool-picklist flex-1 min-w-0 w-full" data-value="">
+                                <div class="tool-picklist-control ui-interactive">
+                                    <input id="bottleneck-gpu-input" type="text" class="tool-picklist-input w-full" placeholder="Choose GPU" autocomplete="off" spellcheck="false">
+                                    <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
+                                </div>
+                                <div id="bottleneck-gpu-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="GPU options"></div>
                             </div>
-                            <div id="bottleneck-gpu-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="GPU options"></div>
                         </div>
                     </div>
                 </div>

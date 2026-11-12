@@ -67,9 +67,9 @@
 </head>
 <body class="bg-matte-950 text-slate-200 antialiased h-screen flex overflow-hidden relative">
 
-    <div id="sidebar-nav-tooltip" class="cafe-ui-tooltip sidebar-nav-tooltip hidden" role="tooltip" aria-hidden="true"></div>
-    <div id="topbar-action-tooltip" class="cafe-ui-tooltip topbar-action-tooltip hidden" role="tooltip" aria-hidden="true"></div>
-    <div id="modal-close-tooltip" class="cafe-ui-tooltip modal-close-tooltip hidden" role="tooltip" aria-hidden="true"></div>
+    <div id="sidebar-nav-tooltip" class="cafe-ui-tooltip sidebar-nav-tooltip tooltip-closed hidden" role="tooltip" aria-hidden="true"></div>
+    <div id="topbar-action-tooltip" class="cafe-ui-tooltip topbar-action-tooltip tooltip-closed hidden" role="tooltip" aria-hidden="true"></div>
+    <div id="modal-close-tooltip" class="cafe-ui-tooltip modal-close-tooltip tooltip-closed hidden" role="tooltip" aria-hidden="true"></div>
 
     <button type="button" id="mobile-nav-backdrop" class="modal-backdrop mobile-nav-backdrop ui-interactive" aria-hidden="true" tabindex="-1"></button>
 
@@ -354,7 +354,7 @@
                     </div>
                     <video id="lineups-modal-video-scrub" class="lineups-modal-video-scrub" muted playsinline preload="auto" tabindex="-1" aria-hidden="true"></video>
                     <div class="lineups-player-volume-wrap">
-                        <div id="lineups-player-volume-tooltip" class="lineups-player-volume-tooltip tabular-nums" hidden>100%</div>
+                        <div id="lineups-player-volume-tooltip" class="lineups-player-volume-tooltip tooltip-closed tabular-nums" hidden>100%</div>
                         <div class="lineups-player-volume-rail" aria-hidden="true">
                             <div id="lineups-player-volume-level" class="lineups-player-volume-level"></div>
                         </div>

@@ -368,13 +368,38 @@ function initBottleneckHardwareDetect() {
   const btn = document.getElementById("bottleneck-detect-gpu-btn");
   if (!btn || btn.dataset.bound === "1") return;
   btn.dataset.bound = "1";
+  const tipLabel = "Automatically Set GPU";
+  const panel = btn.closest(".bottleneck-field");
+  btn.setAttribute("aria-label", tipLabel);
+  btn.addEventListener("mouseenter", () => {
+    if (panel) positionPanelRailTooltip(btn, tipLabel, panel);
+    else positionTopbarActionTooltip(btn, tipLabel);
+  });
+  btn.addEventListener("mouseleave", hideTopbarActionTooltip);
   btn.addEventListener("click", () => {
+    hideTopbarActionTooltip();
     if (!bottleneckGpus.length) return;
     const renderer = getWebGLRendererString();
     if (!renderer) return;
     const part = matchBottleneckGpuFromRenderer(renderer, bottleneckGpus);
     if (part) selectBottleneckGpuPart(part);
   });
+  if (panel && !window.__bottleneckGpuTipReposBound) {
+    window.__bottleneckGpuTipReposBound = true;
+    const repositionBottleneckGpuTip = () => {
+      const target = bottleneckDetectGpuTipTarget;
+      const tip = document.getElementById("topbar-action-tooltip");
+      if (!target || !tip?.classList.contains("tooltip-open")) return;
+      const field = target.closest(".bottleneck-field");
+      if (!field) return;
+      layoutPanelRailTooltip(target, field);
+    };
+    window.addEventListener("scroll", repositionBottleneckGpuTip, true);
+    window.addEventListener("resize", repositionBottleneckGpuTip);
+    document.getElementById("main-content")?.addEventListener("scroll", repositionBottleneckGpuTip, {
+      passive: true
+    });
+  }
 }
 let currentMainPageKey = "default";
 function setCurrentMainPageKey(nextKey) {
@@ -1700,8 +1725,8 @@ function setLineupsScrubPreviewVisible(visible) {
 function setLineupsVolumeTooltipVisible(visible) {
   const tooltip = document.getElementById("lineups-player-volume-tooltip");
   if (!tooltip) return;
-  tooltip.hidden = !visible;
-  tooltip.classList.toggle("hidden", !visible);
+  if (visible) revealCafeTooltip(tooltip);
+  else hideCafeTooltip(tooltip);
 }
 function positionLineupsVolumeTooltip(volumeInput) {
   const tooltip = document.getElementById("lineups-player-volume-tooltip");
@@ -2651,6 +2676,85 @@ function runDropdownPanelCloseMotion(el) {
 }
 window.runDropdownPanelOpenMotion = runDropdownPanelOpenMotion;
 window.runDropdownPanelCloseMotion = runDropdownPanelCloseMotion;
+function setCafeTooltipMotionClasses(tip, open) {
+  if (!tip) return;
+  if (open) {
+    if (tip._tooltipCloseTimer) {
+      clearTimeout(tip._tooltipCloseTimer);
+      tip._tooltipCloseTimer = null;
+    }
+    tip.classList.remove("tooltip-closed");
+    tip.classList.add("tooltip-open");
+    return;
+  }
+  tip.classList.remove("tooltip-open");
+  tip.classList.add("tooltip-closed");
+  void tip.offsetWidth;
+}
+function runCafeTooltipOpenMotion(tip, layoutFn) {
+  if (!tip) return;
+  const motionMs = getToolPicklistMenuTransitionMs();
+  tip.classList.remove("hidden");
+  tip.removeAttribute("hidden");
+  if (motionMs <= 0) {
+    layoutFn?.();
+    tip.classList.remove("tooltip-closed");
+    tip.classList.add("tooltip-open");
+    return;
+  }
+  setCafeTooltipMotionClasses(tip, false);
+  layoutFn?.();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      setCafeTooltipMotionClasses(tip, true);
+      layoutFn?.();
+    });
+  });
+}
+function revealCafeTooltip(tip, layoutFn) {
+  if (!tip) return;
+  const shouldAnimate = tip.classList.contains("hidden") || !tip.classList.contains("tooltip-open");
+  if (shouldAnimate) runCafeTooltipOpenMotion(tip, layoutFn);
+  else {
+    tip.classList.remove("hidden", "tooltip-closed");
+    tip.removeAttribute("hidden");
+    tip.classList.add("tooltip-open");
+    layoutFn?.();
+  }
+}
+function hideCafeTooltip(tip, done) {
+  if (!tip) {
+    done?.();
+    return;
+  }
+  const finish = () => {
+    tip.classList.add("hidden", "tooltip-closed");
+    tip.classList.remove("tooltip-open");
+    if (tip.id === "lineups-player-volume-tooltip") {
+      tip.setAttribute("hidden", "");
+    }
+    tip.setAttribute("aria-hidden", "true");
+    done?.();
+  };
+  if (tip.classList.contains("hidden") || !tip.classList.contains("tooltip-open")) {
+    finish();
+    return;
+  }
+  const motionMs = getToolPicklistMenuTransitionMs();
+  if (motionMs <= 0) {
+    finish();
+    return;
+  }
+  setCafeTooltipMotionClasses(tip, false);
+  tip.setAttribute("aria-hidden", "true");
+  if (tip._tooltipCloseTimer) clearTimeout(tip._tooltipCloseTimer);
+  tip._tooltipCloseTimer = setTimeout(() => {
+    tip._tooltipCloseTimer = null;
+    finish();
+  }, motionMs + 20);
+}
+window.revealCafeTooltip = revealCafeTooltip;
+window.hideCafeTooltip = hideCafeTooltip;
 function clearToolPicklistMenuFixedLayout(root, menu) {
   const el = menu || getToolPicklistMenu(root);
   if (!el) return;
@@ -3881,10 +3985,14 @@ function getSidebarNavTooltipGapPx() {
   if (raw.endsWith("px")) return parseFloat(raw) || 0.25 * rootPx;
   return 0.25 * rootPx;
 }
+function shouldTrackSidebarNavTooltipLayout(tip) {
+  if (!tip || tip.classList.contains("hidden")) return false;
+  return tip.classList.contains("tooltip-open") || tip.classList.contains("tooltip-closed");
+}
 function layoutSidebarNavTooltip(btn) {
   const tip = document.getElementById("sidebar-nav-tooltip");
   const sidebar = document.getElementById("sidebar");
-  if (!tip || !btn || !sidebar || tip.classList.contains("hidden")) return;
+  if (!tip || !btn || !sidebar || !shouldTrackSidebarNavTooltipLayout(tip)) return;
   const sidebarRect = sidebar.getBoundingClientRect();
   const buttonRect = btn.getBoundingClientRect();
   tip.style.left = `${sidebarRect.right + getSidebarNavTooltipGapPx()}px`;
@@ -3893,10 +4001,12 @@ function layoutSidebarNavTooltip(btn) {
 }
 function sidebarNavTooltipTrackFrame() {
   sidebarNavTooltipTrackRaf = 0;
-  if (!sidebarNavTooltipBtn || !shouldShowSidebarNavTooltip()) return;
-  layoutSidebarNavTooltip(sidebarNavTooltipBtn);
-  checkSidebarNavFlyoutOverlap();
-  sidebarNavTooltipTrackRaf = requestAnimationFrame(sidebarNavTooltipTrackFrame);
+  const tip = document.getElementById("sidebar-nav-tooltip");
+  if (sidebarNavTooltipBtn && shouldTrackSidebarNavTooltipLayout(tip)) {
+    layoutSidebarNavTooltip(sidebarNavTooltipBtn);
+    checkSidebarNavFlyoutOverlap();
+    sidebarNavTooltipTrackRaf = requestAnimationFrame(sidebarNavTooltipTrackFrame);
+  }
 }
 function startSidebarNavTooltipTrack() {
   if (sidebarNavTooltipTrackRaf) return;
@@ -3933,7 +4043,8 @@ function stopSidebarNavTooltipPoll() {
 function startSidebarNavTooltipPoll() {
   if (sidebarNavFlyoutOverlapTimer != null) return;
   sidebarNavFlyoutOverlapTimer = setInterval(() => {
-    if (!sidebarNavTooltipBtn || !shouldShowSidebarNavTooltip()) {
+    const tip = document.getElementById("sidebar-nav-tooltip");
+    if (!sidebarNavTooltipBtn || !shouldTrackSidebarNavTooltipLayout(tip)) {
       stopSidebarNavTooltipPoll();
       return;
     }
@@ -3944,13 +4055,18 @@ function startSidebarNavTooltipPoll() {
 function hideSidebarNavTooltip() {
   const tip = document.getElementById("sidebar-nav-tooltip");
   if (!tip) return;
-  stopSidebarNavTooltipTrack();
-  stopSidebarNavTooltipPoll();
-  tip.classList.add("hidden");
   tip.classList.remove("sidebar-nav-tooltip--behind-flyout");
-  tip.setAttribute("aria-hidden", "true");
-  sidebarNavTooltipBtn = null;
-  checkSidebarNavFlyoutOverlap();
+  const anchorBtn = sidebarNavTooltipBtn;
+  if (anchorBtn && shouldTrackSidebarNavTooltipLayout(tip)) {
+    layoutSidebarNavTooltip(anchorBtn);
+  }
+  if (anchorBtn) startSidebarNavTooltipTrack();
+  hideCafeTooltip(tip, () => {
+    stopSidebarNavTooltipTrack();
+    stopSidebarNavTooltipPoll();
+    sidebarNavTooltipBtn = null;
+    checkSidebarNavFlyoutOverlap();
+  });
 }
 function positionSidebarNavTooltip(btn) {
   const tip = document.getElementById("sidebar-nav-tooltip");
@@ -3967,17 +4083,17 @@ function positionSidebarNavTooltip(btn) {
   }
   tip.textContent = text;
   if (activeFlyoutParentBtn === btn && isFlyoutPanelOpen()) {
-    tip.classList.add("hidden");
-    tip.setAttribute("aria-hidden", "true");
     sidebarNavTooltipBtn = null;
+    hideCafeTooltip(tip);
     return;
   }
   tip.classList.remove("sidebar-nav-tooltip--behind-flyout");
-  tip.classList.remove("hidden");
-  tip.setAttribute("aria-hidden", "false");
   sidebarNavTooltipBtn = btn;
-  layoutSidebarNavTooltip(btn);
-  checkSidebarNavFlyoutOverlap();
+  tip.setAttribute("aria-hidden", "false");
+  revealCafeTooltip(tip, () => {
+    layoutSidebarNavTooltip(btn);
+    checkSidebarNavFlyoutOverlap();
+  });
   startSidebarNavTooltipPoll();
 }
 function showSidebarNavTooltipForButton(btn) {
@@ -3992,7 +4108,7 @@ function checkSidebarNavFlyoutOverlap() {
   const tip = document.getElementById("sidebar-nav-tooltip");
   const flyout = document.getElementById("flyout-panel");
   if (!flyout) return;
-  if (!tip || tip.classList.contains("hidden") || flyout.getAttribute("aria-hidden") === "true") {
+  if (!tip || !shouldTrackSidebarNavTooltipLayout(tip) || flyout.getAttribute("aria-hidden") === "true") {
     flyout.style.opacity = "";
     flyout.style.transition = "";
     return;
@@ -4016,11 +4132,49 @@ function restoreSidebarNavTooltipAfterFlyout(parentBtn) {
   }
   showSidebarNavTooltipForButton(parentBtn);
 }
+function restoreSidebarNavTooltipIfHovered() {
+  if (!shouldShowSidebarNavTooltip()) return;
+  const buttons = document.querySelectorAll("#sidebar-nav .nav-btn");
+  for (const btn of buttons) {
+    try {
+      if (btn.matches(":hover")) {
+        showSidebarNavTooltipForButton(btn);
+        return;
+      }
+    } catch {
+      return;
+    }
+  }
+}
+let bottleneckDetectGpuTipTarget = null;
 function hideTopbarActionTooltip() {
   const tip = document.getElementById("topbar-action-tooltip");
   if (!tip) return;
-  tip.classList.add("hidden");
-  tip.setAttribute("aria-hidden", "true");
+  bottleneckDetectGpuTipTarget = null;
+  hideCafeTooltip(tip);
+}
+function layoutPanelRailTooltip(btn, panel) {
+  const tip = document.getElementById("topbar-action-tooltip");
+  if (!tip || !btn || !panel) return;
+  const panelRect = panel.getBoundingClientRect();
+  const btnRect = btn.getBoundingClientRect();
+  const gap = getSidebarNavTooltipGapPx();
+  tip.style.left = `${btnRect.left + btnRect.width / 2}px`;
+  tip.style.top = `${panelRect.top - gap}px`;
+  tip.style.transform = "translate(-50%, -100%)";
+}
+function positionPanelRailTooltip(btn, text, panel) {
+  const tip = document.getElementById("topbar-action-tooltip");
+  if (!tip || !btn || !panel) return;
+  const label = String(text || "").trim();
+  if (!label) {
+    hideTopbarActionTooltip();
+    return;
+  }
+  tip.textContent = label;
+  tip.setAttribute("aria-hidden", "false");
+  bottleneckDetectGpuTipTarget = btn;
+  revealCafeTooltip(tip, () => layoutPanelRailTooltip(btn, panel));
 }
 function positionTopbarActionTooltip(btn, text) {
   const tip = document.getElementById("topbar-action-tooltip");
@@ -4031,16 +4185,19 @@ function positionTopbarActionTooltip(btn, text) {
     return;
   }
   tip.textContent = label;
-  const btnRect = btn.getBoundingClientRect();
-  const topBar = document.getElementById("top-bar");
-  const topBarRect = topBar?.getBoundingClientRect();
-  const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const belowTopBarPx = topBarRect ? topBarRect.bottom + 0.25 * rootPx : btnRect.bottom + CAFE_UI_TOOLTIP_GAP_PX;
-  tip.style.left = `${btnRect.left + btnRect.width / 2}px`;
-  tip.style.top = `${belowTopBarPx}px`;
-  tip.style.transform = "translateX(-50%)";
-  tip.classList.remove("hidden");
+  const layout = () => {
+    const btnRect = btn.getBoundingClientRect();
+    const topBar = document.getElementById("top-bar");
+    const topBarRect = topBar?.getBoundingClientRect();
+    const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const belowTopBarPx = topBarRect ? topBarRect.bottom + 0.25 * rootPx : btnRect.bottom + CAFE_UI_TOOLTIP_GAP_PX;
+    tip.style.left = `${btnRect.left + btnRect.width / 2}px`;
+    tip.style.top = `${belowTopBarPx}px`;
+    tip.style.transform = "translateX(-50%)";
+  };
   tip.setAttribute("aria-hidden", "false");
+  bottleneckDetectGpuTipTarget = null;
+  revealCafeTooltip(tip, layout);
 }
 function shouldShowNotificationBtnTooltip(btn) {
   if (!btn) return false;
@@ -4072,9 +4229,8 @@ function isAppModalCloseButton(btn) {
 function hideModalCloseTooltip() {
   const tip = document.getElementById("modal-close-tooltip");
   if (!tip) return;
-  tip.classList.add("hidden");
-  tip.setAttribute("aria-hidden", "true");
   modalCloseTooltipTarget = null;
+  hideCafeTooltip(tip);
 }
 function modalCloseTooltipLabel(btn) {
   if (!btn) return "";
@@ -4094,16 +4250,18 @@ function positionModalCloseTooltip(btn, text) {
     return;
   }
   tip.textContent = label;
-  const panelRect = panel.getBoundingClientRect();
-  const btnRect = btn.getBoundingClientRect();
-  const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const gap = 0.25 * rootPx;
-  tip.style.left = `${btnRect.left + btnRect.width / 2}px`;
-  tip.style.top = `${panelRect.top - gap}px`;
-  tip.style.transform = "translate(-50%, -100%)";
-  tip.classList.remove("hidden");
+  const layout = () => {
+    const panelRect = panel.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const gap = 0.25 * rootPx;
+    tip.style.left = `${btnRect.left + btnRect.width / 2}px`;
+    tip.style.top = `${panelRect.top - gap}px`;
+    tip.style.transform = "translate(-50%, -100%)";
+  };
   tip.setAttribute("aria-hidden", "false");
   modalCloseTooltipTarget = btn;
+  revealCafeTooltip(tip, layout);
 }
 function shouldShowModalCloseTooltip(btn) {
   if (!btn) return false;
@@ -4186,14 +4344,19 @@ function initSidebarNavTooltips() {
   window.addEventListener(
     "scroll",
     () => {
-      if (!sidebarNavTooltipBtn || !shouldShowSidebarNavTooltip()) return;
-      positionSidebarNavTooltip(sidebarNavTooltipBtn);
+      const tip = document.getElementById("sidebar-nav-tooltip");
+      if (!sidebarNavTooltipBtn || !shouldTrackSidebarNavTooltipLayout(tip)) return;
+      layoutSidebarNavTooltip(sidebarNavTooltipBtn);
     },
     true
   );
   window.addEventListener("resize", () => {
-    if (!shouldShowSidebarNavTooltip()) hideSidebarNavTooltip();
-    else if (sidebarNavTooltipBtn) positionSidebarNavTooltip(sidebarNavTooltipBtn);
+    const tip = document.getElementById("sidebar-nav-tooltip");
+    if (!shouldShowSidebarNavTooltip()) {
+      if (!shouldTrackSidebarNavTooltipLayout(tip)) hideSidebarNavTooltip();
+    } else if (sidebarNavTooltipBtn && shouldTrackSidebarNavTooltipLayout(tip)) {
+      layoutSidebarNavTooltip(sidebarNavTooltipBtn);
+    }
   });
   sidebar.addEventListener("transitionstart", (event) => {
     if (event.target !== sidebar || event.propertyName !== "width") return;
@@ -4202,7 +4365,8 @@ function initSidebarNavTooltips() {
   sidebar.addEventListener("transitionend", (event) => {
     if (event.target !== sidebar || event.propertyName !== "width") return;
     stopSidebarNavTooltipTrack();
-    if (sidebarNavTooltipBtn && shouldShowSidebarNavTooltip()) {
+    const tip = document.getElementById("sidebar-nav-tooltip");
+    if (sidebarNavTooltipBtn && shouldTrackSidebarNavTooltipLayout(tip)) {
       layoutSidebarNavTooltip(sidebarNavTooltipBtn);
       checkSidebarNavFlyoutOverlap();
     }
@@ -4245,6 +4409,7 @@ function toggleSidebarCollapse() {
   syncSidebarCollapseButtonUi();
   if (isCollapsed) {
     closeFlyout();
+    restoreSidebarNavTooltipIfHovered();
   }
   syncIndicatorWithSidebarToggle();
 }
