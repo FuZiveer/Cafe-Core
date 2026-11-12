@@ -5,13 +5,20 @@
   const Motion = freeze({
     MS: 150,
     EASE: "ease-out",
+    EASE_OPEN: "ease-out",
+    EASE_CLOSE: "ease-in",
     get duration() {
       return `${this.MS}ms`;
     },
-    transition(properties) {
+    transition(properties, ease = this.EASE_OPEN) {
       const dur = this.duration;
-      const ease = this.EASE;
       return properties.map((prop) => `${prop} ${dur} ${ease}`).join(", ");
+    },
+    openTransition(properties) {
+      return this.transition(properties, this.EASE_OPEN);
+    },
+    closeTransition(properties) {
+      return this.transition(properties, this.EASE_CLOSE);
     },
     get standardTransition() {
       return this.transition(["transform", "width", "height", "left", "opacity"]);

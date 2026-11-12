@@ -124,7 +124,8 @@ function topOperatorsBySide(operatorRows, config, side, limit = 2) {
   const rows = (Array.isArray(operatorRows) ? operatorRows : [])
     .map((row) => ({
       slug: String(row?.operator || "").trim(),
-      rounds: Number(row?.rounds_played) || 0
+      rounds: Number(row?.rounds_played) || 0,
+      raw: row
     }))
     .filter((row) => {
       if (!row.slug || row.rounds < 1) return false;
@@ -132,13 +133,18 @@ function topOperatorsBySide(operatorRows, config, side, limit = 2) {
       return opSide === wantSide;
     })
     .sort((a, b) => b.rounds - a.rounds);
-  const names = [];
+  const picked = [];
   for (const row of rows) {
     const name = operatorDisplayName(config, row.slug);
-    if (name && !names.includes(name)) names.push(name);
-    if (names.length >= limit) break;
+    if (!name || picked.some((entry) => entry.name === name)) continue;
+    const kd = kdFromSeasonRecord(row.raw);
+    picked.push({
+      name,
+      kd: kd != null && Number.isFinite(kd) ? kd : null
+    });
+    if (picked.length >= limit) break;
   }
-  return names;
+  return picked;
 }
 
 async function fetchRankedOperatorRows(profileId) {
@@ -562,8 +568,42 @@ async function buildRosterStatsPayloadUncached(roster, options = {}) {
   return { configured: true, attribution, players };
 }
 
+async function refreshRosterMemberStats(roster, memberId) {
+  const attribution = STATS_CC_ATTRIBUTION;
+  if (!statsCcConfigured()) {
+    return { configured: false, attribution, players: {} };
+  }
+  let config;
+  try {
+    config = await getConfig();
+  } catch (err) {
+    return {
+      configured: true,
+      attribution,
+      configError: err?.code || err?.message || "stats_cc_config_failed",
+      players: {}
+    };
+  }
+  const list = Array.isArray(roster) ? roster : [];
+  const member = list.find((m) => m?.id === memberId);
+  const player = member
+    ? await resolveMemberStats(member, config, { force: true })
+    : { ok: false, error: "not_found", memberId };
+  const prev = rosterPayloadCache.data;
+  const players = { ...(prev?.players || {}), [memberId]: player };
+  const merged = prev
+    ? { ...prev, configured: true, attribution, players }
+    : { configured: true, attribution, players };
+  rosterPayloadCache = { at: Date.now(), data: merged };
+  return merged;
+}
+
 export async function buildRosterStatsPayload(roster, options = {}) {
   const force = options.force === true;
+  const memberId = typeof options.memberId === "string" ? options.memberId.trim() : "";
+  if (force && memberId) {
+    return refreshRosterMemberStats(roster, memberId);
+  }
   const now = Date.now();
   if (
     !force &&

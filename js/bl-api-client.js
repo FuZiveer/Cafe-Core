@@ -187,6 +187,7 @@
   const ROSTER_STATS_AUTO_REFRESH_MS = 20 * 60 * 1000;
   let lastRosterStatsFetchedAt = 0;
   function shouldFetchRosterStats(options) {
+    if (options?.forceRosterMemberId) return true;
     if (options?.forceRoster === true) return true;
     if (!document.getElementById("page-black-listed")) return false;
     if (lastRosterStatsFetchedAt === 0) return true;
@@ -201,9 +202,12 @@
     let rosterStatsOk = false;
     const fetchRoster = shouldFetchRosterStats(options);
     const scrimPromise = fetchJson("/api/bl/scrim-record");
-    const rosterPath = options?.forceRoster
-      ? "/api/bl/roster-stats?force=1"
-      : "/api/bl/roster-stats";
+    let rosterPath = "/api/bl/roster-stats";
+    if (options?.forceRosterMemberId) {
+      rosterPath = `/api/bl/roster-stats?force=1&member=${encodeURIComponent(options.forceRosterMemberId)}`;
+    } else if (options?.forceRoster) {
+      rosterPath = "/api/bl/roster-stats?force=1";
+    }
     const rosterPromise = fetchRoster ? fetchJson(rosterPath) : null;
     const [scrimSettled, rosterStatsSettled] = await Promise.allSettled([
       scrimPromise,
@@ -222,7 +226,20 @@
     }
     if (fetchRoster) {
       if (rosterStatsSettled.status === "fulfilled" && rosterStatsSettled.value) {
-        state.rosterStats = rosterStatsSettled.value;
+        const incoming = rosterStatsSettled.value;
+        if (options?.forceRosterMemberId) {
+          const prevPlayers =
+            state.rosterStats?.players && typeof state.rosterStats.players === "object"
+              ? state.rosterStats.players
+              : {};
+          state.rosterStats = {
+            ...(state.rosterStats || {}),
+            ...incoming,
+            players: { ...prevPlayers, ...(incoming.players || {}) }
+          };
+        } else {
+          state.rosterStats = incoming;
+        }
         rosterStatsOk = state.rosterStats?.configured === true;
         lastRosterStatsFetchedAt = Date.now();
       } else if (rosterStatsSettled.status === "rejected") {

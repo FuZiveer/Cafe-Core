@@ -70,7 +70,11 @@ export async function handleBlApiRequest(req, res, url, cfg) {
     applyCors(req, res, cfg);
     const roster = loadBlackListedRoster();
     const force = url.searchParams.get("force") === "1";
-    const payload = await buildRosterStatsPayload(roster, { force });
+    const memberId = url.searchParams.get("member")?.trim() || "";
+    const payload = await buildRosterStatsPayload(roster, {
+      force,
+      memberId: memberId || undefined
+    });
     sendJson(res, 200, payload);
     return true;
   }

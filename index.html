@@ -67,26 +67,16 @@
 </head>
 <body class="bg-matte-950 text-slate-200 antialiased h-screen flex overflow-hidden relative">
 
-    <div
-        id="top-bar-image-load-bar"
-        class="top-bar-image-load-bar"
-        role="status"
-        aria-live="polite"
-        aria-hidden="true"
-    >
-        <div id="top-bar-image-load-bar-fill" class="top-bar-image-load-bar__fill" aria-hidden="true"></div>
-    </div>
+    <div id="sidebar-nav-tooltip" class="cafe-ui-tooltip sidebar-nav-tooltip hidden" role="tooltip" aria-hidden="true"></div>
+    <div id="topbar-action-tooltip" class="cafe-ui-tooltip topbar-action-tooltip hidden" role="tooltip" aria-hidden="true"></div>
+    <div id="modal-close-tooltip" class="cafe-ui-tooltip modal-close-tooltip hidden" role="tooltip" aria-hidden="true"></div>
 
     <button type="button" id="mobile-nav-backdrop" class="modal-backdrop mobile-nav-backdrop ui-interactive" aria-hidden="true" tabindex="-1"></button>
 
     <aside id="sidebar" class="w-56 bg-matte-900 border-r border-matte-800 flex flex-col h-full z-20 relative shrink-0 overflow-visible">
-        <button id="sidebar-toggle-btn" onclick="toggleSidebarCollapse()" class="ui-interactive radius-circle absolute -right-[15px] top-1/2 z-30 w-[30px] h-[30px] flex items-center justify-center bg-matte-900 border border-matte-800 text-slate-400 focus:outline-none">
-            <i id="toggle-icon" class="fa-solid fa-chevron-left text-xs" aria-hidden="true"></i>
-        </button>
-
         <div id="sidebar-header" class="header-container h-[64px] flex items-center p-4 border-b border-matte-800 overflow-hidden whitespace-nowrap justify-start shrink-0 bg-matte-900 relative z-[2]">
             <div class="flex items-center gap-2 overflow-hidden px-4">
-                <img src="images/Caf%C3%A9%20Core.png" alt="Café Core Logo" class="sidebar-logo w-5 h-5 min-w-[20px] min-h-[20px] max-w-[20px] max-h-[20px] shrink-0 object-contain rounded-lg" onerror="this.onerror=null; this.hidden=true;">
+                <img src="images/Caf%C3%A9%20Core.png" alt="Café Core Logo" class="sidebar-logo w-5 h-5 min-w-[20px] min-h-[20px] max-w-[20px] max-h-[20px] shrink-0 object-contain rounded-lg" loading="lazy" decoding="async" onerror="this.onerror=null; this.hidden=true;">
                 <span class="logo-text sidebar-slide-fade text-xl font-bold tracking-widest text-white whitespace-nowrap"><span>Café </span><span class="text-redneon-500">Core</span></span>
             </div>
         </div>
@@ -132,6 +122,10 @@
                     </div>
                     <i class="fa-solid fa-chevron-right text-xs opacity-70 transition-transform motion-standard chevron-icon"></i>
                 </button>
+                <button id="btn-sidebar-collapse" type="button" onclick="toggleSidebarCollapse()" class="nav-btn direct-btn sidebar-collapse-btn relative z-10 w-full h-12 flex items-center space-x-2 px-4 rounded-lg text-slate-400 hover:text-white hover:bg-matte-800 text-left" aria-label="Collapse sidebar">
+                    <i id="sidebar-collapse-icon" class="fa-solid fa-chevron-left w-5 text-center flex-shrink-0" aria-hidden="true"></i>
+                    <span class="btn-label sidebar-slide-fade whitespace-nowrap">Collapse</span>
+                </button>
             </div>
         </nav>
     </aside>
@@ -162,11 +156,11 @@
             </div>
             <div id="topbar-actions" class="flex items-center gap-1 shrink-0 relative z-10">
                 <div class="relative">
-                    <button id="notification-btn" type="button" aria-expanded="false" aria-haspopup="true" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative">
+                    <button id="notification-btn" type="button" aria-expanded="false" aria-haspopup="true" aria-label="Notifications" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative">
                         <i class="fa-solid fa-bell text-sm"></i>
                         <span id="notification-dot" class="absolute top-2 right-2 w-1.5 h-1.5 rounded-lg bg-redneon-500 hidden"></span>
                     </button>
-                    <div id="notification-dropdown" class="dropdown-closed absolute right-0 top-full mt-1 w-80 bg-matte-900 border border-matte-800 rounded-lg overflow-hidden">
+                    <div id="notification-dropdown" class="dropdown-closed absolute right-0 top-full notification-dropdown-anchor w-80 bg-matte-900 border border-matte-800 rounded-lg overflow-hidden">
                         <div class="flex items-center justify-between px-4 py-3 border-b border-matte-800 gap-2">
                             <span class="text-sm font-bold tracking-widest uppercase text-white shrink-0">Notifications</span>
                             <div id="notification-actions" class="flex items-center gap-2 shrink-0">
@@ -197,9 +191,11 @@
         </button>
     </main>
 
-    <div id="flyout-panel" class="bg-matte-900 border-r border-matte-800 transform -translate-x-full opacity-0 pointer-events-none transition-all motion-standard p-4 flex flex-col justify-start space-y-4 min-h-0" aria-hidden="true">
-        <div class="flex items-center justify-between px-4 shrink-0">
-            <h3 id="flyout-title" class="text-sm font-bold tracking-widest uppercase text-white">Submenu</h3>
+    <div id="flyout-panel" class="bg-matte-900 border-r border-matte-800 transform -translate-x-full opacity-0 pointer-events-none p-4 flex flex-col justify-start space-y-4 min-h-0" aria-hidden="true">
+        <div class="flex items-center justify-between px-4 shrink-0 gap-2">
+            <div id="flyout-title-viewport" class="min-w-0 flex-1 h-5 overflow-hidden">
+                <h3 id="flyout-title" class="text-sm font-bold tracking-widest uppercase text-white whitespace-nowrap">Submenu</h3>
+            </div>
             <button type="button" onclick="closeFlyout()" class="ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 shrink-0">
                 <i class="fa-solid fa-xmark text-sm"></i>
             </button>
@@ -405,7 +401,7 @@
                 </div>
             </div>
             <div id="brand-logo-modal-preview" class="brand-logo-modal-preview w-full rounded-lg border border-matte-700 flex items-center justify-center min-h-[14rem] sm:min-h-[16rem]">
-                <img id="brand-logo-modal-img" src="" alt="" class="brand-logo-preview-img w-40 h-40 sm:w-48 sm:h-48 object-contain">
+                <img id="brand-logo-modal-img" src="" alt="" class="brand-logo-preview-img w-40 h-40 sm:w-48 sm:h-48 object-contain" loading="lazy" decoding="async">
             </div>
         </div>
     </div>
