@@ -158,15 +158,7 @@ async function fetchRankedOperatorRows(profileId) {
 const BL_BEST_MAP_MIN_MATCHES = 10;
 const BL_BEST_MAP_LIMIT = 1;
 
-const R6MAPS_FOLDER_ALIASES = {
-  "kafe-dostoyevsky": "kafe",
-  "presidential-plane": "plane",
-  "bartlett-u": "university",
-  "close-quarter": "close-quarter",
-  "hereford-base": "hereford",
-  "theme-park": "themepark",
-  "emerald-plains": "emerald-plains"
-};
+export const STATS_CC_MAP_THUMB_BASE = "https://static.stats.cc/siege/maps";
 
 function mapDisplayName(config, mapSlug) {
   const key = String(mapSlug || "").trim();
@@ -181,11 +173,10 @@ function mapDisplayName(config, mapSlug) {
     .join(" ");
 }
 
-export function siegeMapPreviewImageUrl(mapSlug) {
+export function statsCcMapThumbnailUrl(mapSlug) {
   const slug = String(mapSlug || "").trim().toLowerCase();
-  if (!slug) return "";
-  const folder = R6MAPS_FOLDER_ALIASES[slug] || slug;
-  return `https://www.r6maps.com/img/${encodeURIComponent(folder)}/${encodeURIComponent(folder)}-1.jpg`;
+  if (!slug || slug === "unknown") return "";
+  return `${STATS_CC_MAP_THUMB_BASE}/${encodeURIComponent(slug)}_thumbnail.webp`;
 }
 
 function rankedMapDecisionRecord(row) {
@@ -208,7 +199,7 @@ function topBestMapsFromRows(mapRows, config, limit = BL_BEST_MAP_LIMIT) {
       return {
         slug,
         name,
-        image: siegeMapPreviewImageUrl(slug),
+        image: statsCcMapThumbnailUrl(slug),
         winRate: Math.round(stats.winRate * 1000) / 10,
         matchesPlayed: stats.played
       };

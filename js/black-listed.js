@@ -641,13 +641,7 @@
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
   }
-  const BL_R6MAPS_FOLDER_ALIASES = {
-    "kafe-dostoyevsky": "kafe",
-    "presidential-plane": "plane",
-    "bartlett-u": "university",
-    "hereford-base": "hereford",
-    "theme-park": "themepark"
-  };
+  const STATS_CC_MAP_THUMB_BASE = "https://static.stats.cc/siege/maps";
   function normalizeBestMapEntry(entry) {
     if (entry == null) return null;
     if (typeof entry === "object") {
@@ -670,9 +664,8 @@
   function bestMapImageUrl(map) {
     if (map.image) return map.image;
     const slug = String(map.slug || "").trim().toLowerCase() || siegeMapSlugFromName(map.name);
-    if (!slug) return "";
-    const folder = BL_R6MAPS_FOLDER_ALIASES[slug] || slug;
-    return `https://www.r6maps.com/img/${encodeURIComponent(folder)}/${encodeURIComponent(folder)}-1.jpg`;
+    if (!slug || slug === "unknown") return "";
+    return `${STATS_CC_MAP_THUMB_BASE}/${encodeURIComponent(slug)}_thumbnail.webp`;
   }
   function renderBestMapRailCell(map) {
     const src = bestMapImageUrl(map);

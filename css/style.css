@@ -1813,7 +1813,7 @@ html.reduce-motion .bl-roster-igl-focus-row::before {
   background-color: #131317;
   background-image: var(--bl-best-map-bg, none);
   background-repeat: no-repeat;
-  background-position: center;
+  background-position: right center;
   background-size: cover;
   z-index: 0;
 }
