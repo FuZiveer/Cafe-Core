@@ -8,7 +8,7 @@ const INDICATOR_LAYOUT_TRANSITION = CoreMotion.indicatorLayoutTransition;
 let indicatorAnimToken = 0;
 const TIPS_AND_TRICKS_PAGE_ENABLED = window.CafeCore.Features.tipsAndTricksPage;
 const STRATS_FLYOUT_ITEMS = [
-  { id: "strat-tips", name: "Tips & tricks", icon: "fa-lightbulb" }
+  { id: "strat-tips", name: "Videos", icon: "fa-video" }
 ];
 const flyoutData = coreFreeze({
   tools: {
@@ -1417,7 +1417,33 @@ function initBottleneckResolutionGlide() {
   });
 }
 const LINEUPS_DEFAULT_GAME = "siege";
+const LINEUPS_GAMES_CATALOG = [
+  { id: "apex", name: "Apex Legends" },
+  { id: "cs2", name: "Counter-Strike 2" },
+  { id: "deadlock", name: "Deadlock" },
+  { id: "destiny-2", name: "Destiny 2" },
+  { id: "dota-2", name: "Dota 2" },
+  { id: "helldivers-2", name: "Helldivers 2" },
+  { id: "hunt", name: "Hunt: Showdown 1896" },
+  { id: "marvel-rivals", name: "Marvel Rivals" },
+  { id: "paladins", name: "Paladins" },
+  { id: "pubg", name: "PUBG: BATTLEGROUNDS" },
+  { id: "rust", name: "Rust" },
+  { id: "siege", name: "Rainbow Six Siege" },
+  { id: "splitgate", name: "SPLITGATE: Arena Reloaded" },
+  { id: "tf2", name: "Team Fortress 2" },
+  { id: "the-finals", name: "THE FINALS" },
+  { id: "warframe", name: "Warframe" }
+];
+const LINEUPS_GAMES_BY_ID = new Map(LINEUPS_GAMES_CATALOG.map((game) => [game.id, game]));
 const LINEUPS_FILTER_ALL_VALUE = "all";
+const LINEUPS_DEFAULT_CLIP_TYPE = "lineups";
+const LINEUPS_CLIP_TYPES = [
+  { id: "lineups", name: "Lineups" },
+  { id: "setups", name: "Setups" },
+  { id: "tips", name: "Tips" }
+];
+const LINEUPS_CLIP_TYPE_IDS = new Set(LINEUPS_CLIP_TYPES.map((part) => part.id));
 const LINEUPS_DIFFICULTY_MIN = 1;
 const LINEUPS_DIFFICULTY_MAX = 5;
 const LINEUPS_DIFFICULTY_LEGACY = { easy: 2, medium: 3, hard: 4 };
@@ -1454,20 +1480,36 @@ const LINEUPS_SIEGE_MAPS = [
   "Villa",
   "Yacht"
 ];
-const LINEUPS_VIDEO_LIBRARY = {
-  siege: [
-    {
-      title: "Oregon Spawn Peek (Defense)",
-      src: "videos/siege/oregon-garage-spawnpeek-1.mp4",
-      difficulty: 1,
-      requirements: {
-        map: "Oregon",
-        spot: "Garage window",
-        needed: "Bionic arm, shotgun or impacts"
-      }
+const LINEUPS_SIEGE_CLIPS = [
+  {
+    title: "Oregon Spawn Peek (Defense)",
+    src: "videos/siege/oregon-garage-spawnpeek-1.mp4",
+    type: "tips",
+    difficulty: 1,
+    requirements: {
+      map: "Oregon",
+      spot: "Garage window",
+      needed: "Bionic arm, shotgun or impacts"
     }
-  ]
-};
+  }
+];
+const LINEUPS_VIDEO_LIBRARY = Object.fromEntries(
+  LINEUPS_GAMES_CATALOG.map(({ id }) => [id, id === LINEUPS_DEFAULT_GAME ? [...LINEUPS_SIEGE_CLIPS] : []])
+);
+function normalizeLineupsGameKey(gameKey) {
+  const raw = String(gameKey ?? "").trim();
+  if (!raw) return "";
+  return LINEUPS_GAMES_BY_ID.has(raw) ? raw : "";
+}
+function getLineupsSelectedGameKey() {
+  const pick = document.getElementById("lineups-game-pick");
+  return normalizeLineupsGameKey(pick?.dataset.value ?? "");
+}
+function buildLineupsGamePicklistParts() {
+  return [...LINEUPS_GAMES_CATALOG]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(({ id, name }) => ({ id, name }));
+}
 const LINEUPS_REQUIREMENT_ROWS = [
   { key: "map", label: "Map", icon: "fa-map" },
   { key: "spot", label: "Spot", icon: "fa-location-crosshairs" },
@@ -2286,7 +2328,8 @@ function initLineupsVideoGridDelegation() {
   });
 }
 function getLineupsClipsForGame(gameKey) {
-  const key = gameKey in LINEUPS_VIDEO_LIBRARY ? gameKey : LINEUPS_DEFAULT_GAME;
+  const key = normalizeLineupsGameKey(gameKey);
+  if (!key) return [];
   return LINEUPS_VIDEO_LIBRARY[key] || [];
 }
 function getLineupsClipMap(clip) {
@@ -2298,6 +2341,13 @@ function getLineupsClipMap(clip) {
 }
 function getLineupsClipSpot(clip) {
   return normalizeLineupsRequirementsPayload(clip?.requirements).spot;
+}
+function getLineupsClipType(clip) {
+  const haystack = `${clip?.title ?? ""} ${clip?.src ?? ""}`.toLowerCase().replace(/_/g, " ");
+  if (haystack.includes("spawnpeek") || haystack.includes("spawn peek")) return "tips";
+  const explicit = String(clip?.type ?? "").trim().toLowerCase();
+  if (LINEUPS_CLIP_TYPE_IDS.has(explicit)) return explicit;
+  return LINEUPS_DEFAULT_CLIP_TYPE;
 }
 function clampLineupsDifficultyStars(value) {
   const n = typeof value === "number" ? value : parseInt(String(value ?? "").trim(), 10);
@@ -2340,7 +2390,7 @@ function buildLineupsDifficultyPicklistPart(stars) {
     id,
     name: formatLineupsDifficultyPlain(stars),
     labelHtml: formatLineupsDifficultyHtml(stars),
-    searchText: `${id} star stars difficulty`,
+    searchText: `${id} ${formatLineupsDifficultyPlain(stars)}`,
     ariaLabel: `${id} out of ${LINEUPS_DIFFICULTY_MAX} stars`
   };
 }
@@ -2411,11 +2461,19 @@ function highlightLineupsTitleHtml(title, query) {
 function getLineupsVideoSearchQuery() {
   return document.getElementById("lineups-video-search")?.value ?? "";
 }
-function filterLineupsClips(clips, { map, difficulty, search }) {
+function filterLineupsClips(clips, { map, difficulty, search, type }) {
   const terms = getLineupsSearchTerms(search);
+  const filterByType = type && type !== LINEUPS_FILTER_ALL_VALUE;
+  const clipTypeFilter = filterByType
+    ? LINEUPS_CLIP_TYPE_IDS.has(type)
+      ? type
+      : LINEUPS_DEFAULT_CLIP_TYPE
+    : null;
   return clips.filter((clip) => {
     const clipMap = getLineupsClipMap(clip);
     const clipDifficulty = getLineupsClipDifficulty(clip);
+    const clipType = getLineupsClipType(clip);
+    if (filterByType && clipType !== clipTypeFilter) return false;
     if (map && map !== LINEUPS_FILTER_ALL_VALUE && clipMap.toLowerCase() !== map.toLowerCase()) {
       return false;
     }
@@ -2429,19 +2487,20 @@ function filterLineupsClips(clips, { map, difficulty, search }) {
   });
 }
 function getLineupsMapsForGame(gameKey) {
-  const key = gameKey in LINEUPS_VIDEO_LIBRARY ? gameKey : LINEUPS_DEFAULT_GAME;
+  const key = normalizeLineupsGameKey(gameKey);
+  if (!key) return [];
   if (key === "siege") return [...LINEUPS_SIEGE_MAPS];
   const clips = getLineupsClipsForGame(key);
   return [...new Set(clips.map(getLineupsClipMap).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 function buildLineupsMapPicklistParts(gameKey) {
-  const key = gameKey in LINEUPS_VIDEO_LIBRARY ? gameKey : LINEUPS_DEFAULT_GAME;
+  const key = normalizeLineupsGameKey(gameKey);
   const roster = getLineupsMapsForGame(key);
   const clipMaps = getLineupsClipsForGame(key).map(getLineupsClipMap).filter(Boolean);
   const maps = [... new Set([...roster, ...clipMaps])].sort((a, b) => a.localeCompare(b));
   return [
-    { id: LINEUPS_FILTER_ALL_VALUE, name: "All maps" },
-    ...maps.map((map) => ({ id: map, name: map }))
+    { id: LINEUPS_FILTER_ALL_VALUE, name: "All maps", searchText: "all maps" },
+    ...maps.map((map) => ({ id: map, name: map, searchText: map }))
   ];
 }
 function buildLineupsDifficultyPicklistParts(_gameKey) {
@@ -2450,19 +2509,41 @@ function buildLineupsDifficultyPicklistParts(_gameKey) {
     starLevels.push(buildLineupsDifficultyPicklistPart(stars));
   }
   return [
-    { id: LINEUPS_FILTER_ALL_VALUE, name: "All difficulties" },
+    { id: LINEUPS_FILTER_ALL_VALUE, name: "All difficulties", searchText: "all difficulties" },
     ...starLevels
   ];
+}
+function buildLineupsTypePicklistParts() {
+  return [
+    { id: LINEUPS_FILTER_ALL_VALUE, name: "All types", searchText: "all types" },
+    ...LINEUPS_CLIP_TYPES
+  ];
+}
+function getLineupsSelectedClipType() {
+  const pick = document.getElementById("lineups-type-pick");
+  const value = pick?.dataset.value || LINEUPS_FILTER_ALL_VALUE;
+  if (value === LINEUPS_FILTER_ALL_VALUE) return LINEUPS_FILTER_ALL_VALUE;
+  return LINEUPS_CLIP_TYPE_IDS.has(value) ? value : LINEUPS_FILTER_ALL_VALUE;
 }
 function getLineupsFilterValues() {
   const mapPick = document.getElementById("lineups-filter-map-pick");
   const difficultyPick = document.getElementById("lineups-filter-difficulty-pick");
   return {
     map: mapPick?.dataset.value || LINEUPS_FILTER_ALL_VALUE,
-    difficulty: difficultyPick?.dataset.value || LINEUPS_FILTER_ALL_VALUE
+    difficulty: difficultyPick?.dataset.value || LINEUPS_FILTER_ALL_VALUE,
+    type: getLineupsSelectedClipType()
   };
 }
+function resetLineupsTypePicklist() {
+  const pick = document.getElementById("lineups-type-pick");
+  if (!pick) return;
+  const part =
+    pick._picklistParts?.find((p) => p.id === LINEUPS_FILTER_ALL_VALUE) ||
+    buildLineupsTypePicklistParts()[0];
+  setToolPicklistValue(pick, part);
+}
 function resetLineupsFilters() {
+  resetLineupsTypePicklist();
   const mapPick = document.getElementById("lineups-filter-map-pick");
   const difficultyPick = document.getElementById("lineups-filter-difficulty-pick");
   if (mapPick) {
@@ -2499,7 +2580,12 @@ function renderLineupsVideoGrid(gameKey) {
   if (!grid) return;
   pauseLineupsVideos();
   closeLineupsVideoModal();
-  const key = gameKey in LINEUPS_VIDEO_LIBRARY ? gameKey : LINEUPS_DEFAULT_GAME;
+  const key = normalizeLineupsGameKey(gameKey);
+  if (!key) {
+    grid.innerHTML =
+      '<p class="lineups-video-grid-empty text-sm text-slate-500 tracking-wide col-span-full">Choose a game to browse lineups and setups.</p>';
+    return;
+  }
   const searchQuery = getLineupsVideoSearchQuery();
   const clips = filterLineupsClips(getLineupsClipsForGame(key), {
     ...getLineupsFilterValues(),
@@ -2542,21 +2628,31 @@ function renderLineupsVideoGrid(gameKey) {
   }).join("");
 }
 function updateLineupsGamePanel({ resetFilters = false, syncFilters = true } = {}) {
-  const root = document.getElementById("lineups-game-glide");
-  if (!root) return;
-  const key = root.dataset.value || LINEUPS_DEFAULT_GAME;
+  if (!document.getElementById("lineups-game-pick")) return;
+  const key = getLineupsSelectedGameKey();
   if (resetFilters) resetLineupsFilters();
   if (syncFilters) syncLineupsFilterPicklists(key);
   renderLineupsVideoGrid(key);
 }
-function initLineupsGameGlide() {
-  const root = document.getElementById("lineups-game-glide");
-  if (!root) return;
-  initGlideSelectorRoot(root, {
-    valueKey: "resolution",
-    onChange: () => {
-      updateLineupsGamePanel({ resetFilters: true });
-    }
+function initLineupsTypePicklist() {
+  const pick = document.getElementById("lineups-type-pick");
+  if (!pick || pick.dataset.lineupsTypeBound === "1") return;
+  pick.dataset.lineupsTypeBound = "1";
+  const parts = buildLineupsTypePicklistParts();
+  initToolPicklist(pick, parts, {
+    onChange: () => updateLineupsGamePanel({ syncFilters: false }),
+    emptyMessage: "Couldn't find that type"
+  });
+  const defaultPart = parts.find((p) => p.id === LINEUPS_FILTER_ALL_VALUE) || parts[0];
+  setToolPicklistValue(pick, defaultPart);
+}
+function initLineupsGamePicklist() {
+  const pick = document.getElementById("lineups-game-pick");
+  if (!pick || pick.dataset.lineupsGameBound === "1") return;
+  pick.dataset.lineupsGameBound = "1";
+  initToolPicklist(pick, buildLineupsGamePicklistParts(), {
+    onChange: () => updateLineupsGamePanel({ resetFilters: true }),
+    emptyMessage: "Couldn't find that game"
   });
 }
 function syncLineupsVideoSearchClearButton() {
@@ -2597,7 +2693,7 @@ function initLineupsFilters() {
   const difficultyPick = document.getElementById("lineups-filter-difficulty-pick");
   if (!mapPick || !difficultyPick || mapPick.dataset.lineupsFilterBound === "1") return;
   mapPick.dataset.lineupsFilterBound = "1";
-  const gameKey = document.getElementById("lineups-game-glide")?.dataset.value || LINEUPS_DEFAULT_GAME;
+  const gameKey = getLineupsSelectedGameKey();
   const onFilterChange = () => updateLineupsGamePanel({ syncFilters: false });
   initToolPicklist(mapPick, buildLineupsMapPicklistParts(gameKey), {
     onChange: onFilterChange,
@@ -2613,7 +2709,8 @@ function initLineupsFilters() {
 function initLineupsPage() {
   initToolPicklistDismiss();
   initLineupsVideoGridDelegation();
-  initLineupsGameGlide();
+  initLineupsGamePicklist();
+  initLineupsTypePicklist();
   initLineupsVideoSearch();
   initLineupsFilters();
   updateLineupsGamePanel();
@@ -2873,13 +2970,42 @@ function syncToolPicklistEmptyState(root, query) {
   const show = q.length > 0 && visibleCount === 0;
   emptyEl.classList.toggle("hidden", !show);
 }
+function getToolPicklistQueryTokens(query) {
+  return String(query ?? "")
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+function getToolPicklistOptionMatchFields(optionBtn) {
+  if (!optionBtn) return [];
+  const search = (optionBtn.dataset.search || "").trim().toLowerCase();
+  const label = (optionBtn.textContent || "").trim().toLowerCase();
+  const id = (optionBtn.dataset.value || "").trim().toLowerCase();
+  return [id, search, label].filter(Boolean);
+}
+function toolPicklistOptionMatchesQuery(optionBtn, query) {
+  const tokens = getToolPicklistQueryTokens(query);
+  if (!tokens.length) return true;
+  const fields = getToolPicklistOptionMatchFields(optionBtn);
+  if (!fields.length) return false;
+  return tokens.every((token) => fields.some((field) => field.includes(token)));
+}
+function toolPicklistPartMatchesQuery(part, query) {
+  const tokens = getToolPicklistQueryTokens(query);
+  if (!tokens.length) return true;
+  if (!part) return false;
+  const fields = [
+    String(part.id ?? "").trim().toLowerCase(),
+    String(part.name ?? "").trim().toLowerCase(),
+    String(part.searchText ?? "").trim().toLowerCase()
+  ].filter(Boolean);
+  return tokens.every((token) => fields.some((field) => field.includes(token)));
+}
 function filterToolPicklistOptions(root, query) {
-  const q = String(query || "").trim().toLowerCase();
+  const q = String(query ?? "").trim();
   getToolPicklistOptions(root).forEach((btn) => {
-    const search = (btn.dataset.search || "").trim().toLowerCase();
-    const label = (btn.textContent || "").trim().toLowerCase();
-    const haystack = `${search} ${label}`.trim();
-    btn.classList.toggle("is-filtered-out", q.length > 0 && !haystack.includes(q));
+    btn.classList.toggle("is-filtered-out", q.length > 0 && !toolPicklistOptionMatchesQuery(btn, q));
   });
   syncToolPicklistEmptyState(root, query);
   if (root.classList.contains("is-open")) syncToolPicklistMenuLayout(root);
@@ -2948,7 +3074,11 @@ function setToolPicklistActive(root, menu, optionBtn, { scrollIntoView = false }
     optionBtn.scrollIntoView({ block: "nearest", behavior: scrollBehaviorOption() });
   }
 }
-function syncToolPicklistActiveHighlight(root, menu, { preferSelected = true } = {}) {
+function syncToolPicklistActiveHighlight(
+  root,
+  menu,
+  { preferSelected = true, allowFirstFallback = true } = {}
+) {
   const options = getToolPicklistVisibleOptions(menu);
   if (!options.length) {
     clearToolPicklistActive(root);
@@ -2962,8 +3092,22 @@ function syncToolPicklistActiveHighlight(root, menu, { preferSelected = true } =
   if (!target && current && options.includes(current)) {
     target = current;
   }
-  if (!target) target = options[0];
+  if (!target && allowFirstFallback) {
+    target = options[0];
+  }
+  if (!target) {
+    clearToolPicklistActive(root);
+    return;
+  }
   setToolPicklistActive(root, menu, target);
+}
+function getToolPicklistActiveHighlightOptions(root, input) {
+  const query = String(input?.value ?? "").trim();
+  const hasCommittedValue = Boolean(root?.dataset.value);
+  return {
+    preferSelected: true,
+    allowFirstFallback: query.length > 0 || hasCommittedValue
+  };
 }
 function moveToolPicklistActive(root, menu, delta) {
   const options = getToolPicklistVisibleOptions(menu);
@@ -3137,15 +3281,19 @@ function initToolPicklist(root, parts, { onChange, emptyMessage = "Couldn't find
   input.addEventListener("focus", () => {
     openToolPicklist(root);
     filterToolPicklistOptions(root, input.value);
-    syncToolPicklistActiveHighlight(root, menu);
+    syncToolPicklistActiveHighlight(root, menu, getToolPicklistActiveHighlightOptions(root, input));
   });
   input.addEventListener("input", () => {
     if (!root.classList.contains("is-open")) openToolPicklist(root);
     filterToolPicklistOptions(root, input.value);
-    syncToolPicklistActiveHighlight(root, menu, { preferSelected: false });
+    const highlightOptions = getToolPicklistActiveHighlightOptions(root, input);
+    syncToolPicklistActiveHighlight(root, menu, {
+      preferSelected: false,
+      allowFirstFallback: highlightOptions.allowFirstFallback
+    });
     const selected = parts.find((p) => p.id === root.dataset.value);
-    const query = input.value.trim().toLowerCase();
-    const stillMatches = selected && selected.name.toLowerCase().includes(query);
+    const query = input.value;
+    const stillMatches = selected && toolPicklistPartMatchesQuery(selected, query);
     if (root.dataset.value && !stillMatches) {
       root.dataset.value = "";
       getToolPicklistOptions(root).forEach((btn) => {
@@ -3180,7 +3328,7 @@ function initToolPicklist(root, parts, { onChange, emptyMessage = "Couldn't find
       if (!root.classList.contains("is-open")) {
         openToolPicklist(root);
         filterToolPicklistOptions(root, input.value);
-        syncToolPicklistActiveHighlight(root, menu);
+        syncToolPicklistActiveHighlight(root, menu, getToolPicklistActiveHighlightOptions(root, input));
         return;
       }
       const active = menu.querySelector(".tool-picklist-option.is-active:not(.is-filtered-out)");

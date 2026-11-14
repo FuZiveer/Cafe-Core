@@ -1,7 +1,11 @@
 (function() {
   "use strict";
   const BL_SCRIM_RECORD_EDITORS = new Set(["fuziveer", "rawenge", "rjwarrior", "jobless___", "kkv060", "two4ne"]);
+  const DISCORD_AUTH_PROFILE_POLL_MS = 60 * 1000;
   let currentDiscordUser = null;
+  let cachedAuthBase = "";
+  let cachedAuthConfigured = false;
+  let discordAuthPollTimer = null;
   function byId(id) {
     return document.getElementById(id);
   }
@@ -192,6 +196,38 @@
       return false;
     }
   }
+  function discordUserSignature(user) {
+    if (!user) return "";
+    return [user.id, user.username, user.globalName, user.displayName, user.avatarUrl].join("|");
+  }
+  function stopDiscordAuthProfilePoll() {
+    if (discordAuthPollTimer == null) return;
+    clearInterval(discordAuthPollTimer);
+    discordAuthPollTimer = null;
+  }
+  function startDiscordAuthProfilePoll() {
+    stopDiscordAuthProfilePoll();
+    if (!currentDiscordUser || !cachedAuthConfigured) return;
+    discordAuthPollTimer = setInterval(() => {
+      void syncDiscordAuthProfile({ silent: true });
+    }, DISCORD_AUTH_PROFILE_POLL_MS);
+  }
+  function patchSignedInDiscordUi(user) {
+    const host = byId("discord-auth-host");
+    const name = user.displayName || user.username || "Discord";
+    const usernameLine = user.username ? `@${user.username}` : "Discord account";
+    host?.querySelector(".discord-auth-avatar")?.setAttribute("src", user.avatarUrl || "");
+    const label = host?.querySelector(".discord-auth-name");
+    if (label) label.textContent = name;
+    const menu = byId("discord-profile-menu");
+    const menuTexts = menu?.querySelectorAll(".px-4.py-3 p");
+    if (menuTexts?.[0]) menuTexts[0].textContent = name;
+    if (menuTexts?.[1]) menuTexts[1].textContent = usernameLine;
+    const btn = byId("discord-profile-btn");
+    if (btn) {
+      btn.setAttribute("aria-label", `Discord profile, ${name}`);
+    }
+  }
   function renderSignedOut(host, loginUrl) {
     host.innerHTML = `
             <a
@@ -256,8 +292,10 @@
       const isOpen = menu.classList.contains("dropdown-open");
       window.setDiscordProfileMenuOpen(!isOpen);
     });
+    btn?.setAttribute("aria-label", `Discord profile, ${name}`);
     signOut?.addEventListener("click", async () => {
       window.closeDiscordProfileMenu();
+      stopDiscordAuthProfilePoll();
       setCurrentDiscordUser(null);
       try {
         await fetch(apiUrl(authBase || "", "/api/auth/logout"), {
@@ -289,15 +327,53 @@
     }
     return { configured: false, loginPath: "/auth/discord/login" };
   }
+  async function syncDiscordAuthProfile({ silent = false } = {}) {
+    if (!cachedAuthConfigured) return;
+    const host = byId("discord-auth-host");
+    if (!host) return;
+    const prevSig = discordUserSignature(currentDiscordUser);
+    try {
+      const user = await fetchMe(cachedAuthBase);
+      if (!user) {
+        if (currentDiscordUser) {
+          stopDiscordAuthProfilePoll();
+          await refreshDiscordAuthUi();
+        }
+        return;
+      }
+      const wasSignedIn = Boolean(byId("discord-profile-btn"));
+      if (!wasSignedIn) {
+        stopDiscordAuthProfilePoll();
+        await refreshDiscordAuthUi();
+        return;
+      }
+      const nextSig = discordUserSignature(user);
+      setCurrentDiscordUser(user);
+      if (prevSig !== nextSig) {
+        patchSignedInDiscordUi(user);
+      }
+      if (typeof window.refreshCafeBlApiState === "function") {
+        void window.refreshCafeBlApiState();
+      }
+    } catch {
+      if (!silent) {
+        stopDiscordAuthProfilePoll();
+        await refreshDiscordAuthUi();
+      }
+    }
+  }
   async function refreshDiscordAuthUi() {
     const host = byId("discord-auth-host");
     if (!host) return;
     const override = authOriginOverride();
     const config = await loadAuthConfig(override);
     const authBase = resolveAuthBase(config.authOrigin);
+    cachedAuthConfigured = Boolean(config.configured);
+    cachedAuthBase = authBase;
     if (!config.configured) {
       host.innerHTML = "";
       host.hidden = true;
+      stopDiscordAuthProfilePoll();
       setCurrentDiscordUser(null);
       return;
     }
@@ -310,13 +386,16 @@
         setCurrentDiscordUser(user);
         notifyDiscordSignInIfPending(user);
         renderSignedIn(host, user, authBase);
+        startDiscordAuthProfilePoll();
       } else {
         setCurrentDiscordUser(null);
+        stopDiscordAuthProfilePoll();
         renderSignedOut(host, loginUrl);
         bindDiscordSignInPending(byId("discord-sign-in-btn"));
       }
     } catch {
       setCurrentDiscordUser(null);
+      stopDiscordAuthProfilePoll();
       renderSignedOut(host, loginUrl);
       bindDiscordSignInPending(byId("discord-sign-in-btn"));
     }
@@ -327,6 +406,12 @@
   window.initDiscordAuth = function initDiscordAuth() {
     clearAuthQueryFromUrl();
     refreshDiscordAuthUi();
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && currentDiscordUser) {
+        void syncDiscordAuthProfile({ silent: true });
+      }
+    });
   };
   window.refreshDiscordAuthUi = refreshDiscordAuthUi;
+  window.syncDiscordAuthProfile = syncDiscordAuthProfile;
 })();

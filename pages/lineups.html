@@ -1,44 +1,51 @@
 <div id="page-lineups" class="main-page w-full max-w-5xl mx-auto p-8">
                 <div class="page-intro mb-8">
-                    <h2 class="text-xl font-bold tracking-widest uppercase text-white">Tips &amp; tricks</h2>
+                    <h2 class="text-xl font-bold tracking-widest uppercase text-white">Videos</h2>
                     <p class="text-sm text-slate-400 mt-2 tracking-wide">Strats to use in your selected game</p>
                 </div>
                 <div class="mb-3 flex flex-col items-stretch">
                     <div class="bottleneck-field bg-matte-900 rounded-lg p-4 min-w-0">
                         <div class="lineups-game-toolbar">
-                            <div class="lineups-game-toolbar-glide">
+                            <div class="lineups-filter-field flex flex-col gap-3 min-w-0">
                                 <span class="lineups-filter-label">Game</span>
-                                <div id="lineups-game-glide" class="glide-selector w-full" role="radiogroup" aria-label="Tips and tricks game" data-value="siege">
-                                    <div class="glide-selector-track">
-                                        <div class="glide-selector-viewport" aria-hidden="true">
-                                            <span class="glide-selector-thumb ui-interactive"></span>
-                                        </div>
-                                        <button type="button" class="glide-selector-option ui-interactive is-selected" data-resolution="siege" role="radio" aria-checked="true">Siege</button>
+                                <div id="lineups-game-pick" class="tool-picklist w-full" data-value="">
+                                    <div class="tool-picklist-control ui-interactive">
+                                        <input id="lineups-game-input" type="text" class="tool-picklist-input w-full" placeholder="Choose game" autocomplete="off" spellcheck="false" aria-label="Game">
+                                        <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
                                     </div>
+                                    <div id="lineups-game-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Game options"></div>
                                 </div>
                             </div>
-                            <div class="lineups-game-toolbar-filters">
-                                <div class="lineups-filter-field flex flex-col gap-3 min-w-0">
-                                    <span class="text-sm font-bold tracking-widest uppercase text-white">Map</span>
-                                    <div id="lineups-filter-map-pick" class="tool-picklist w-full" data-value="all">
-                                        <div class="tool-picklist-control tool-picklist-control--has-icon ui-interactive">
-                                            <i class="ri-search-line tool-picklist-leading-icon" aria-hidden="true"></i>
-                                            <input id="lineups-filter-map-input" type="text" class="tool-picklist-input w-full" placeholder="All maps" autocomplete="off" spellcheck="false" aria-label="Filter by map">
-                                            <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
-                                        </div>
-                                        <div id="lineups-filter-map-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Map filter options"></div>
+                            <div class="lineups-filter-field flex flex-col gap-3 min-w-0">
+                                <span class="lineups-filter-label">Map</span>
+                                <div id="lineups-filter-map-pick" class="tool-picklist w-full" data-value="all">
+                                    <div class="tool-picklist-control tool-picklist-control--has-icon ui-interactive">
+                                        <i class="ri-search-line tool-picklist-leading-icon" aria-hidden="true"></i>
+                                        <input id="lineups-filter-map-input" type="text" class="tool-picklist-input w-full" placeholder="All maps" autocomplete="off" spellcheck="false" aria-label="Filter by map">
+                                        <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
                                     </div>
+                                    <div id="lineups-filter-map-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Map filter options"></div>
                                 </div>
-                                <div class="lineups-filter-field flex flex-col gap-3 min-w-0">
-                                    <span class="text-sm font-bold tracking-widest uppercase text-white">Difficulty</span>
-                                    <div id="lineups-filter-difficulty-pick" class="tool-picklist w-full" data-value="all">
-                                        <div class="tool-picklist-control tool-picklist-control--has-icon ui-interactive">
-                                            <i class="ri-search-line tool-picklist-leading-icon" aria-hidden="true"></i>
-                                            <input id="lineups-filter-difficulty-input" type="text" class="tool-picklist-input w-full" placeholder="All difficulties" autocomplete="off" spellcheck="false" aria-label="Filter by difficulty">
-                                            <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
-                                        </div>
-                                        <div id="lineups-filter-difficulty-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Difficulty filter options"></div>
+                            </div>
+                            <div class="lineups-filter-field flex flex-col gap-3 min-w-0">
+                                <span class="lineups-filter-label">Difficulty</span>
+                                <div id="lineups-filter-difficulty-pick" class="tool-picklist w-full" data-value="all">
+                                    <div class="tool-picklist-control tool-picklist-control--has-icon ui-interactive">
+                                        <i class="ri-search-line tool-picklist-leading-icon" aria-hidden="true"></i>
+                                        <input id="lineups-filter-difficulty-input" type="text" class="tool-picklist-input w-full" placeholder="All difficulties" autocomplete="off" spellcheck="false" aria-label="Filter by difficulty">
+                                        <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
                                     </div>
+                                    <div id="lineups-filter-difficulty-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Difficulty filter options"></div>
+                                </div>
+                            </div>
+                            <div class="lineups-filter-field flex flex-col gap-3 min-w-0">
+                                <span class="lineups-filter-label">Type</span>
+                                <div id="lineups-type-pick" class="tool-picklist w-full" data-value="all">
+                                    <div class="tool-picklist-control ui-interactive">
+                                        <input id="lineups-type-input" type="text" class="tool-picklist-input w-full" placeholder="All types" autocomplete="off" spellcheck="false" aria-label="Clip type">
+                                        <i class="tool-picklist-chevron fa-solid fa-chevron-down text-xs text-slate-400" aria-hidden="true"></i>
+                                    </div>
+                                    <div id="lineups-type-menu" class="tool-picklist-menu dropdown-closed" role="listbox" aria-label="Clip type options"></div>
                                 </div>
                             </div>
                         </div>

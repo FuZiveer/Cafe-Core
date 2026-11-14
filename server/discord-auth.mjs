@@ -136,7 +136,7 @@ function signSession(payload, secret) {
   const sig = crypto.createHmac("sha256", secret).update(body).digest("base64url");
   return `${body}.${sig}`;
 }
-function verifySession(token, secret) {
+function verifySessionPayload(token, secret) {
   if (!token || !secret) return null;
   const dot = token.lastIndexOf(".");
   if (dot <= 0) return null;
@@ -150,10 +150,61 @@ function verifySession(token, secret) {
     const json = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
     if (!json || typeof json !== "object") return null;
     if (typeof json.exp !== "number" || json.exp < Date.now()) return null;
-    return json.user ?? null;
+    return json;
   } catch {
     return null;
   }
+}
+function verifySession(token, secret) {
+  return verifySessionPayload(token, secret)?.user ?? null;
+}
+const DISCORD_PROFILE_REFRESH_MIN_MS = 55 * 1000;
+function discordProfileSignature(user) {
+  if (!user) return "";
+  return [user.id, user.username, user.globalName, user.displayName, user.avatarUrl].join("|");
+}
+function getRequestSessionPayload(req, cfg) {
+  const cookies = parseCookies(req.headers.cookie);
+  return verifySessionPayload(cookies[SESSION_COOKIE], cfg.sessionSecret);
+}
+async function refreshSessionUserFromDiscord(payload) {
+  if (!payload?.accessToken) return null;
+  try {
+    const rawUser = await fetchDiscordUser(payload.accessToken);
+    return normalizeUser(rawUser);
+  } catch {
+    return null;
+  }
+}
+async function resolveSessionUserForApi(req, res, cfg) {
+  const payload = getRequestSessionPayload(req, cfg);
+  if (!payload?.user) return null;
+  let user = payload.user;
+  const cOpts = cookieOpts(cfg);
+  const lastRefresh = typeof payload.refreshedAt === "number" ? payload.refreshedAt : 0;
+  const shouldRefresh =
+    payload.accessToken && Date.now() - lastRefresh >= DISCORD_PROFILE_REFRESH_MIN_MS;
+  if (shouldRefresh) {
+    const refreshed = await refreshSessionUserFromDiscord(payload);
+    if (refreshed && discordProfileSignature(refreshed) !== discordProfileSignature(user)) {
+      user = refreshed;
+    }
+    const session = signSession(
+      {
+        user,
+        accessToken: payload.accessToken,
+        refreshedAt: Date.now(),
+        exp: payload.exp
+      },
+      cfg.sessionSecret
+    );
+    setCookie(res, SESSION_COOKIE, session, {
+      maxAge: SESSION_MAX_AGE_SEC,
+      httpOnly: true,
+      ...cOpts
+    });
+  }
+  return user;
 }
 function signOauthStatePayload(payload, secret) {
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
@@ -357,7 +408,7 @@ export async function handleDiscordAuthRequest(req, res, url) {
   }
   if (pathname === "/api/auth/me") {
     applyCors(req, res, cfg);
-    const user = getSessionUser(req);
+    const user = await resolveSessionUserForApi(req, res, cfg);
     sendJson(res, 200, { user: user ?? null });
     return true;
   }
@@ -488,6 +539,8 @@ export async function handleDiscordAuthRequest(req, res, url) {
       const session = signSession(
         {
           user,
+          accessToken,
+          refreshedAt: Date.now(),
           exp: Date.now() + SESSION_MAX_AGE_SEC * 1e3
         },
         cfg.sessionSecret

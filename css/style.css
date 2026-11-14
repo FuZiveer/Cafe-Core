@@ -3103,32 +3103,13 @@ html.reduce-motion .home-feature-card:hover .home-feature-card-body::before {
     padding: 0;
 }
 .lineups-game-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 1rem 1.25rem;
-}
-.lineups-game-toolbar-glide {
-    flex: 1 1 16rem;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.75rem;
-}
-.lineups-game-toolbar-glide .glide-selector-option {
-    letter-spacing: 0.02em;
-}
-.lineups-game-toolbar-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    flex: 1 1 18rem;
-    justify-content: flex-end;
+    align-items: end;
 }
 .lineups-filter-field {
-    min-width: 10rem;
-    flex: 1 1 12rem;
-    max-width: none;
+    min-width: 0;
 }
 .lineups-filter-label {
     font-size: 0.875rem;
@@ -3160,11 +3141,8 @@ html.reduce-motion .home-feature-card:hover .home-feature-card-body::before {
     text-align: center;
 }
 @media (max-width: 767px) {
-    .lineups-game-toolbar-filters {
-        justify-content: stretch;
-    }
-    .lineups-filter-field {
-        max-width: none;
+    .lineups-game-toolbar {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 .lineups-video-card-title-mark {
@@ -4249,8 +4227,7 @@ body.mobile-nav-open .mobile-nav-backdrop {
         padding: 1.25rem;
     }
   #page-lineups .lineups-game-toolbar {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.75rem;
   }
   #page-lineups .lineups-video-grid {
