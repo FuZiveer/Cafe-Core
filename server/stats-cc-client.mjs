@@ -155,6 +155,81 @@ async function fetchRankedOperatorRows(profileId) {
   );
 }
 
+const BL_BEST_MAP_MIN_MATCHES = 10;
+const BL_BEST_MAP_LIMIT = 1;
+
+const R6MAPS_FOLDER_ALIASES = {
+  "kafe-dostoyevsky": "kafe",
+  "presidential-plane": "plane",
+  "bartlett-u": "university",
+  "close-quarter": "close-quarter",
+  "hereford-base": "hereford",
+  "theme-park": "themepark",
+  "emerald-plains": "emerald-plains"
+};
+
+function mapDisplayName(config, mapSlug) {
+  const key = String(mapSlug || "").trim();
+  if (!key) return "";
+  const ent = config?.maps?.[key];
+  const label = localizedDisplay(ent?.display);
+  if (label) return label;
+  return key
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export function siegeMapPreviewImageUrl(mapSlug) {
+  const slug = String(mapSlug || "").trim().toLowerCase();
+  if (!slug) return "";
+  const folder = R6MAPS_FOLDER_ALIASES[slug] || slug;
+  return `https://www.r6maps.com/img/${encodeURIComponent(folder)}/${encodeURIComponent(folder)}-1.jpg`;
+}
+
+function rankedMapDecisionRecord(row) {
+  const wins = Number(row?.wins) || 0;
+  const losses = Number(row?.losses) || 0;
+  const played = wins + losses;
+  if (played < 1) return null;
+  return { wins, losses, played, winRate: wins / played };
+}
+
+function topBestMapsFromRows(mapRows, config, limit = BL_BEST_MAP_LIMIT) {
+  const rows = (Array.isArray(mapRows) ? mapRows : [])
+    .map((row) => {
+      const slug = String(row?.map || "").trim().toLowerCase();
+      if (!slug || slug === "unknown") return null;
+      const stats = rankedMapDecisionRecord(row);
+      if (!stats || stats.played < BL_BEST_MAP_MIN_MATCHES) return null;
+      const name = mapDisplayName(config, slug);
+      if (!name) return null;
+      return {
+        slug,
+        name,
+        image: siegeMapPreviewImageUrl(slug),
+        winRate: Math.round(stats.winRate * 1000) / 10,
+        matchesPlayed: stats.played
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      if (b.matchesPlayed !== a.matchesPlayed) return b.matchesPlayed - a.matchesPlayed;
+      return a.name.localeCompare(b.name);
+    });
+  return rows.slice(0, Math.max(1, limit));
+}
+
+async function fetchRankedMapRows(profileId) {
+  const id = String(profileId || "").trim();
+  if (!id) return [];
+  return statsCcFetch(
+    `/v2/profiles/${encodeURIComponent(id)}/maps?playlist=ranked`
+  );
+}
+
 function parseStatsTimestamp(value) {
   if (value == null || value === "") return null;
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -497,6 +572,7 @@ async function resolveMemberStats(member, config, options = {}) {
     );
     let attackers = null;
     let defenders = null;
+    let bestMaps = null;
     const profileIdForOps = profile?.id || pinnedId;
     if (profileIdForOps) {
       try {
@@ -507,11 +583,18 @@ async function resolveMemberStats(member, config, options = {}) {
         if (topDef.length) defenders = topDef;
       } catch {
       }
+      try {
+        const mapRows = await fetchRankedMapRows(profileIdForOps);
+        const topMaps = topBestMapsFromRows(mapRows, config, BL_BEST_MAP_LIMIT);
+        if (topMaps.length) bestMaps = topMaps;
+      } catch {
+      }
     }
     const result = {
       ...mapped,
       attackers,
-      defenders
+      defenders,
+      bestMaps
     };
     profileCache.set(cacheKey, { at: now, result });
     if (profile?.id) {

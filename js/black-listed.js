@@ -633,6 +633,92 @@
                 <p class="bl-roster-modal-peak-value">#${escapeHtml(String(n))}</p>
             </div>`;
   }
+  function siegeMapSlugFromName(name) {
+    return String(name || "")
+      .trim()
+      .toLowerCase()
+      .replace(/['']/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+  }
+  const BL_R6MAPS_FOLDER_ALIASES = {
+    "kafe-dostoyevsky": "kafe",
+    "presidential-plane": "plane",
+    "bartlett-u": "university",
+    "hereford-base": "hereford",
+    "theme-park": "themepark"
+  };
+  function normalizeBestMapEntry(entry) {
+    if (entry == null) return null;
+    if (typeof entry === "object") {
+      const name = String(entry.name || entry.map || "").trim();
+      if (!name) return null;
+      const slug = String(entry.slug || "").trim().toLowerCase();
+      const image = String(entry.image || entry.imageUrl || entry.src || "").trim();
+      return { name, slug, image };
+    }
+    const name = String(entry).trim();
+    if (!name) return null;
+    return { name, slug: siegeMapSlugFromName(name), image: "" };
+  }
+  function bestMapsForMember(member) {
+    const live = liveStatsForMember(member?.id);
+    const fromLive = live?.bestMaps;
+    if (!Array.isArray(fromLive) || !fromLive.length) return [];
+    return fromLive.map(normalizeBestMapEntry).filter(Boolean);
+  }
+  function bestMapImageUrl(map) {
+    if (map.image) return map.image;
+    const slug = String(map.slug || "").trim().toLowerCase() || siegeMapSlugFromName(map.name);
+    if (!slug) return "";
+    const folder = BL_R6MAPS_FOLDER_ALIASES[slug] || slug;
+    return `https://www.r6maps.com/img/${encodeURIComponent(folder)}/${encodeURIComponent(folder)}-1.jpg`;
+  }
+  function renderBestMapRailCell(map) {
+    const src = bestMapImageUrl(map);
+    const srcAttr = src ? ` data-map-src="${escapeHtml(src)}"` : "";
+    return `
+            <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-best-map-cell"${srcAttr}>
+                <span class="bl-roster-modal-best-map-fallback" aria-hidden="true">${escapeHtml(map.name)}</span>
+                <div class="bl-roster-modal-best-map-caption">
+                    <p class="bl-roster-modal-peak-label">Best map</p>
+                    <p class="bl-roster-modal-best-map-name">${escapeHtml(map.name)}</p>
+                </div>
+            </div>`;
+  }
+  function bindBestMapBackgrounds(root) {
+    if (!root) return;
+    root.querySelectorAll(".bl-roster-modal-best-map-cell[data-map-src]").forEach((cell) => {
+      const src = cell.getAttribute("data-map-src");
+      if (!src || cell.dataset.mapBgBound === "1") return;
+      cell.dataset.mapBgBound = "1";
+      const img = new Image();
+      img.onload = () => {
+        cell.classList.add("has-map-image");
+        cell.style.setProperty(
+          "--bl-best-map-bg",
+          `url("${src.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}")`
+        );
+      };
+      img.onerror = () => {
+        cell.removeAttribute("data-map-src");
+      };
+      img.src = src;
+    });
+  }
+  function renderBestMapsRail(member) {
+    const railEl = document.getElementById("bl-roster-player-modal-best-maps");
+    if (!railEl) return;
+    const maps = bestMapsForMember(member);
+    if (!maps.length) {
+      railEl.hidden = true;
+      railEl.innerHTML = "";
+      return;
+    }
+    railEl.hidden = false;
+    railEl.innerHTML = maps.map((map) => renderBestMapRailCell(map)).join("");
+    bindBestMapBackgrounds(railEl);
+  }
   function currentRankDisplay(member) {
     const live = liveStatsForMember(member.id);
     const rankRaw = live?.currentRank ?? member.currentRank;
@@ -1077,6 +1163,7 @@
     const member = memberForDisplay(findMemberById(memberId));
     if (!member) return;
     renderTeamRankRail(member);
+    renderBestMapsRail(member);
     renderPeakRankRail(member);
     renderStatsCcRail(member);
   }
@@ -1097,6 +1184,7 @@
     body.innerHTML = renderPlayerModalContent(member);
     modal.dataset.blOpenMemberId = memberId;
     renderTeamRankRail(member);
+    renderBestMapsRail(member);
     renderPeakRankRail(member);
     renderStatsCcRail(member);
     syncBlRosterStatsUpdateButton();

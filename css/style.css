@@ -1175,6 +1175,10 @@ html.reduce-motion .settings-tab-glider {
   width: var(--bl-modal-rank-rail-width, 7.25rem);
   min-width: var(--bl-modal-rank-rail-width, 7.25rem);
 }
+#bl-roster-player-modal:not(.hidden) .bl-roster-modal-top-rail-row {
+  width: max-content;
+  max-width: min(32rem, calc(100vw - 2rem));
+}
 #bl-roster-player-modal:not(.hidden) .bl-roster-modal-team-rank-rail .bl-roster-modal-peak-rail-inner {
   white-space: nowrap;
 }
@@ -1750,17 +1754,123 @@ html.reduce-motion .bl-roster-igl-focus-row::before {
 .bl-roster-modal-head-role {
   margin-top: 0.35rem;
 }
-.bl-roster-modal-team-rank-rail {
+.bl-roster-modal-top-rail-row {
   position: absolute;
   bottom: calc(100% + var(--modal-side-rail-gap));
   left: 0;
-  width: var(--bl-modal-rank-rail-width, 7.25rem);
   z-index: 3;
+  display: flex;
+  align-items: stretch;
+  gap: var(--modal-side-rail-gap);
+  max-width: 100%;
   min-width: 0;
+}
+.bl-roster-modal-team-rank-rail {
+  position: static;
+  width: var(--bl-modal-rank-rail-width, 7.25rem);
+  min-width: var(--bl-modal-rank-rail-width, 7.25rem);
+  flex-shrink: 0;
   transform: none;
 }
 .bl-roster-modal-team-rank-rail[hidden] {
   display: none;
+}
+.bl-roster-modal-best-maps-rail {
+  display: flex;
+  align-items: stretch;
+  gap: var(--modal-side-rail-gap);
+  min-width: 0;
+  flex-shrink: 1;
+}
+.bl-roster-modal-best-maps-rail[hidden] {
+  display: none;
+}
+.bl-roster-modal-top-rail-row .bl-roster-modal-team-rank-rail .bl-roster-modal-peak-rail-inner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--bl-modal-top-rail-height, 4.3125rem);
+  height: 100%;
+  box-sizing: border-box;
+}
+.bl-roster-modal-best-map-cell.bl-roster-modal-peak-rail-inner {
+  position: relative;
+  width: var(--bl-modal-rank-rail-width, 7.25rem);
+  min-width: var(--bl-modal-rank-rail-width, 7.25rem);
+  min-height: var(--bl-modal-top-rail-height, 4.3125rem);
+  height: 100%;
+  padding: 0;
+  display: block;
+  text-align: left;
+  overflow: hidden;
+  isolation: isolate;
+}
+.bl-roster-modal-best-map-cell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: #131317;
+  background-image: var(--bl-best-map-bg, none);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  z-index: 0;
+}
+.bl-roster-modal-best-map-cell.has-map-image .bl-roster-modal-best-map-fallback {
+  opacity: 0;
+  visibility: hidden;
+}
+.bl-roster-modal-best-map-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.2;
+  color: #94a3b8;
+  background: linear-gradient(145deg, #1a1a1e 0%, #131317 55%, #0a0a0c 100%);
+  border-radius: inherit;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+.bl-roster-modal-best-map-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  box-sizing: border-box;
+  background: linear-gradient(to top, rgba(10, 10, 12, 0.92) 0%, rgba(10, 10, 12, 0.55) 70%, transparent 100%);
+  border-radius: 0 0 var(--radius-ui) var(--radius-ui);
+  pointer-events: none;
+}
+.bl-roster-modal-best-map-caption .bl-roster-modal-peak-label {
+  margin: 0;
+  font-size: 0.6rem;
+  text-align: left;
+}
+.bl-roster-modal-best-map-name {
+  margin: 0.15rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f8fafc;
+  line-height: 1.2;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .bl-roster-modal-peak-rail--in-panel {
   position: relative;
@@ -2051,11 +2161,27 @@ html.reduce-motion #bl-roster-player-modal-reload i.bl-roster-modal-reload-icon-
     display: flex;
     flex-direction: column;
   }
-  .bl-roster-modal-team-rank-rail {
+  .bl-roster-modal-top-rail-row {
     position: static;
     width: 100%;
+    max-width: none;
+    flex-wrap: wrap;
     margin-bottom: 0.5rem;
+  }
+  .bl-roster-modal-team-rank-rail {
+    position: static;
+    width: calc(50% - (var(--modal-side-rail-gap) / 2));
+    min-width: 6.5rem;
     height: auto;
+  }
+  .bl-roster-modal-best-maps-rail {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .bl-roster-modal-best-map-cell {
+    flex: 1 1 var(--bl-modal-rank-rail-width, 7.25rem);
+    min-width: 6.5rem;
   }
   .bl-roster-modal-peak-rail--in-panel {
     margin-top: 0.75rem;
