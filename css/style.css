@@ -312,6 +312,12 @@ html.reduce-motion .discord-auth-profile-btn .discord-auth-chevron {
 #notification-dropdown[data-notification-portaled="1"] {
   margin-top: 0;
 }
+.discord-auth-menu.discord-auth-menu-anchor {
+  margin-top: var(--modal-side-rail-gap);
+}
+.discord-auth-menu[data-discord-menu-portaled="1"] {
+  margin-top: 0;
+}
 #notification-dropdown.dropdown-open,
 .discord-auth-menu.dropdown-open,
 .tool-picklist-menu.dropdown-open {

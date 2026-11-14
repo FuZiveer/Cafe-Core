@@ -41,12 +41,15 @@
   function layoutDiscordProfileMenu() {
     const menu = byId("discord-profile-menu");
     const btn = byId("discord-profile-btn");
+    const topBar = byId("top-bar");
     if (!menu || !btn) return;
     portalDiscordProfileMenu();
-    const rect = btn.getBoundingClientRect();
-    const gap = 4;
-    menu.style.top = `${Math.round(rect.bottom + gap)}px`;
-    menu.style.right = `${Math.round(window.innerWidth - rect.right)}px`;
+    const btnRect = btn.getBoundingClientRect();
+    const anchorBottom = topBar ? topBar.getBoundingClientRect().bottom : btnRect.bottom;
+    menu.style.inset = "";
+    menu.style.marginTop = "0";
+    menu.style.top = `calc(${anchorBottom}px + var(--modal-side-rail-gap))`;
+    menu.style.right = `${Math.round(window.innerWidth - btnRect.right)}px`;
     menu.style.left = "auto";
     menu.style.bottom = "auto";
   }
@@ -268,7 +271,7 @@
                 </button>
                 <div
                     id="discord-profile-menu"
-                    class="discord-auth-menu dropdown-closed absolute right-0 top-full mt-1 w-56 bg-matte-900 border border-matte-800 rounded-lg overflow-hidden"
+                    class="discord-auth-menu discord-auth-menu-anchor dropdown-closed absolute right-0 top-full w-56 bg-matte-900 border border-matte-800 rounded-lg overflow-hidden"
                     role="menu"
                 >
                     <div class="px-4 py-3 border-b border-matte-800">

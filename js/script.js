@@ -4992,7 +4992,9 @@ function scrollBehaviorOption() {
   return isReducedMotionEnabled() ? "auto" : "smooth";
 }
 const SCROLL_TO_TOP_SHOW_PX = 160;
+const SCROLL_TO_TOP_DURATION_MS = 1000;
 let scrollToTopBound = false;
+let scrollToTopAnimToken = 0;
 function isScrollToTopContextActive() {
   const host = getMainContentScrollHost();
   if (!host) return false;
@@ -5014,6 +5016,8 @@ function updateScrollToTopButton() {
 }
 function smoothScrollElementToTop(el) {
   if (!el) return;
+  scrollToTopAnimToken += 1;
+  const animToken = scrollToTopAnimToken;
   if (isReducedMotionEnabled()) {
     if (typeof el.scrollTo === "function") {
       el.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -5024,18 +5028,30 @@ function smoothScrollElementToTop(el) {
   }
   const start = el.scrollTop;
   if (start <= 0) return;
-  const durationMs = 500;
+  const durationMs = SCROLL_TO_TOP_DURATION_MS;
+  const previousScrollBehavior = el.style.scrollBehavior;
+  el.style.scrollBehavior = "auto";
   const t0 = performance.now();
   function easeOutCubic(t) {
     return 1 - (1 - t) ** 3;
   }
+  function finishScrollToTop() {
+    if (animToken !== scrollToTopAnimToken) return;
+    el.scrollTop = 0;
+    el.style.scrollBehavior = previousScrollBehavior;
+  }
   function step(now) {
+    if (animToken !== scrollToTopAnimToken) {
+      el.style.scrollBehavior = previousScrollBehavior;
+      return;
+    }
     const t = Math.min(1, (now - t0) / durationMs);
     const eased = easeOutCubic(t);
     el.scrollTop = Math.max(0, Math.round(start * (1 - eased)));
     if (t < 1) requestAnimationFrame(step);
-    else el.scrollTop = 0;
+    else finishScrollToTop();
   }
+  step(t0 + 1);
   requestAnimationFrame(step);
 }
 function scrollMainContentToTop() {
