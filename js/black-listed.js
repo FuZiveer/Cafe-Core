@@ -673,9 +673,9 @@
     return `
             <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-best-map-cell"${srcAttr}>
                 <span class="bl-roster-modal-best-map-fallback" aria-hidden="true">${escapeHtml(map.name)}</span>
-                <div class="bl-roster-modal-best-map-caption">
+                <div class="bl-roster-modal-best-map-copy">
                     <p class="bl-roster-modal-peak-label">Best map</p>
-                    <p class="bl-roster-modal-best-map-name">${escapeHtml(map.name)}</p>
+                    <p class="bl-roster-modal-peak-value">${escapeHtml(map.name)}</p>
                 </div>
             </div>`;
   }
@@ -917,6 +917,43 @@
                 </div>
             </div>`;
   }
+  function renderBlModalRecentMatches(member) {
+    const live = liveStatsForMember(member.id);
+    const matches = Array.isArray(live?.recentMatches) ? live.recentMatches.slice(0, 3) : [];
+    if (!matches.length) return "";
+    const cells = matches
+      .map((match) => {
+        const outcome = String(match.outcome || "").toLowerCase();
+        const outcomeClass =
+          outcome === "win"
+            ? " bl-roster-modal-match-cell--win"
+            : outcome === "loss"
+              ? " bl-roster-modal-match-cell--loss"
+              : "";
+        const outcomeLetter = outcome === "win" ? "W" : outcome === "loss" ? "L" : "\u2014";
+        const playlist = match.playlistLabel || "Match";
+        const when = formatBlLastPlayed(match.endedAt);
+        const label = when && when !== "\u2014" ? `${playlist} \xB7 ${when}` : playlist;
+        const metaParts = [outcomeLetter];
+        if (match.rounds) metaParts.push(match.rounds);
+        if (match.rpLabel) metaParts.push(match.rpLabel);
+        const meta = metaParts.join(" \xB7 ");
+        return `
+                <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-match-cell${outcomeClass}" role="listitem">
+                    <p class="bl-roster-modal-peak-label">${escapeHtml(label)}</p>
+                    <p class="bl-roster-modal-peak-value">${escapeHtml(match.map || "\u2014")}</p>
+                    <p class="bl-roster-modal-match-meta">${escapeHtml(meta)}</p>
+                </div>`;
+      })
+      .join("");
+    return `
+            <div class="bl-roster-modal-recent-matches" role="group" aria-label="Last played matches">
+                <p class="bl-roster-modal-recent-matches-heading bl-roster-modal-peak-label">Last played</p>
+                <div class="bl-roster-modal-recent-matches-row" role="list">
+                    ${cells}
+                </div>
+            </div>`;
+  }
   function renderBlModalPeakPerfRow(member) {
     const live = liveStatsForMember(member.id);
     const wrRaw = live?.seasonWinRate;
@@ -986,7 +1023,8 @@
                     ${peakCell}
                     ${renderBlModalPeakPerfRow(member)}
                 </div>
-            </div>`;
+            </div>
+            ${renderBlModalRecentMatches(member)}`;
     bindPeakRankIconFallback(peakEl);
     syncBlRosterStatsUpdateButton();
     if (blRosterStatsUpdateCooldownLeft(member.id) > 0) startBlRosterStatsUpdateTimer();

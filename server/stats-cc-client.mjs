@@ -221,6 +221,68 @@ async function fetchRankedMapRows(profileId) {
   );
 }
 
+const BL_RECENT_MATCHES_LIMIT = 3;
+
+async function fetchRecentMatchRows(profileId, limit = BL_RECENT_MATCHES_LIMIT) {
+  const id = String(profileId || "").trim();
+  if (!id) return [];
+  const n = Math.max(1, Math.min(10, Math.round(Number(limit) || BL_RECENT_MATCHES_LIMIT)));
+  return statsCcFetch(
+    `/v2/profiles/${encodeURIComponent(id)}/matches?limit=${n}`
+  );
+}
+
+function playlistDisplayName(config, slug) {
+  const key = String(slug || "").trim();
+  if (!key) return "";
+  const ent = config?.playlists?.[key];
+  const label = localizedDisplay(ent?.display);
+  if (label) return label;
+  return key
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatMatchRoundScore(summary) {
+  const wins = Number(summary?.round_wins);
+  const losses = Number(summary?.round_losses);
+  if (!Number.isFinite(wins) || !Number.isFinite(losses)) return "";
+  return `${wins}\u2013${losses}`;
+}
+
+function formatMatchRpLabel(session) {
+  if (!session || typeof session !== "object") return "";
+  const rp = Number(session.rank_points_delta);
+  if (!Number.isFinite(rp)) return "";
+  if (rp > 0) return `+${rp} RP`;
+  if (rp < 0) return `${rp} RP`;
+  return "0 RP";
+}
+
+function mapRecentMatchRows(rows, config, limit = BL_RECENT_MATCHES_LIMIT) {
+  return (Array.isArray(rows) ? rows : [])
+    .slice(0, limit)
+    .map((row) => {
+      const summary = row?.player_summary && typeof row.player_summary === "object" ? row.player_summary : {};
+      const mapSlug = String(row?.map || "").trim().toLowerCase();
+      const mapName = mapDisplayName(config, mapSlug) || mapSlug;
+      const outcome = String(summary.outcome || "").trim().toLowerCase();
+      return {
+        map: mapName,
+        mapSlug,
+        playlist: String(row?.playlist || "").trim() || null,
+        playlistLabel: playlistDisplayName(config, row?.playlist),
+        outcome: outcome || null,
+        rounds: formatMatchRoundScore(summary),
+        rpLabel: formatMatchRpLabel(row?.ranked_session),
+        endedAt: parseStatsTimestamp(row?.ended_at)
+      };
+    })
+    .filter((entry) => entry.map);
+}
+
 function parseStatsTimestamp(value) {
   if (value == null || value === "") return null;
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -564,6 +626,7 @@ async function resolveMemberStats(member, config, options = {}) {
     let attackers = null;
     let defenders = null;
     let bestMaps = null;
+    let recentMatches = null;
     const profileIdForOps = profile?.id || pinnedId;
     if (profileIdForOps) {
       try {
@@ -580,12 +643,19 @@ async function resolveMemberStats(member, config, options = {}) {
         if (topMaps.length) bestMaps = topMaps;
       } catch {
       }
+      try {
+        const matchRows = await fetchRecentMatchRows(profileIdForOps, BL_RECENT_MATCHES_LIMIT);
+        const mappedMatches = mapRecentMatchRows(matchRows, config, BL_RECENT_MATCHES_LIMIT);
+        if (mappedMatches.length) recentMatches = mappedMatches;
+      } catch {
+      }
     }
     const result = {
       ...mapped,
       attackers,
       defenders,
-      bestMaps
+      bestMaps,
+      recentMatches
     };
     profileCache.set(cacheKey, { at: now, result });
     if (profile?.id) {

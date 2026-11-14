@@ -1171,6 +1171,9 @@ html.reduce-motion .settings-tab-glider {
 #bl-roster-player-modal:not(.hidden) .bl-roster-modal-peak-extra-stats {
   grid-template-columns: repeat(2, minmax(3.25rem, 1fr));
 }
+#bl-roster-player-modal:not(.hidden) .bl-roster-modal-recent-matches-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 #bl-roster-player-modal:not(.hidden) .bl-roster-modal-team-rank-rail {
   width: var(--bl-modal-rank-rail-width, 7.25rem);
   min-width: var(--bl-modal-rank-rail-width, 7.25rem);
@@ -1800,21 +1803,25 @@ html.reduce-motion .bl-roster-igl-focus-row::before {
   min-height: var(--bl-modal-top-rail-height, 4.3125rem);
   height: 100%;
   padding: 0;
-  display: block;
-  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   overflow: hidden;
   isolation: isolate;
+  background-color: var(--matte-900, #131317);
 }
 .bl-roster-modal-best-map-cell::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background-color: #131317;
   background-image: var(--bl-best-map-bg, none);
   background-repeat: no-repeat;
-  background-position: right center;
+  background-position: center;
   background-size: cover;
+  opacity: 0.25;
   z-index: 0;
 }
 .bl-roster-modal-best-map-cell.has-map-image .bl-roster-modal-best-map-fallback {
@@ -1841,33 +1848,21 @@ html.reduce-motion .bl-roster-igl-focus-row::before {
   user-select: none;
   z-index: 0;
 }
-.bl-roster-modal-best-map-caption {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+.bl-roster-modal-best-map-copy {
+  position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  padding: 0.4rem 0.5rem;
+  padding: 0.75rem 0.875rem;
   box-sizing: border-box;
-  background: linear-gradient(to top, rgba(10, 10, 12, 0.92) 0%, rgba(10, 10, 12, 0.55) 70%, transparent 100%);
-  border-radius: 0 0 var(--radius-ui) var(--radius-ui);
+  text-align: center;
   pointer-events: none;
 }
-.bl-roster-modal-best-map-caption .bl-roster-modal-peak-label {
-  margin: 0;
-  font-size: 0.6rem;
-  text-align: left;
-}
-.bl-roster-modal-best-map-name {
-  margin: 0.15rem 0 0;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #f8fafc;
-  line-height: 1.2;
-  text-align: left;
+.bl-roster-modal-best-map-copy .bl-roster-modal-peak-value {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2056,6 +2051,56 @@ html.reduce-motion #bl-roster-player-modal-reload i.bl-roster-modal-reload-icon-
   align-items: stretch;
   min-width: 0;
 }
+.bl-roster-modal-recent-matches {
+  width: 100%;
+  margin-top: var(--modal-side-rail-gap);
+  min-width: 0;
+}
+.bl-roster-modal-recent-matches-heading {
+  margin: 0 0 0.5rem;
+  text-align: left;
+}
+.bl-roster-modal-recent-matches-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--modal-side-rail-gap);
+  min-width: 0;
+}
+.bl-roster-modal-match-cell {
+  min-height: 3.75rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.bl-roster-modal-match-cell .bl-roster-modal-peak-label {
+  margin-bottom: 0.25rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bl-roster-modal-match-cell .bl-roster-modal-peak-value {
+  font-size: 0.75rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bl-roster-modal-match-meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+}
+.bl-roster-modal-match-cell--win .bl-roster-modal-match-meta {
+  color: #2ecc71;
+}
+.bl-roster-modal-match-cell--loss .bl-roster-modal-match-meta {
+  color: #ef4444;
+}
 .bl-roster-modal-stat-cell {
   min-height: 3.25rem;
 }
@@ -2190,6 +2235,9 @@ html.reduce-motion #bl-roster-player-modal-reload i.bl-roster-modal-reload-icon-
     grid-template-columns: repeat(2, minmax(0, 1fr));
     height: auto;
     min-height: 0;
+  }
+  .bl-roster-modal-recent-matches-row {
+    grid-template-columns: 1fr;
   }
   .bl-roster-modal-shell-foot--bottom-right {
     position: static;
