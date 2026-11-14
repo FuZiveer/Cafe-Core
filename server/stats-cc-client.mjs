@@ -261,6 +261,65 @@ function formatMatchRpLabel(session) {
   return "0 RP";
 }
 
+function modeDisplayName(config, slug) {
+  const key = String(slug || "").trim();
+  if (!key) return "";
+  const ent = config?.modes?.[key];
+  const label = localizedDisplay(ent?.display);
+  if (label) return label;
+  return key
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatMatchApiScore(scores) {
+  const s = Array.isArray(scores) ? scores : [];
+  if (s.length < 2) return "";
+  return `${s[0]} - ${s[1]}`;
+}
+
+function playerKdaLine(summary) {
+  const kills = Number(summary?.kills);
+  const deaths = Number(summary?.deaths);
+  const assists = Number(summary?.assists);
+  if (!Number.isFinite(kills) || !Number.isFinite(deaths) || !Number.isFinite(assists)) {
+    return "";
+  }
+  return `${kills}/${deaths}/${assists}`;
+}
+
+function playerMatchKd(summary) {
+  const kills = Number(summary?.kills);
+  const deaths = Number(summary?.deaths);
+  if (!Number.isFinite(kills) || !Number.isFinite(deaths)) return "";
+  if (deaths === 0) return kills > 0 ? String(kills) : "0";
+  return (Math.round((kills / deaths) * 100) / 100).toFixed(2);
+}
+
+function playerMatchHsPct(summary) {
+  const headshots = Number(summary?.headshots);
+  const kills = Number(summary?.kills);
+  if (!Number.isFinite(headshots) || !Number.isFinite(kills) || kills < 1) return "";
+  return `${Math.round((headshots / kills) * 100)}%`;
+}
+
+function formatMatchRankPoints(session) {
+  if (!session || typeof session !== "object") return "";
+  const pts = Number(session.rank_points);
+  if (!Number.isFinite(pts)) return "";
+  return String(pts);
+}
+
+function formatMatchRpDeltaBadge(session) {
+  if (!session || typeof session !== "object") return "";
+  const rp = Number(session.rank_points_delta);
+  if (!Number.isFinite(rp)) return "";
+  if (rp > 0) return `+${rp}`;
+  return String(rp);
+}
+
 function mapRecentMatchRows(rows, config, limit = BL_RECENT_MATCHES_LIMIT) {
   return (Array.isArray(rows) ? rows : [])
     .slice(0, limit)
@@ -269,18 +328,44 @@ function mapRecentMatchRows(rows, config, limit = BL_RECENT_MATCHES_LIMIT) {
       const mapSlug = String(row?.map || "").trim().toLowerCase();
       const mapName = mapDisplayName(config, mapSlug) || mapSlug;
       const outcome = String(summary.outcome || "").trim().toLowerCase();
+      const session = row?.ranked_session;
+      const matchScore =
+        formatMatchApiScore(row?.scores) || formatMatchRoundScore(summary).replace("\u2013", " - ");
       return {
         map: mapName,
         mapSlug,
+        thumbnailUrl: statsCcMapThumbnailUrl(mapSlug),
         playlist: String(row?.playlist || "").trim() || null,
         playlistLabel: playlistDisplayName(config, row?.playlist),
+        mode: String(row?.mode || "").trim() || null,
+        modeLabel: modeDisplayName(config, row?.mode),
         outcome: outcome || null,
         rounds: formatMatchRoundScore(summary),
-        rpLabel: formatMatchRpLabel(row?.ranked_session),
+        matchScore,
+        kd: playerMatchKd(summary),
+        kda: playerKdaLine(summary),
+        hsPct: playerMatchHsPct(summary),
+        rankPoints: formatMatchRankPoints(session),
+        rpDelta: formatMatchRpDeltaBadge(session),
+        rpLabel: formatMatchRpLabel(session),
         endedAt: parseStatsTimestamp(row?.ended_at)
       };
     })
     .filter((entry) => entry.map);
+}
+
+async function enrichPlayerRecentMatches(result, config, profileId) {
+  const id = String(profileId || result?.profileId || "").trim();
+  if (!id || result?.ok !== true) return result;
+  try {
+    const matchRows = await fetchRecentMatchRows(id, BL_RECENT_MATCHES_LIMIT);
+    const mappedMatches = mapRecentMatchRows(matchRows, config, BL_RECENT_MATCHES_LIMIT);
+    if (!mappedMatches.length) return result;
+    const next = { ...result, recentMatches: mappedMatches };
+    return next;
+  } catch {
+    return result;
+  }
 }
 
 function parseStatsTimestamp(value) {
@@ -609,7 +694,9 @@ async function resolveMemberStats(member, config, options = {}) {
     cached &&
     now - cached.at < (cached.result?.ok ? PROFILE_TTL_MS : PROFILE_ERROR_TTL_MS)
   ) {
-    return { ...cached.result, memberId: id };
+    const hit = { ...cached.result, memberId: id };
+    const profileIdForMatches = hit.profileId || pinnedId;
+    return enrichPlayerRecentMatches(hit, config, profileIdForMatches);
   }
   try {
     const { profile, platform: resolvedPlatform } = await fetchProfile(member, id);

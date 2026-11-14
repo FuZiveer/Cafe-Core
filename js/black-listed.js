@@ -257,6 +257,204 @@
     const row = players[memberId];
     return row && row.ok === true ? row : null;
   }
+  const blRecentMatchesByMember = Object.create(null);
+  let blStatsCcMapsConfigCache = { at: 0, maps: null, playlists: null, modes: null };
+  const BL_STATS_CC_CONFIG_TTL_MS = 24 * 60 * 60 * 1000;
+  function statsCcLocalized(value) {
+    if (value == null) return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "object") {
+      const direct = value.en || value["en-US"] || value.en_us;
+      if (typeof direct === "string" && direct.trim()) return direct.trim();
+      for (const v of Object.values(value)) {
+        if (typeof v === "string" && v.trim()) return v.trim();
+      }
+    }
+    return "";
+  }
+  async function fetchStatsCcMapsConfig() {
+    const now = Date.now();
+    if (
+      blStatsCcMapsConfigCache.maps &&
+      blStatsCcMapsConfigCache.modes &&
+      now - blStatsCcMapsConfigCache.at < BL_STATS_CC_CONFIG_TTL_MS
+    ) {
+      return blStatsCcMapsConfigCache;
+    }
+    const res = await fetch("https://api.stats.cc/siege/v2/config", {
+      headers: { Accept: "application/json" }
+    });
+    if (!res.ok) throw new Error("stats_cc_config_failed");
+    const data = await res.json();
+    blStatsCcMapsConfigCache = {
+      at: now,
+      maps: data?.maps && typeof data.maps === "object" ? data.maps : {},
+      playlists: data?.playlists && typeof data.playlists === "object" ? data.playlists : {},
+      modes: data?.modes && typeof data.modes === "object" ? data.modes : {}
+    };
+    return blStatsCcMapsConfigCache;
+  }
+  function statsCcMapDisplayName(maps, mapSlug) {
+    const key = String(mapSlug || "").trim();
+    if (!key) return "";
+    const label = statsCcLocalized(maps?.[key]?.display);
+    if (label) return label;
+    return key
+      .split("-")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+  function statsCcModeDisplayName(modes, slug) {
+    const key = String(slug || "").trim();
+    if (!key) return "";
+    const label = statsCcLocalized(modes?.[key]?.display);
+    if (label) return label;
+    return key
+      .split("-")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+  function statsCcPlaylistDisplayName(playlists, slug) {
+    const key = String(slug || "").trim();
+    if (!key) return "";
+    const pl = playlists?.[key];
+    const label = statsCcLocalized(pl?.display);
+    if (label) return label;
+    return key
+      .split("-")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+  }
+  function formatBlMatchWhen(iso) {
+    if (!iso) return "";
+    const then = new Date(iso).getTime();
+    if (!Number.isFinite(then)) return "";
+    const diffMs = Date.now() - then;
+    if (diffMs < 45_000) return "Just now";
+    const min = Math.floor(diffMs / 60_000);
+    if (min < 60) return `${min} minute${min === 1 ? "" : "s"} ago`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr} hour${hr === 1 ? "" : "s"} ago`;
+    return formatBlLastPlayed(iso);
+  }
+  function formatMatchApiScoreClient(scores) {
+    const s = Array.isArray(scores) ? scores : [];
+    if (s.length < 2) return "";
+    return `${s[0]} - ${s[1]}`;
+  }
+  function mapRecentMatchRowsClient(rows, maps, playlists, modes) {
+    return (Array.isArray(rows) ? rows : [])
+      .slice(0, 3)
+      .map((row) => {
+        const summary = row?.player_summary && typeof row.player_summary === "object" ? row.player_summary : {};
+        const mapSlug = String(row?.map || "").trim().toLowerCase();
+        const mapName = statsCcMapDisplayName(maps, mapSlug) || mapSlug;
+        const outcome = String(summary.outcome || "").trim().toLowerCase();
+        const wins = Number(summary.round_wins);
+        const losses = Number(summary.round_losses);
+        const rounds = Number.isFinite(wins) && Number.isFinite(losses) ? `${wins}\u2013${losses}` : "";
+        const session = row?.ranked_session;
+        let rpLabel = "";
+        let rpDelta = "";
+        let rankPoints = "";
+        if (session && typeof session === "object") {
+          const rp = Number(session.rank_points_delta);
+          if (Number.isFinite(rp)) {
+            rpLabel = rp > 0 ? `+${rp} RP` : rp < 0 ? `${rp} RP` : "0 RP";
+            rpDelta = rp > 0 ? `+${rp}` : String(rp);
+          }
+          const pts = Number(session.rank_points);
+          if (Number.isFinite(pts)) rankPoints = String(pts);
+        }
+        const kills = Number(summary.kills);
+        const deaths = Number(summary.deaths);
+        const assists = Number(summary.assists);
+        let kda = "";
+        let kd = "";
+        if (Number.isFinite(kills) && Number.isFinite(deaths) && Number.isFinite(assists)) {
+          kda = `${kills}/${deaths}/${assists}`;
+        }
+        if (Number.isFinite(kills) && Number.isFinite(deaths)) {
+          kd = deaths === 0 ? (kills > 0 ? String(kills) : "0") : (Math.round((kills / deaths) * 100) / 100).toFixed(2);
+        }
+        let hsPct = "";
+        const hs = Number(summary.headshots);
+        if (Number.isFinite(hs) && Number.isFinite(kills) && kills > 0) {
+          hsPct = `${Math.round((hs / kills) * 100)}%`;
+        }
+        let endedAt = null;
+        if (row?.ended_at) {
+          const d = new Date(row.ended_at);
+          if (!Number.isNaN(d.getTime())) endedAt = d.toISOString();
+        }
+        const matchScore =
+          formatMatchApiScoreClient(row?.scores) || rounds.replace("\u2013", " - ");
+        const thumb = mapSlug
+          ? `${STATS_CC_MAP_THUMB_BASE}/${encodeURIComponent(mapSlug)}_thumbnail.webp`
+          : "";
+        return {
+          map: mapName,
+          mapSlug,
+          thumbnailUrl: thumb,
+          playlistLabel: statsCcPlaylistDisplayName(playlists, row?.playlist),
+          modeLabel: statsCcModeDisplayName(modes, row?.mode),
+          outcome: outcome || null,
+          rounds,
+          matchScore,
+          kd,
+          kda,
+          hsPct,
+          rankPoints,
+          rpDelta,
+          rpLabel,
+          endedAt
+        };
+      })
+      .filter((entry) => entry.map);
+  }
+  function recentMatchesForMember(memberId) {
+    const live = liveStatsForMember(memberId);
+    if (Array.isArray(live?.recentMatches) && live.recentMatches.length) {
+      return live.recentMatches;
+    }
+    const cached = blRecentMatchesByMember[memberId];
+    return Array.isArray(cached) ? cached : [];
+  }
+  async function hydrateRecentMatchesForMember(memberId) {
+    if (!memberId) return [];
+    if (recentMatchesForMember(memberId).length) return recentMatchesForMember(memberId);
+    const member = findMemberById(memberId);
+    const live = liveStatsForMember(memberId);
+    const profileId = live?.profileId || member?.statsCc?.profileId;
+    if (!profileId) return [];
+    try {
+      const [matchRes, config] = await Promise.all([
+        fetch(
+          `https://api.stats.cc/siege/v2/profiles/${encodeURIComponent(profileId)}/matches?limit=3`,
+          { headers: { Accept: "application/json" } }
+        ),
+        fetchStatsCcMapsConfig()
+      ]);
+      if (!matchRes.ok) return [];
+      const rows = await matchRes.json();
+      const maps = config?.maps || {};
+      const playlists = config?.playlists || {};
+      const modes = config?.modes || {};
+      const mapped = mapRecentMatchRowsClient(rows, maps, playlists, modes);
+      if (!mapped.length) return [];
+      blRecentMatchesByMember[memberId] = mapped;
+      const players = window.__cafeBlApi?.rosterStats?.players;
+      if (players?.[memberId]?.ok === true) {
+        players[memberId].recentMatches = mapped;
+      }
+      return mapped;
+    } catch {
+      return [];
+    }
+  }
   let blLiveTeamRankCache = null;
   function clearBlLiveTeamRankCache() {
     blLiveTeamRankCache = null;
@@ -890,6 +1088,7 @@
     startBlRosterStatsUpdateTimer();
     btn?.setAttribute("aria-busy", "true");
     try {
+      delete blRecentMatchesByMember[memberId];
       await window.refreshCafeBlApiState?.({ forceRosterMemberId: memberId });
       refreshOpenBlRosterPlayerModal();
       renderBlackListedRoster();
@@ -917,40 +1116,61 @@
                 </div>
             </div>`;
   }
-  function renderBlModalRecentMatches(member) {
-    const live = liveStatsForMember(member.id);
-    const matches = Array.isArray(live?.recentMatches) ? live.recentMatches.slice(0, 3) : [];
-    if (!matches.length) return "";
-    const cells = matches
-      .map((match) => {
-        const outcome = String(match.outcome || "").toLowerCase();
-        const outcomeClass =
-          outcome === "win"
-            ? " bl-roster-modal-match-cell--win"
-            : outcome === "loss"
-              ? " bl-roster-modal-match-cell--loss"
-              : "";
-        const outcomeLetter = outcome === "win" ? "W" : outcome === "loss" ? "L" : "\u2014";
-        const playlist = match.playlistLabel || "Match";
-        const when = formatBlLastPlayed(match.endedAt);
-        const label = when && when !== "\u2014" ? `${playlist} \xB7 ${when}` : playlist;
-        const metaParts = [outcomeLetter];
-        if (match.rounds) metaParts.push(match.rounds);
-        if (match.rpLabel) metaParts.push(match.rpLabel);
-        const meta = metaParts.join(" \xB7 ");
-        return `
-                <div class="bl-roster-modal-peak-rail-inner bl-roster-modal-match-cell${outcomeClass}" role="listitem">
-                    <p class="bl-roster-modal-peak-label">${escapeHtml(label)}</p>
-                    <p class="bl-roster-modal-peak-value">${escapeHtml(match.map || "\u2014")}</p>
-                    <p class="bl-roster-modal-match-meta">${escapeHtml(meta)}</p>
-                </div>`;
-      })
+  function renderBlMatchPreviewCard(match) {
+    const outcome = String(match.outcome || "").toLowerCase();
+    const outcomeClass =
+      outcome === "win" ? " bl-match-preview--win" : outcome === "loss" ? " bl-match-preview--loss" : "";
+    const mode = match.modeLabel || match.playlistLabel || "Ranked";
+    const mapName = match.map || "\u2014";
+    const when = formatBlMatchWhen(match.endedAt);
+    const score = match.matchScore || match.rounds?.replace("\u2013", " - ") || "\u2014";
+    const thumb = match.thumbnailUrl || "";
+    const safeThumb = thumb.replace(/['"]/g, "");
+    const thumbStyle = safeThumb ? ` style="--bl-match-map-bg: url('${safeThumb}')"` : "";
+    const rpBlock =
+      match.rankPoints || match.rpDelta
+        ? `<div class="bl-match-preview__rp">
+                <span class="bl-match-preview__stat-k">RP</span>
+                ${match.rankPoints ? `<span class="bl-match-preview__rp-total">${escapeHtml(match.rankPoints)}</span>` : ""}
+                ${match.rpDelta ? `<span class="bl-match-preview__rp-delta">${escapeHtml(match.rpDelta)}</span>` : ""}
+            </div>`
+        : "";
+    const stats = [
+      match.kd ? `<span class="bl-match-preview__stat"><span class="bl-match-preview__stat-k">KD</span> ${escapeHtml(match.kd)}</span>` : "",
+      match.kda ? `<span class="bl-match-preview__stat"><span class="bl-match-preview__stat-k">K / D / A</span> ${escapeHtml(match.kda)}</span>` : "",
+      match.hsPct ? `<span class="bl-match-preview__stat"><span class="bl-match-preview__stat-k">HS%</span> ${escapeHtml(match.hsPct)}</span>` : ""
+    ]
+      .filter(Boolean)
       .join("");
     return `
+            <article class="bl-match-preview${outcomeClass}" role="listitem"${thumbStyle}>
+                <span class="bl-match-preview__accent" aria-hidden="true"></span>
+                <span class="bl-match-preview__map-bg" aria-hidden="true"></span>
+                <div class="bl-match-preview__body">
+                    <div class="bl-match-preview__head">
+                        <div class="bl-match-preview__title-row">
+                            <span class="bl-match-preview__mode">${escapeHtml(mode)}</span>
+                            <span class="bl-match-preview__slash"> / </span>
+                            <span class="bl-match-preview__map">${escapeHtml(mapName)}</span>
+                        </div>
+                        ${when ? `<div class="bl-match-preview__time">${escapeHtml(when)}</div>` : ""}
+                    </div>
+                    <div class="bl-match-preview__score" aria-label="Match score">${escapeHtml(score)}</div>
+                    <div class="bl-match-preview__metrics">
+                        ${rpBlock}
+                        ${stats ? `<div class="bl-match-preview__stats">${stats}</div>` : ""}
+                    </div>
+                </div>
+            </article>`;
+  }
+  function renderBlModalRecentMatches(member) {
+    const matches = recentMatchesForMember(member.id).slice(0, 3);
+    if (!matches.length) return "";
+    const rows = matches.map((match) => renderBlMatchPreviewCard(match)).join("");
+    return `
             <div class="bl-roster-modal-recent-matches" role="group" aria-label="Last played matches">
-                <p class="bl-roster-modal-recent-matches-heading bl-roster-modal-peak-label">Last played</p>
                 <div class="bl-roster-modal-recent-matches-row" role="list">
-                    ${cells}
+                    ${rows}
                 </div>
             </div>`;
   }
@@ -1197,6 +1417,16 @@
     renderBestMapsRail(member);
     renderPeakRankRail(member);
     renderStatsCcRail(member);
+    const refreshMemberId = modal?.dataset?.blOpenMemberId;
+    if (refreshMemberId) {
+      void hydrateRecentMatchesForMember(refreshMemberId).then(() => {
+        const liveModal = document.getElementById("bl-roster-player-modal");
+        if (!liveModal?.classList.contains("is-open")) return;
+        if (liveModal.dataset.blOpenMemberId !== refreshMemberId) return;
+        if (!recentMatchesForMember(refreshMemberId).length) return;
+        renderPeakRankRail(memberForDisplay(findMemberById(refreshMemberId)));
+      });
+    }
   }
   function openBlRosterPlayerModal(memberId) {
     const member = memberForDisplay(findMemberById(memberId));
@@ -1222,6 +1452,13 @@
     if (blRosterStatsUpdateCooldownLeft(memberId) > 0) startBlRosterStatsUpdateTimer();
     bindOperatorIconFallback(body);
     setBlRosterPlayerModalOpen(true);
+    void hydrateRecentMatchesForMember(memberId).then(() => {
+      const modal = document.getElementById("bl-roster-player-modal");
+      if (!modal?.classList.contains("is-open")) return;
+      if (modal.dataset.blOpenMemberId !== memberId) return;
+      if (!recentMatchesForMember(memberId).length) return;
+      renderPeakRankRail(memberForDisplay(findMemberById(memberId)));
+    });
   }
   function initBlRosterPlayerModal() {
     const modal = document.getElementById("bl-roster-player-modal");
