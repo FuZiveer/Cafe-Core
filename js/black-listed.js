@@ -345,8 +345,16 @@
     if (s.length < 2) return "";
     return `${s[0]} - ${s[1]}`;
   }
+  function isRankedMatchRowClient(row) {
+    const playlist = String(row?.playlist || "").trim().toLowerCase();
+    if (playlist === "ranked") return true;
+    const mode = String(row?.mode || "").trim().toLowerCase();
+    if (mode.startsWith("ranked")) return true;
+    return Boolean(row?.ranked_session && typeof row.ranked_session === "object");
+  }
   function mapRecentMatchRowsClient(rows, maps, playlists, modes) {
     return (Array.isArray(rows) ? rows : [])
+      .filter(isRankedMatchRowClient)
       .slice(0, 3)
       .map((row) => {
         const summary = row?.player_summary && typeof row.player_summary === "object" ? row.player_summary : {};
@@ -433,7 +441,7 @@
     try {
       const [matchRes, config] = await Promise.all([
         fetch(
-          `https://api.stats.cc/siege/v2/profiles/${encodeURIComponent(profileId)}/matches?limit=3`,
+          `https://api.stats.cc/siege/v2/profiles/${encodeURIComponent(profileId)}/matches?playlist=ranked&limit=3`,
           { headers: { Accept: "application/json" } }
         ),
         fetchStatsCcMapsConfig()
@@ -1221,7 +1229,11 @@
     const hasPeak = Boolean(peakLabel);
     const hasCurrent = Boolean(current.text);
     const statsConfigured = window.__cafeBlApi?.rosterStats?.configured === true;
-    if (!hasPeak && !hasCurrent && !statsConfigured) {
+    const hasOps =
+      (Array.isArray(member.attackers) && member.attackers.length > 0) ||
+      (Array.isArray(member.defenders) && member.defenders.length > 0);
+    const hasRecentMatches = recentMatchesForMember(member.id).length > 0;
+    if (!hasPeak && !hasCurrent && !statsConfigured && !hasOps && !hasRecentMatches) {
       peakEl.hidden = true;
       peakEl.innerHTML = "";
       return;
@@ -1244,17 +1256,18 @@
                     ${renderBlModalPeakPerfRow(member)}
                 </div>
             </div>
+            ${renderMemberOps(member)}
             ${renderBlModalRecentMatches(member)}`;
     bindPeakRankIconFallback(peakEl);
+    bindOperatorIconFallback(peakEl);
     syncBlRosterStatsUpdateButton();
     if (blRosterStatsUpdateCooldownLeft(member.id) > 0) startBlRosterStatsUpdateTimer();
   }
   function renderPlayerModalContent(member) {
     const notes = member.notes || member.more || "";
-    const notesBlock = notes ? `<div class="bl-roster-modal-notes mt-4 pt-4 border-t border-matte-800 text-slate-400 text-xs tracking-wide leading-relaxed">${escapeHtml(notes)}</div>` : "";
-    return `
-            ${renderMemberOps(member)}
-            ${notesBlock}`;
+    return notes
+      ? `<div class="bl-roster-modal-notes mt-4 pt-4 border-t border-matte-800 text-slate-400 text-xs tracking-wide leading-relaxed">${escapeHtml(notes)}</div>`
+      : "";
   }
   let blRosterModalBound = false;
   let blRosterModalCloseTimer = null;

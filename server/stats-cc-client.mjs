@@ -228,7 +228,7 @@ async function fetchRecentMatchRows(profileId, limit = BL_RECENT_MATCHES_LIMIT) 
   if (!id) return [];
   const n = Math.max(1, Math.min(10, Math.round(Number(limit) || BL_RECENT_MATCHES_LIMIT)));
   return statsCcFetch(
-    `/v2/profiles/${encodeURIComponent(id)}/matches?limit=${n}`
+    `/v2/profiles/${encodeURIComponent(id)}/matches?playlist=ranked&limit=${n}`
   );
 }
 
@@ -320,8 +320,17 @@ function formatMatchRpDeltaBadge(session) {
   return String(rp);
 }
 
+function isRankedMatchRow(row) {
+  const playlist = String(row?.playlist || "").trim().toLowerCase();
+  if (playlist === "ranked") return true;
+  const mode = String(row?.mode || "").trim().toLowerCase();
+  if (mode.startsWith("ranked")) return true;
+  return Boolean(row?.ranked_session && typeof row.ranked_session === "object");
+}
+
 function mapRecentMatchRows(rows, config, limit = BL_RECENT_MATCHES_LIMIT) {
   return (Array.isArray(rows) ? rows : [])
+    .filter(isRankedMatchRow)
     .slice(0, limit)
     .map((row) => {
       const summary = row?.player_summary && typeof row.player_summary === "object" ? row.player_summary : {};
