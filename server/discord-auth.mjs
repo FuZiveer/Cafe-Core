@@ -158,11 +158,6 @@ function verifySessionPayload(token, secret) {
 function verifySession(token, secret) {
   return verifySessionPayload(token, secret)?.user ?? null;
 }
-const DISCORD_PROFILE_REFRESH_MIN_MS = 55 * 1000;
-function discordProfileSignature(user) {
-  if (!user) return "";
-  return [user.id, user.username, user.globalName, user.displayName, user.avatarUrl].join("|");
-}
 function getRequestSessionPayload(req, cfg) {
   const cookies = parseCookies(req.headers.cookie);
   return verifySessionPayload(cookies[SESSION_COOKIE], cfg.sessionSecret);
@@ -176,34 +171,30 @@ async function refreshSessionUserFromDiscord(payload) {
     return null;
   }
 }
-async function resolveSessionUserForApi(req, res, cfg) {
+async function resolveSessionUserForApi(req, res, cfg, url) {
   const payload = getRequestSessionPayload(req, cfg);
   if (!payload?.user) return null;
   let user = payload.user;
+  const forceRefresh = url.searchParams.get("refresh") === "1";
+  if (!forceRefresh || !payload.accessToken) return user;
+  const refreshed = await refreshSessionUserFromDiscord(payload);
+  if (!refreshed) return user;
+  user = refreshed;
   const cOpts = cookieOpts(cfg);
-  const lastRefresh = typeof payload.refreshedAt === "number" ? payload.refreshedAt : 0;
-  const shouldRefresh =
-    payload.accessToken && Date.now() - lastRefresh >= DISCORD_PROFILE_REFRESH_MIN_MS;
-  if (shouldRefresh) {
-    const refreshed = await refreshSessionUserFromDiscord(payload);
-    if (refreshed && discordProfileSignature(refreshed) !== discordProfileSignature(user)) {
-      user = refreshed;
-    }
-    const session = signSession(
-      {
-        user,
-        accessToken: payload.accessToken,
-        refreshedAt: Date.now(),
-        exp: payload.exp
-      },
-      cfg.sessionSecret
-    );
-    setCookie(res, SESSION_COOKIE, session, {
-      maxAge: SESSION_MAX_AGE_SEC,
-      httpOnly: true,
-      ...cOpts
-    });
-  }
+  const session = signSession(
+    {
+      user,
+      accessToken: payload.accessToken,
+      refreshedAt: Date.now(),
+      exp: payload.exp
+    },
+    cfg.sessionSecret
+  );
+  setCookie(res, SESSION_COOKIE, session, {
+    maxAge: SESSION_MAX_AGE_SEC,
+    httpOnly: true,
+    ...cOpts
+  });
   return user;
 }
 function signOauthStatePayload(payload, secret) {
@@ -408,7 +399,7 @@ export async function handleDiscordAuthRequest(req, res, url) {
   }
   if (pathname === "/api/auth/me") {
     applyCors(req, res, cfg);
-    const user = await resolveSessionUserForApi(req, res, cfg);
+    const user = await resolveSessionUserForApi(req, res, cfg, url);
     sendJson(res, 200, { user: user ?? null });
     return true;
   }
