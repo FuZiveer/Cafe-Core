@@ -65,13 +65,17 @@
                                 <span id="bottleneck-gpu-pct" class="text-sm font-semibold tracking-wider text-slate-300 w-12 text-right shrink-0">0%</span>
                             </div>
                         </div>
-                        <p id="bottleneck-summary" class="text-sm text-slate-400 mt-6 tracking-wide leading-relaxed">Select a CPU and GPU to see an estimate.</p>
                     </section>
-                    <section id="bottleneck-recommend" class="bottleneck-chart bg-matte-900 rounded-lg p-6 flex flex-col" aria-live="polite">
+                    <section id="bottleneck-recommend" class="bottleneck-chart bg-matte-900 rounded-lg p-6" aria-live="polite">
                         <h3 class="text-sm font-bold tracking-widest uppercase text-slate-400 mb-6">Pairing suggestion</h3>
-                        <p id="bottleneck-recommend-kind" class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-2">—</p>
-                        <p id="bottleneck-recommend-name" class="text-lg font-semibold text-white tracking-wide leading-snug">—</p>
-                        <p id="bottleneck-recommend-detail" class="text-sm text-slate-400 mt-4 tracking-wide leading-relaxed flex-1">Select a CPU and GPU to get a part that pairs better with the weaker side of your build.</p>
+                        <p id="bottleneck-recommend-kind" class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-2">Awaiting pairing</p>
+                        <div class="bottleneck-recommend-name-row">
+                            <p id="bottleneck-recommend-name" class="text-lg font-semibold text-white tracking-wide">Select CPU &amp; GPU</p>
+                            <button type="button" id="bottleneck-recommend-help" class="bottleneck-recommend-help ui-interactive" hidden aria-label="Pairing details">
+                                <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <p id="bottleneck-recommend-detail" class="hidden" aria-hidden="true"></p>
                     </section>
                 </div>
             </div>

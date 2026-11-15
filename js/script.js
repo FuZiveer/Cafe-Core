@@ -731,19 +731,27 @@ function initLegalPageAccordions(pageRoot) {
     if (open) panel.removeAttribute("inert");
     else panel.setAttribute("inert", "");
   };
+  const toggleLegalAccordion = (section) => {
+    const trigger = section?.querySelector(".legal-accordion-trigger");
+    const panelId = trigger?.getAttribute("aria-controls");
+    const panel = panelId ? document.getElementById(panelId) : null;
+    if (!trigger || !panel) return;
+    const nextExpanded = trigger.getAttribute("aria-expanded") !== "true";
+    setLegalAccordionOpen(section, trigger, panel, nextExpanded);
+  };
   legalPage.querySelectorAll(".legal-accordion").forEach((section) => {
     const trigger = section.querySelector(".legal-accordion-trigger");
     const panelId = trigger?.getAttribute("aria-controls");
     const panel = panelId ? document.getElementById(panelId) : null;
     if (trigger && panel) setLegalAccordionOpen(section, trigger, panel, false);
-  });
-  legalPage.querySelectorAll(".legal-accordion-trigger").forEach((trigger) => {
-    trigger.addEventListener("click", () => {
-      const section = trigger.closest(".legal-accordion");
-      const panelId = trigger.getAttribute("aria-controls");
-      const panel = panelId ? document.getElementById(panelId) : null;
-      const nextExpanded = trigger.getAttribute("aria-expanded") !== "true";
-      setLegalAccordionOpen(section, trigger, panel, nextExpanded);
+    section.addEventListener("click", (event) => {
+      if (event.target.closest("a")) return;
+      toggleLegalAccordion(section);
+    });
+    trigger?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      toggleLegalAccordion(section);
     });
   });
 }
@@ -1216,21 +1224,103 @@ function getBottleneckPairingRecommendation(cpu, gpu, bottleneckResult) {
     detail: `Your CPU and GPU look well matched for gaming at ${label}.`
   };
 }
+const BOTTLENECK_RECOMMEND_PLACEHOLDER = {
+  kind: "Awaiting pairing",
+  name: "Select CPU & GPU",
+  detail: "Select a CPU and GPU to get a part that pairs better with the weaker side of your build."
+};
+let bottleneckRecommendTooltipTarget = null;
+function hideBottleneckRecommendTooltip() {
+  const tip = document.getElementById("bottleneck-recommend-tooltip");
+  bottleneckRecommendTooltipTarget = null;
+  hideCafeTooltip(tip);
+}
+function positionBottleneckRecommendTooltip(btn, text) {
+  const tip = document.getElementById("bottleneck-recommend-tooltip");
+  const label = String(text || "").trim();
+  if (!tip || !btn || !label) {
+    hideBottleneckRecommendTooltip();
+    return;
+  }
+  tip.textContent = label;
+  const layout = () => {
+    const rect = btn.getBoundingClientRect();
+    const gap = 6;
+    tip.style.left = `${rect.left + rect.width / 2}px`;
+    tip.style.top = `${rect.top - gap}px`;
+    tip.style.transform = "translate(-50%, -100%)";
+  };
+  tip.setAttribute("aria-hidden", "false");
+  bottleneckRecommendTooltipTarget = btn;
+  revealCafeTooltip(tip, layout);
+}
+function initBottleneckRecommendHelp() {
+  if (window.__bottleneckRecommendHelpBound) return;
+  const helpBtn = document.getElementById("bottleneck-recommend-help");
+  if (!helpBtn) return;
+  window.__bottleneckRecommendHelpBound = true;
+  let tip = document.getElementById("bottleneck-recommend-tooltip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "bottleneck-recommend-tooltip";
+    tip.className = "cafe-ui-tooltip bottleneck-recommend-tooltip tooltip-closed hidden";
+    tip.setAttribute("role", "tooltip");
+    tip.setAttribute("aria-hidden", "true");
+    document.body.appendChild(tip);
+  }
+  const show = () => {
+    if (helpBtn.hidden) return;
+    const text = helpBtn.getAttribute("data-tip") || "";
+    if (!text.trim()) return;
+    positionBottleneckRecommendTooltip(helpBtn, text);
+  };
+  helpBtn.addEventListener("mouseenter", show);
+  helpBtn.addEventListener("mouseleave", hideBottleneckRecommendTooltip);
+  helpBtn.addEventListener("focus", show);
+  helpBtn.addEventListener("blur", hideBottleneckRecommendTooltip);
+  window.addEventListener("resize", () => {
+    if (bottleneckRecommendTooltipTarget !== helpBtn) return;
+    const text = helpBtn.getAttribute("data-tip") || "";
+    if (!text.trim()) return;
+    positionBottleneckRecommendTooltip(helpBtn, text);
+  });
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (bottleneckRecommendTooltipTarget !== helpBtn) return;
+      const text = helpBtn.getAttribute("data-tip") || "";
+      if (!text.trim()) return;
+      positionBottleneckRecommendTooltip(helpBtn, text);
+    },
+    true
+  );
+}
 function updateBottleneckRecommendation(cpu, gpu, bottleneckResult) {
   const kindEl = document.getElementById("bottleneck-recommend-kind");
   const nameEl = document.getElementById("bottleneck-recommend-name");
   const detailEl = document.getElementById("bottleneck-recommend-detail");
+  const helpBtn = document.getElementById("bottleneck-recommend-help");
   if (!kindEl || !nameEl || !detailEl) return;
   if (!cpu || !gpu) {
-    kindEl.textContent = "\u2014";
-    nameEl.textContent = "\u2014";
-    detailEl.textContent = "Select a CPU and GPU to get a part that pairs better with the weaker side of your build.";
+    kindEl.textContent = BOTTLENECK_RECOMMEND_PLACEHOLDER.kind;
+    nameEl.textContent = BOTTLENECK_RECOMMEND_PLACEHOLDER.name;
+    detailEl.textContent = BOTTLENECK_RECOMMEND_PLACEHOLDER.detail;
+    if (helpBtn) {
+      helpBtn.hidden = true;
+      helpBtn.removeAttribute("data-tip");
+    }
+    hideBottleneckRecommendTooltip();
     return;
   }
   const rec = getBottleneckPairingRecommendation(cpu, gpu, bottleneckResult);
   kindEl.textContent = rec.kind;
   nameEl.textContent = rec.name;
   detailEl.textContent = rec.detail;
+  if (helpBtn) {
+    helpBtn.hidden = false;
+    helpBtn.setAttribute("data-tip", rec.detail);
+    helpBtn.setAttribute("aria-label", "Pairing details");
+  }
 }
 function shouldUseGliderWrapAnimation(prevIndex, activeIndex, count) {
   if (prevIndex === activeIndex || count < 2) return false;
@@ -3119,15 +3209,34 @@ function moveToolPicklistActive(root, menu, delta) {
   index = Math.max(0, Math.min(options.length - 1, index + delta));
   setToolPicklistActive(root, menu, options[index], { scrollIntoView: true });
 }
+function setToolPicklistCommitted(root, part) {
+  if (!root) return;
+  root.dataset.value = part ? part.id : "";
+  getToolPicklistOptions(root).forEach((btn) => {
+    const selected = part && btn.dataset.value === part.id;
+    btn.classList.toggle("is-selected", selected);
+    btn.setAttribute("aria-selected", selected ? "true" : "false");
+  });
+}
+function finalizeToolPicklistAfterClose(root) {
+  if (!root) return;
+  if (root._picklistCloseFinalizeTimer) {
+    clearTimeout(root._picklistCloseFinalizeTimer);
+    root._picklistCloseFinalizeTimer = null;
+  }
+  syncToolPicklistInputDisplay(root);
+  filterToolPicklistOptions(root, "");
+}
 function commitToolPicklistOption(root, parts, optionBtn, onChange) {
   const part = parts.find((p) => p.id === optionBtn.dataset.value);
   root._picklistRevertId = "";
   root._picklistEditing = false;
-  setToolPicklistValue(root, part);
-  filterToolPicklistOptions(root, "");
+  const input = root.querySelector(".tool-picklist-input");
+  const searchQuery = input ? input.value : "";
+  setToolPicklistCommitted(root, part);
+  filterToolPicklistOptions(root, searchQuery);
   clearToolPicklistActive(root);
   closeAllToolPicklists();
-  const input = root.querySelector(".tool-picklist-input");
   if (input) input.blur();
   if (onChange) onChange();
 }
@@ -3161,16 +3270,29 @@ function closeAllToolPicklists(exceptRoot = null) {
     if (exceptRoot && root === exceptRoot) return;
     revertToolPicklistIfAborted(root);
     root.classList.remove("is-open");
-    setToolPicklistMenuOpen(root, getToolPicklistMenu(root), false);
+    const menu = getToolPicklistMenu(root);
+    const hadOpenMenu = Boolean(menu?.classList.contains("dropdown-open"));
+    setToolPicklistMenuOpen(root, menu, false);
     clearToolPicklistActive(root);
-    syncToolPicklistInputDisplay(root);
-    filterToolPicklistOptions(root, "");
+    if (root._picklistCloseFinalizeTimer) {
+      clearTimeout(root._picklistCloseFinalizeTimer);
+      root._picklistCloseFinalizeTimer = null;
+    }
+    const delay = hadOpenMenu ? getToolPicklistMenuTransitionMs() + 20 : 0;
+    root._picklistCloseFinalizeTimer = window.setTimeout(() => {
+      root._picklistCloseFinalizeTimer = null;
+      finalizeToolPicklistAfterClose(root);
+    }, delay);
     const input = root.querySelector(".tool-picklist-input");
     if (input && document.activeElement === input) input.blur();
   });
 }
 function resetToolPicklistRoot(root) {
   if (!root) return;
+  if (root._picklistCloseFinalizeTimer) {
+    clearTimeout(root._picklistCloseFinalizeTimer);
+    root._picklistCloseFinalizeTimer = null;
+  }
   closeAllToolPicklists();
   const menu = getToolPicklistMenu(root);
   clearToolPicklistMenuFixedLayout(root, menu);
@@ -3357,8 +3479,7 @@ function updateBottleneckChart() {
   const gpuBar = document.getElementById("bottleneck-gpu-bar");
   const cpuPctEl = document.getElementById("bottleneck-cpu-pct");
   const gpuPctEl = document.getElementById("bottleneck-gpu-pct");
-  const summaryEl = document.getElementById("bottleneck-summary");
-  if (!cpuPick || !gpuPick || !cpuBar || !gpuBar || !cpuPctEl || !gpuPctEl || !summaryEl) return;
+  if (!cpuPick || !gpuPick || !cpuBar || !gpuBar || !cpuPctEl || !gpuPctEl) return;
   const cpu = bottleneckCpus.find((p) => p.id === cpuPick.dataset.value);
   const gpu = bottleneckGpus.find((p) => p.id === gpuPick.dataset.value);
   if (!cpu || !gpu) {
@@ -3366,17 +3487,15 @@ function updateBottleneckChart() {
     gpuBar.style.width = "0%";
     cpuPctEl.textContent = "0%";
     gpuPctEl.textContent = "0%";
-    summaryEl.textContent = "Select a CPU and GPU to see an estimate.";
     updateBottleneckRecommendation(null, null, { cpuPct: 0, gpuPct: 0 });
     return;
   }
   const bottleneckResult = calculateBottleneck(cpu.score, gpu.score, getBottleneckResolutionKey());
-  const { cpuPct, gpuPct, summary } = bottleneckResult;
+  const { cpuPct, gpuPct } = bottleneckResult;
   cpuBar.style.width = `${cpuPct}%`;
   gpuBar.style.width = `${gpuPct}%`;
   cpuPctEl.textContent = `${cpuPct}%`;
   gpuPctEl.textContent = `${gpuPct}%`;
-  summaryEl.textContent = summary;
   updateBottleneckRecommendation(cpu, gpu, bottleneckResult);
 }
 function parseDpiValue(raw) {
@@ -3442,20 +3561,16 @@ function sensFmt(n, digits = 4) {
   const fixed = n.toFixed(digits);
   return fixed.replace(/\.?0+$/, "");
 }
-function resetSensitivityResults(message) {
+const SENS_RESULT_PLACEHOLDER = "0.00";
+function resetSensitivityResults() {
   const resultEl = document.getElementById("sens-result-value");
-  const labelsRow = document.getElementById("sens-game-labels");
-  const fromLabel = document.getElementById("sens-from-label");
-  const toLabel = document.getElementById("sens-to-label");
-  const analysisEl = document.getElementById("sens-analysis");
   const edpiEl = document.getElementById("sens-edpi-from");
   const cm360El = document.getElementById("sens-cm360");
   const feelEl = document.getElementById("sens-feel");
-  if (resultEl) resultEl.textContent = "\u2014";
-  if (labelsRow) labelsRow.classList.add("hidden");
-  if (fromLabel) fromLabel.textContent = "";
-  if (toLabel) toLabel.textContent = "";
-  if (analysisEl) analysisEl.textContent = message;
+  if (resultEl) {
+    resultEl.textContent = SENS_RESULT_PLACEHOLDER;
+    delete resultEl.dataset.sensResultReady;
+  }
   if (edpiEl) edpiEl.textContent = "\u2014";
   if (cm360El) cm360El.textContent = "\u2014";
   if (feelEl) feelEl.textContent = "\u2014";
@@ -3468,67 +3583,41 @@ function updateSensitivityConversion() {
   const fromDpiInput = document.getElementById("sens-from-dpi");
   const toDpiInput = document.getElementById("sens-to-dpi");
   const resultEl = document.getElementById("sens-result-value");
-  const labelsRow = document.getElementById("sens-game-labels");
-  const fromLabel = document.getElementById("sens-from-label");
-  const toLabel = document.getElementById("sens-to-label");
-  const analysisEl = document.getElementById("sens-analysis");
   const edpiEl = document.getElementById("sens-edpi-from");
   const cm360El = document.getElementById("sens-cm360");
   const feelEl = document.getElementById("sens-feel");
-  if (!fromPick || !toPick || !valueInput || !resultEl || !analysisEl) return;
+  if (!fromPick || !toPick || !valueInput || !resultEl) return;
   const fromGame = getSensGameFromPick(fromPick);
   const toGame = getSensGameFromPick(toPick);
   const fromSens = parseDecimalInput(valueInput.value);
   const fromDpiRaw = fromDpiInput ? parseDpiValue(fromDpiInput.value) : null;
   const toDpiRaw = toDpiInput ? parseDpiValue(toDpiInput.value) : null;
   if (!fromGame || !toGame) {
-    resetSensitivityResults("Choose a source and target game to convert.");
+    resetSensitivityResults();
     return;
   }
-  if (labelsRow) labelsRow.classList.remove("hidden");
-  if (fromLabel) fromLabel.textContent = fromGame.name;
-  if (toLabel) toLabel.textContent = toGame.name;
   if (!Number.isFinite(fromSens) || fromSens <= 0) {
-    resetSensitivityResults(`Enter your ${fromGame.name} sensitivity to convert to ${toGame.name}.`);
-    if (labelsRow) labelsRow.classList.remove("hidden");
-    if (fromLabel) fromLabel.textContent = fromGame.name;
-    if (toLabel) toLabel.textContent = toGame.name;
+    resetSensitivityResults();
     return;
   }
   if (fromDpiRaw == null) {
-    resetSensitivityResults(
-      fromDpiInput && String(fromDpiInput.value || "").trim() ? "Enter a valid From DPI (positive number)." : "Enter From DPI to convert."
-    );
-    if (labelsRow) labelsRow.classList.remove("hidden");
-    if (fromLabel) fromLabel.textContent = fromGame.name;
-    if (toLabel) toLabel.textContent = toGame.name;
+    resetSensitivityResults();
     return;
   }
   if (toDpiRaw == null) {
-    resetSensitivityResults(
-      toDpiInput && String(toDpiInput.value || "").trim() ? "Enter a valid To DPI (positive number)." : "Enter To DPI to convert."
-    );
-    if (labelsRow) labelsRow.classList.remove("hidden");
-    if (fromLabel) fromLabel.textContent = fromGame.name;
-    if (toLabel) toLabel.textContent = toGame.name;
+    resetSensitivityResults();
     return;
   }
   const fromDpi = fromDpiRaw;
   const toDpi = toDpiRaw;
   let toSensRaw = convertSensitivity(fromSens, fromGame, toGame, fromDpi, toDpi);
   if (toSensRaw == null || !Number.isFinite(toSensRaw)) {
-    resetSensitivityResults("Could not convert with the selected games.");
-    if (labelsRow) labelsRow.classList.remove("hidden");
-    if (fromLabel) fromLabel.textContent = fromGame.name;
-    if (toLabel) toLabel.textContent = toGame.name;
+    resetSensitivityResults();
     return;
   }
   if (toSensRaw < 0 && toSensRaw > -1e-9) toSensRaw = 0;
   if (toSensRaw < 0) {
-    resetSensitivityResults("Could not convert with the selected games.");
-    if (labelsRow) labelsRow.classList.remove("hidden");
-    if (fromLabel) fromLabel.textContent = fromGame.name;
-    if (toLabel) toLabel.textContent = toGame.name;
+    resetSensitivityResults();
     return;
   }
   const toSens = snapToSensStep(toSensRaw, toGame.sens && toGame.sens.step);
@@ -3538,9 +3627,7 @@ function updateSensitivityConversion() {
   if (cm360 == null) cm360 = calculateGameCm360Value(toGame, toSens, toDpi);
   const feel = sensitivityFeelLabel(cm360);
   resultEl.textContent = formatConvertedSensitivity(toSens, toGame);
-  if (analysisEl) {
-    analysisEl.textContent = cm360 == null ? `Same feel at ${Math.round(toDpi)} DPI` : `Same feel at ${Math.round(toDpi)} DPI \xB7 ${formatCm360Number(cm360)} cm per 360\xB0`;
-  }
+  resultEl.dataset.sensResultReady = "1";
   if (edpiEl) edpiEl.textContent = sensFmt(edpiFrom, 2);
   if (cm360El) cm360El.textContent = formatCm360Number(cm360);
   if (feelEl) feelEl.textContent = feel;
@@ -3570,16 +3657,18 @@ function initSensitivityConverter() {
   window.__sensitivityConverterMounted = true;
   updateSensitivityConversion();
 }
-function resetEdpiResults(message) {
+const EDPI_RESULT_PLACEHOLDER = "0.00";
+function resetEdpiResults() {
   const resultEl = document.getElementById("edpi-result-value");
   const gameLabel = document.getElementById("edpi-game-label");
-  const analysisEl = document.getElementById("edpi-analysis");
   const formulaEl = document.getElementById("edpi-formula");
   const cm360El = document.getElementById("edpi-cm360");
   const feelEl = document.getElementById("edpi-feel");
-  if (resultEl) resultEl.textContent = "\u2014";
+  if (resultEl) {
+    resultEl.textContent = EDPI_RESULT_PLACEHOLDER;
+    delete resultEl.dataset.edpiResultReady;
+  }
   if (gameLabel) gameLabel.textContent = "";
-  if (analysisEl) analysisEl.textContent = message;
   if (formulaEl) formulaEl.textContent = "\u2014";
   if (cm360El) cm360El.textContent = "\u2014";
   if (feelEl) feelEl.textContent = "\u2014";
@@ -3591,24 +3680,19 @@ function updateEdpiCalculation() {
   const dpiInput = document.getElementById("edpi-dpi-value");
   const resultEl = document.getElementById("edpi-result-value");
   const gameLabel = document.getElementById("edpi-game-label");
-  const analysisEl = document.getElementById("edpi-analysis");
   const formulaEl = document.getElementById("edpi-formula");
   const cm360El = document.getElementById("edpi-cm360");
   const feelEl = document.getElementById("edpi-feel");
-  if (!sensInput || !dpiInput || !resultEl || !analysisEl) return;
+  if (!sensInput || !dpiInput || !resultEl) return;
   const game = gamePick ? getSensGameFromPick(gamePick) : null;
   const sens = parseDecimalInput(sensInput.value);
   const dpiRaw = parseDpiValue(dpiInput.value);
   if (dpiRaw == null) {
-    resetEdpiResults(
-      String(dpiInput.value || "").trim() ? "Enter a valid DPI (positive number)." : "Enter DPI and sensitivity to calculate eDPI."
-    );
+    resetEdpiResults();
     return;
   }
   if (!Number.isFinite(sens) || sens <= 0) {
-    resetEdpiResults(
-      String(sensInput.value || "").trim() ? "Enter a valid sensitivity (positive number)." : "Enter DPI and sensitivity to calculate eDPI."
-    );
+    resetEdpiResults();
     return;
   }
   const dpi = dpiRaw;
@@ -3616,13 +3700,11 @@ function updateEdpiCalculation() {
   const cm360 = game ? calculateGameCm360Value(game, sens, dpi) : null;
   const feel = sensitivityFeelLabel(cm360);
   resultEl.textContent = sensFmt(edpi, 2);
+  resultEl.dataset.edpiResultReady = "1";
   if (gameLabel) gameLabel.textContent = game ? game.name : "No game selected";
   if (formulaEl) formulaEl.textContent = `${Math.round(dpi)} \xD7 ${sensFmt(sens, 5)}`;
   if (cm360El) cm360El.textContent = formatCm360Number(cm360);
   if (feelEl) feelEl.textContent = feel;
-  if (analysisEl) {
-    analysisEl.textContent = cm360 == null ? "eDPI = DPI \xD7 sensitivity. Pick a game to unlock cm/360 and feel." : `${formatCm360Number(cm360)} cm per 360\xB0 \xB7 ${feel}`;
-  }
   syncToolResultCopyButton("edpi-result-value", "edpi-result-copy-btn");
 }
 function initEdpiCalculator() {
@@ -3644,6 +3726,7 @@ function initEdpiCalculator() {
 async function initBottleneckChecker() {
   initBottleneckResolutionGlide();
   initToolPicklistDismiss();
+  initBottleneckRecommendHelp();
   if (window.__bottleneckPicklistsMounted) return;
   setBottleneckPartsLoading(true);
   try {
@@ -3974,7 +4057,14 @@ function copyBrandColor(hex, buttonEl) {
 function isToolResultCopyable(resultElementId) {
   const resultEl = document.getElementById(resultElementId);
   const text = resultEl?.textContent?.trim();
-  return Boolean(text && text !== "\u2014");
+  if (!text || text === "\u2014") return false;
+  if (resultElementId === "sens-result-value" && resultEl?.dataset.sensResultReady !== "1") {
+    return false;
+  }
+  if (resultElementId === "edpi-result-value" && resultEl?.dataset.edpiResultReady !== "1") {
+    return false;
+  }
+  return true;
 }
 function syncToolResultCopyButton(resultElementId, buttonId) {
   const buttonEl = document.getElementById(buttonId);
@@ -3992,6 +4082,14 @@ function copyToolResultValue(resultElementId, buttonEl) {
   const resultEl = document.getElementById(resultElementId);
   const text = resultEl?.textContent?.trim();
   if (!text || text === "\u2014") return;
+  if (resultElementId === "sens-result-value") {
+    const resultReady = resultEl?.dataset.sensResultReady === "1";
+    if (!resultReady) return;
+  }
+  if (resultElementId === "edpi-result-value") {
+    const resultReady = resultEl?.dataset.edpiResultReady === "1";
+    if (!resultReady) return;
+  }
   copyTextWithToast(text);
 }
 function fallbackCopy(text) {
@@ -4995,6 +5093,21 @@ const SCROLL_TO_TOP_SHOW_PX = 160;
 const SCROLL_TO_TOP_DURATION_MS = 1000;
 let scrollToTopBound = false;
 let scrollToTopAnimToken = 0;
+let activeScrollToTop = null;
+function cancelActiveScrollToTop() {
+  if (!activeScrollToTop) return;
+  scrollToTopAnimToken += 1;
+  activeScrollToTop.el.style.scrollBehavior = activeScrollToTop.previousScrollBehavior;
+  activeScrollToTop = null;
+}
+function handleScrollToTopUserInterrupt() {
+  const active = activeScrollToTop;
+  if (!active) return;
+  const expected = active.lastTop;
+  if (expected == null) return;
+  if (Math.abs(active.el.scrollTop - expected) <= 3) return;
+  cancelActiveScrollToTop();
+}
 function isScrollToTopContextActive() {
   const host = getMainContentScrollHost();
   if (!host) return false;
@@ -5016,6 +5129,7 @@ function updateScrollToTopButton() {
 }
 function smoothScrollElementToTop(el) {
   if (!el) return;
+  cancelActiveScrollToTop();
   scrollToTopAnimToken += 1;
   const animToken = scrollToTopAnimToken;
   if (isReducedMotionEnabled()) {
@@ -5031,23 +5145,30 @@ function smoothScrollElementToTop(el) {
   const durationMs = SCROLL_TO_TOP_DURATION_MS;
   const previousScrollBehavior = el.style.scrollBehavior;
   el.style.scrollBehavior = "auto";
+  activeScrollToTop = { el, token: animToken, previousScrollBehavior, lastTop: start };
   const t0 = performance.now();
   function easeOutCubic(t) {
     return 1 - (1 - t) ** 3;
   }
+  function setScrollToTopPosition(nextTop) {
+    el.scrollTop = nextTop;
+    if (activeScrollToTop?.token === animToken) activeScrollToTop.lastTop = el.scrollTop;
+  }
   function finishScrollToTop() {
     if (animToken !== scrollToTopAnimToken) return;
-    el.scrollTop = 0;
+    setScrollToTopPosition(0);
     el.style.scrollBehavior = previousScrollBehavior;
+    if (activeScrollToTop?.token === animToken) activeScrollToTop = null;
   }
   function step(now) {
     if (animToken !== scrollToTopAnimToken) {
+      if (activeScrollToTop?.token === animToken) activeScrollToTop = null;
       el.style.scrollBehavior = previousScrollBehavior;
       return;
     }
     const t = Math.min(1, (now - t0) / durationMs);
     const eased = easeOutCubic(t);
-    el.scrollTop = Math.max(0, Math.round(start * (1 - eased)));
+    setScrollToTopPosition(Math.max(0, Math.round(start * (1 - eased))));
     if (t < 1) requestAnimationFrame(step);
     else finishScrollToTop();
   }
@@ -5071,10 +5192,17 @@ function initScrollToTopButton() {
     scrollMainContentToTop();
   });
   const onScroll = () => {
+    handleScrollToTopUserInterrupt();
     updateScrollToTopButton();
+  };
+  const onUserScrollIntent = () => {
+    if (activeScrollToTop) cancelActiveScrollToTop();
   };
   host.addEventListener("scroll", onScroll, { passive: true });
   document.addEventListener("scroll", onScroll, { passive: true, capture: true });
+  host.addEventListener("wheel", onUserScrollIntent, { passive: true });
+  host.addEventListener("touchstart", onUserScrollIntent, { passive: true });
+  host.addEventListener("pointerdown", onUserScrollIntent, { passive: true });
   window.addEventListener("resize", updateScrollToTopButton, { passive: true });
   updateScrollToTopButton();
 }
