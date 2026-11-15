@@ -78,10 +78,22 @@ window.BLACK_LISTED_ROSTER = [
   {
     id: "zurg0s",
     name: "ZurG0s.BL",
-    role: "Flex",
+    role: "Flex / Intel",
     statsCc: {
       profileId: "6f731da3-eeeb-434a-b68f-21d79a3fec48",
       vanity: "ZurG0s.BL"
+    },
+    attackers: [],
+    defenders: [],
+    substitute: true
+  },
+  {
+    id: "illilii01",
+    name: "IllIlIIl01.BL",
+    role: "Fragger / Flex / Intel",
+    statsCc: {
+      profileId: "b4662119-4fed-4ca0-977b-121b577c112a",
+      vanity: "IllIlIIl01"
     },
     attackers: [],
     defenders: [],
