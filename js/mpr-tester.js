@@ -15,6 +15,12 @@
   function mprPctInt(value) {
     return Number.isFinite(value) ? `${Math.round(value)}%` : "0%";
   }
+  function mprJitterMsLabel(value) {
+    if (!Number.isFinite(value) || value < 0) return "0 ms";
+    if (value >= 10) return `${value.toFixed(1)} ms`;
+    if (value >= 1) return `${value.toFixed(2)} ms`;
+    return `${value.toFixed(2)} ms`;
+  }
   function mprLiveHzInt(value) {
     return Number.isFinite(value) && value > 0 ? String(Math.round(value)) : "0";
   }
@@ -75,6 +81,12 @@
     const rawSupported = "onpointerrawupdate" in window;
     const moveEvent = rawSupported ? "pointerrawupdate" : "pointermove";
 
+    function syncZoneSessionClasses() {
+      const hasResult = !state.running && !state.preparing && state.endTime !== null;
+      zone.classList.toggle("mpr-tester-zone--in-session", state.running);
+      zone.classList.toggle("mpr-tester-zone--complete", hasResult);
+    }
+
     function syncZoneInteractable() {
       const canActivate = !state.running;
       zone.classList.toggle("mpr-tester-zone--clickable", canActivate);
@@ -101,34 +113,45 @@
           secondaryEl.hidden = true;
           secondaryEl.textContent = "";
         }
-        primaryEl.textContent = "Click anywhere to start";
+        primaryEl.textContent = "Click to start";
         primaryEl.classList.remove("cps-tester-primary--score");
         zone.setAttribute("aria-labelledby", "mpr-tester-primary");
         return;
       }
 
-      if (state.preparing || state.running) {
+      if (state.preparing) {
+        readoutEl.hidden = false;
+        primaryEl.hidden = true;
+        if (secondaryEl) {
+          secondaryEl.hidden = false;
+          secondaryEl.textContent = "Click to cancel";
+        }
+        zone.setAttribute("aria-labelledby", "mpr-tester-live-rate");
+        return;
+      }
+
+      if (state.running) {
         readoutEl.hidden = false;
         primaryEl.hidden = true;
         if (secondaryEl) {
           secondaryEl.hidden = true;
           secondaryEl.textContent = "";
         }
-        zone.setAttribute("aria-labelledby", "mpr-tester-zone-heading");
+        zone.setAttribute("aria-labelledby", "mpr-tester-live-rate");
         return;
       }
 
       if (hasResult) {
-        readoutEl.hidden = true;
-        primaryEl.hidden = false;
-        const label = stats.count ? `${Math.round(stats.avgRate)} Hz` : "0 Hz";
-        primaryEl.textContent = label;
-        primaryEl.classList.toggle("cps-tester-primary--score", Boolean(stats.count));
+        readoutEl.hidden = false;
+        primaryEl.hidden = true;
+        primaryEl.classList.remove("cps-tester-primary--score");
+        liveRate.textContent = stats.count ? String(Math.round(stats.avgRate)) : "0";
+        zoneDisplay?.classList.toggle("is-ready", !stats.count);
         if (secondaryEl) {
           secondaryEl.hidden = false;
           secondaryEl.textContent = "Click to continue";
         }
-        zone.setAttribute("aria-labelledby", "mpr-tester-primary");
+        zone.setAttribute("aria-labelledby", "mpr-tester-live-rate");
       }
     }
 
@@ -176,7 +199,7 @@
       avgEl.textContent = mprHzInt(stats.avgRate);
       peakEl.textContent = mprHzInt(stats.peakRate);
       stabilityEl.textContent = mprPctInt(stats.stability);
-      jitterEl.textContent = mprPctInt(stats.jitter);
+      jitterEl.textContent = mprJitterMsLabel(stats.jitterMs);
       syncTimerDisplay();
     }
 
@@ -185,17 +208,19 @@
       if (state.running) capture.frame(now);
       const stats = calculateStats();
       if (state.preparing) {
-        zoneDisplay?.classList.add("is-ready");
+        zoneDisplay?.classList.remove("is-ready");
       } else if (state.running) {
         liveRate.textContent = mprLiveHzInt(stats.avgRate);
-        zoneDisplay?.classList.toggle("is-ready", stats.count <= 0);
+        zoneDisplay?.classList.remove("is-ready");
       } else if (state.endTime !== null) {
         liveRate.textContent = mprLiveHzInt(stats.avgRate);
+        zoneDisplay?.classList.toggle("is-ready", !stats.count);
       }
 
       renderMetrics(stats);
       syncZonePresentation(stats);
       syncZoneInteractable();
+      syncZoneSessionClasses();
 
       if (state.running) requestAnimationFrame(render);
     }
@@ -205,15 +230,17 @@
       state.running = false;
       state.preparing = false;
       state.completed = Boolean(markComplete);
-      zone.classList.toggle("mpr-tester-zone--complete", state.completed);
       state.endTime = performance.now();
       zone.classList.remove("mpr-tester-zone--active", "mpr-tester-zone--flash");
+      syncZoneSessionClasses();
       syncZoneInteractable();
       render();
     }
 
     function beginSampling() {
       readoutEl.classList.remove("mpr-tester-zone-readout--countdown");
+      zoneDisplay?.classList.remove("is-ready");
+      liveRate.textContent = "0";
       capture.reset({ source: moveEvent, clockGrain: mprClockGrain() });
       ingestOpenAt = performance.now() + MPR_INGEST_WARMUP_MS;
       sampleEndAt = performance.now() + testDurationMs;
@@ -224,17 +251,19 @@
       state.endTime = null;
       zone.classList.add("mpr-tester-zone--active");
       zone.classList.remove("mpr-tester-zone--flash");
-      requestAnimationFrame(() => {
-        zone.classList.add("mpr-tester-zone--flash");
-      });
+      syncZoneSessionClasses();
       requestAnimationFrame(render);
       autoStopTimer = setTimeout(() => finishTest("Complete", null, true), testDurationMs);
     }
 
     function updateCountdownUI(remaining) {
       liveRate.textContent = String(remaining);
-      zoneDisplay?.classList.add("is-ready");
+      zoneDisplay?.classList.remove("is-ready");
       readoutEl.classList.toggle("mpr-tester-zone-readout--countdown", true);
+      if (secondaryEl) {
+        secondaryEl.hidden = false;
+        secondaryEl.textContent = "Click to cancel";
+      }
     }
 
     function startTest() {
@@ -243,11 +272,13 @@
       if (state.completed || state.sampleCount > 0) resetTest();
       state.preparing = true;
       sampleEndAt = 0;
+      syncZoneSessionClasses();
       syncZoneInteractable();
       let remaining = prepSeconds;
       syncZonePresentation(capture.snapshot(performance.now(), true));
       if (timerEl) timerEl.textContent = "0";
       updateCountdownUI(remaining);
+      syncZoneSessionClasses();
       countdownTimer = setInterval(() => {
         remaining -= 1;
         if (remaining <= 0) {
@@ -257,6 +288,7 @@
           return;
         }
         updateCountdownUI(remaining);
+        syncZoneSessionClasses();
       }, 1000);
     }
 
@@ -264,6 +296,7 @@
       if (state.preparing) {
         clearTimers();
         state.preparing = false;
+        syncZoneSessionClasses();
         syncZoneInteractable();
         liveRate.textContent = "0";
         zoneDisplay?.classList.add("is-ready");
@@ -282,7 +315,6 @@
       state.running = false;
       state.preparing = false;
       state.completed = false;
-      zone.classList.remove("mpr-tester-zone--complete");
       state.startTime = null;
       state.endTime = null;
       state.sampleCount = 0;
@@ -293,6 +325,7 @@
       zoneDisplay?.classList.add("is-ready");
       zone.classList.remove("mpr-tester-zone--active", "mpr-tester-zone--flash");
       readoutEl.classList.remove("mpr-tester-zone-readout--countdown");
+      syncZoneSessionClasses();
       syncZoneInteractable();
       const stats = capture.snapshot(performance.now(), true);
       renderMetrics(stats);

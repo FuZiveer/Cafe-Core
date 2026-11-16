@@ -5860,6 +5860,7 @@ html.reduce-motion .cafe-toast {
 }
 .reaction-time-arena,
 .cps-tester-arena,
+.cps-checker-arena,
 .mpr-tester-zone,
 .keyboard-checker-zone {
   --test-arena-chamfer: 1.25rem;
@@ -5875,6 +5876,7 @@ html.reduce-motion .cafe-toast {
 }
 .reaction-time-arena::after,
 .cps-tester-arena::after,
+.cps-checker-arena::after,
 .mpr-tester-zone::after,
 .keyboard-checker-zone::after {
   content: "";
@@ -5914,9 +5916,9 @@ html.reduce-motion .cafe-toast {
   line-height: 1.1;
 }
 .reaction-time-arena--idle {
-  background-color: var(--rt-idle-bg, #1e3a5f);
-  --test-arena-chamfer-border: var(--rt-idle-border, #274868);
-  color: var(--rt-idle-fg, #f1f5f9);
+  background-color: var(--rt-idle-bg, var(--matte-900, #131317));
+  --test-arena-chamfer-border: var(--rt-idle-border, #26262b);
+  color: var(--rt-idle-fg, #e2e8f0);
 }
 .reaction-time-arena--wait {
   background-color: var(--rt-wait-bg, #b33030);
@@ -6010,6 +6012,15 @@ html.reduce-motion .cafe-toast {
 #reaction-time-settings-modal:not(.is-open):not(.hidden) {
   pointer-events: none;
 }
+.reaction-time-settings-body {
+  align-items: start;
+  align-content: start;
+  row-gap: 0.5rem;
+  column-gap: 0.5rem;
+}
+#reaction-time-settings-modal .reaction-time-settings-body > .settings-row {
+  gap: 0.5rem;
+}
 .reaction-time-color-input {
   width: 2.75rem;
   height: 2rem;
@@ -6075,7 +6086,8 @@ html.reduce-motion .cafe-toast {
   letter-spacing: 0.02em;
   text-transform: none;
 }
-.cps-tester-arena {
+.cps-tester-arena,
+.cps-checker-arena {
   background-color: var(--matte-900, #131317);
   color: #e2e8f0;
   transition: none !important;
@@ -6107,10 +6119,13 @@ html.reduce-motion .cps-tester-cooldown-bar {
   will-change: auto;
 }
 .cps-tester-arena:hover:not(:disabled),
-.cps-tester-arena:focus-visible {
+.cps-tester-arena:focus-visible,
+.cps-checker-arena:hover:not(:disabled),
+.cps-checker-arena:focus-visible {
   transition: none !important;
 }
-.cps-tester-arena:focus-visible {
+.cps-tester-arena:focus-visible,
+.cps-checker-arena:focus-visible {
   outline: 2px solid #ff1e43;
   outline-offset: 2px;
 }
@@ -6120,19 +6135,55 @@ html.reduce-motion .cps-tester-cooldown-bar {
   letter-spacing: 0.02em;
   line-height: 1.1;
 }
-.cps-tester-arena--idle {
-  background-color: #1e3a5f;
-  --test-arena-chamfer-border: #274868;
-  color: #f1f5f9;
+.cps-tester-arena--idle,
+.cps-checker-arena--idle {
+  background-color: var(--matte-900, #131317);
+  --test-arena-chamfer-border: #26262b;
+  color: #e2e8f0;
 }
-.cps-tester-arena--active {
+.cps-tester-arena--active,
+.mpr-tester-zone--in-session {
   background-color: #3d9a4a;
   --test-arena-chamfer-border: #4caf50;
   color: #fff;
 }
-.cps-tester-arena--result {
+.mpr-tester-zone--in-session .mpr-tester-primary,
+.mpr-tester-zone--in-session .mpr-tester-secondary,
+.mpr-tester-zone--in-session .cps-tester-primary,
+.mpr-tester-zone--in-session .cps-tester-secondary,
+.mpr-tester-zone--in-session .mpr-tester-zone-display,
+.mpr-tester-zone--in-session .mpr-tester-zone-display.is-ready {
+  opacity: 1;
+  color: #fff;
+}
+.cps-tester-arena--active .cps-tester-primary,
+.cps-tester-arena--active .cps-tester-secondary,
+.cps-tester-arena--active .wifi-speed-primary,
+.cps-tester-arena--active .wifi-speed-secondary,
+.cps-tester-arena--active .wifi-speed-live {
+  opacity: 1;
+  color: #fff;
+}
+.cps-tester-arena--result,
+.mpr-tester-zone--complete {
   background-color: #2471a3;
   --test-arena-chamfer-border: #2e86c1;
+  color: #fff;
+}
+.mpr-tester-zone--complete .mpr-tester-primary,
+.mpr-tester-zone--complete .mpr-tester-secondary,
+.mpr-tester-zone--complete .cps-tester-primary,
+.mpr-tester-zone--complete .cps-tester-secondary,
+.mpr-tester-zone--complete .mpr-tester-zone-display {
+  opacity: 1;
+  color: #fff;
+}
+.cps-tester-arena--result .cps-tester-primary,
+.cps-tester-arena--result .cps-tester-secondary,
+.cps-tester-arena--result .wifi-speed-primary,
+.cps-tester-arena--result .wifi-speed-secondary,
+.cps-tester-arena--result .wifi-speed-live {
+  opacity: 1;
   color: #fff;
 }
 .cps-tester-stat-value {
@@ -6159,25 +6210,37 @@ html.reduce-motion .cps-tester-cooldown-bar {
   gap: 0.75rem;
 }
 .mpr-tester-zone {
+  width: 100%;
   min-height: clamp(16rem, 42vh, 26rem);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background-color: var(--matte-900, #131317);
   touch-action: none;
+}
+.mpr-tester-zone.mpr-tester-zone--in-session {
+  background-color: #3d9a4a;
+  --test-arena-chamfer-border: #4caf50;
+  color: #fff;
+}
+.mpr-tester-zone.mpr-tester-zone--complete {
+  background-color: #2471a3;
+  --test-arena-chamfer-border: #2e86c1;
+  color: #fff;
 }
 .mpr-tester-zone--clickable {
   cursor: pointer;
 }
 .mpr-tester-zone--active {
   cursor: crosshair;
-  box-shadow: 0 0 28px rgb(255 30 67 / 0.25);
+  box-shadow: none;
 }
 .mpr-tester-zone--clickable:focus-visible {
   outline: 2px solid #ff1e43;
   outline-offset: 2px;
 }
 .mpr-tester-zone--flash.mpr-tester-zone--active {
-  animation: mpr-zone-flash 0.6s ease-out;
+  animation: none;
 }
 @keyframes mpr-zone-flash {
   0% {
@@ -6199,37 +6262,68 @@ html.reduce-motion .cps-tester-cooldown-bar {
   transition: opacity 0.2s ease;
   pointer-events: none;
 }
-.mpr-tester-zone--active .mpr-tester-zone-overlay {
-  opacity: 0.85;
+.mpr-tester-zone--active .mpr-tester-zone-overlay,
+.mpr-tester-zone--in-session .mpr-tester-zone-overlay {
+  opacity: 0;
 }
 .mpr-tester-zone-center {
   position: relative;
   z-index: 2;
-  width: min(360px, calc(100% - 2rem));
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 1.5rem 1rem 2rem;
+  padding: 1.5rem 1rem;
   pointer-events: none;
+  gap: 0.5rem;
+}
+.mpr-tester-zone-readout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+}
+.mpr-tester-zone-display {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  color: #fff;
 }
 .mpr-tester-zone-readout--countdown .mpr-tester-zone-unit {
-  visibility: hidden;
+  display: none;
 }
-.mpr-tester-zone-display.is-ready .mpr-tester-live-rate {
+.mpr-tester-zone-readout--countdown .mpr-tester-zone-display {
+  width: 100%;
+}
+.mpr-tester-zone-readout--countdown .mpr-tester-zone-display.is-ready {
+  opacity: 1;
+}
+.mpr-tester-zone-display.is-ready {
   opacity: 0.55;
 }
 .mpr-tester-live-rate {
-  font-size: clamp(2.5rem, 9vw, 4.5rem);
-  font-weight: 700;
-  line-height: 1;
-  color: #fff;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
 }
 .mpr-tester-zone-unit {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
+  display: inline;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: rgb(148 163 184);
-  margin-top: 0.25rem;
+  color: inherit;
 }
 .mpr-tester-ghost-btn {
   padding: 0.5rem 1rem;
@@ -6256,10 +6350,6 @@ html.reduce-motion .cps-tester-cooldown-bar {
 }
 .wifi-speed-stat-value {
   font-variant-numeric: tabular-nums;
-}
-.wifi-speed-arena--download.cps-tester-arena--active,
-.wifi-speed-arena--upload.cps-tester-arena--active {
-  border-color: rgb(255 30 67 / 0.35);
 }
 .wifi-speed-live {
   font-variant-numeric: tabular-nums;

@@ -187,6 +187,7 @@
         avgInterval: avgRate > 0 ? 1000 / avgRate : null,
         peakRate: canReportWindowPeak ? windowPeak : null,
         jitter: timingOK || liveJitterOK ? (sd / intervalMean) * 100 : null,
+        jitterMs: timingOK || liveJitterOK ? sd : null,
         deviation: timingOK ? sd : null,
         stability: consistencyOK || liveStabilityOK ? Math.max(0, 100 * (1 - windowCV)) : null,
         lowRate: consistencyOK ? Math.min(...windows) : null,

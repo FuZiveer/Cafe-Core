@@ -17,7 +17,7 @@
                         </div>
                         <div class="reaction-time-wrap flex flex-col gap-3 min-w-0">
                             <button type="button" id="reaction-time-arena" class="reaction-time-arena ui-interactive reaction-time-arena--idle w-full min-h-[14rem] sm:min-h-[18rem] flex flex-col items-center justify-center text-center p-8 select-none touch-manipulation" aria-live="polite">
-                                <p id="reaction-time-primary" class="reaction-time-primary text-lg sm:text-xl font-semibold tracking-wide leading-snug max-w-md">Click anywhere to start</p>
+                                <p id="reaction-time-primary" class="reaction-time-primary text-lg sm:text-xl font-semibold tracking-wide leading-snug max-w-md">Click to start</p>
                                 <p id="reaction-time-secondary" class="reaction-time-secondary text-sm tracking-wide mt-2 opacity-90 max-w-md" hidden></p>
                             </button>
                             <div class="reaction-time-stats bg-matte-900 rounded-lg border border-matte-800 p-3 sm:p-4 w-full min-w-0" aria-live="polite">
@@ -50,42 +50,34 @@
                                         <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
                                     </button>
                                 </div>
-                                <div class="reaction-time-settings-body settings-modal-body flex-1 min-h-0 overflow-y-auto grid grid-cols-2 gap-3 min-w-0">
-                                    <p class="col-span-2 text-xs text-slate-500 tracking-wide leading-snug">Each state color is saved in this browser only.</p>
-                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-reaction-color-state="idle">
-                                        <span class="text-sm font-bold tracking-widest uppercase text-white">Idle</span>
-                                        <label class="reaction-time-color-row flex items-center justify-between gap-3 min-w-0">
-                                            <span class="text-xs text-slate-500 tracking-wide uppercase font-bold tracking-widest">Panel</span>
-                                            <input type="color" id="reaction-time-color-idle" data-reaction-color-state="idle" class="reaction-time-color-input ui-interactive" value="#1e3a5f" aria-label="Idle panel color">
-                                        </label>
-                                    </div>
-                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-reaction-color-state="wait">
+                                <div class="reaction-time-settings-body settings-modal-body flex-1 min-h-0 overflow-y-auto grid grid-cols-2 gap-2 min-w-0">
+                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-2" data-reaction-color-state="wait">
                                         <span class="text-sm font-bold tracking-widest uppercase text-white">Waiting</span>
-                                        <label class="reaction-time-color-row flex items-center justify-between gap-3 min-w-0">
+                                        <div class="reaction-time-color-row flex items-center justify-between gap-2 min-w-0">
                                             <span class="text-xs text-slate-500 tracking-wide uppercase font-bold tracking-widest">Panel</span>
                                             <input type="color" id="reaction-time-color-wait" data-reaction-color-state="wait" class="reaction-time-color-input ui-interactive" value="#b33030" aria-label="Waiting panel color">
-                                        </label>
+                                        </div>
                                     </div>
-                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-reaction-color-state="go">
+                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-2" data-reaction-color-state="go">
                                         <span class="text-sm font-bold tracking-widest uppercase text-white">Ready</span>
-                                        <label class="reaction-time-color-row flex items-center justify-between gap-3 min-w-0">
+                                        <div class="reaction-time-color-row flex items-center justify-between gap-2 min-w-0">
                                             <span class="text-xs text-slate-500 tracking-wide uppercase font-bold tracking-widest">Panel</span>
                                             <input type="color" id="reaction-time-color-go" data-reaction-color-state="go" class="reaction-time-color-input ui-interactive" value="#3d9a4a" aria-label="Ready panel color">
-                                        </label>
+                                        </div>
                                     </div>
-                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-reaction-color-state="result">
+                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-2" data-reaction-color-state="result">
                                         <span class="text-sm font-bold tracking-widest uppercase text-white">Result</span>
-                                        <label class="reaction-time-color-row flex items-center justify-between gap-3 min-w-0">
+                                        <div class="reaction-time-color-row flex items-center justify-between gap-2 min-w-0">
                                             <span class="text-xs text-slate-500 tracking-wide uppercase font-bold tracking-widest">Panel</span>
                                             <input type="color" id="reaction-time-color-result" data-reaction-color-state="result" class="reaction-time-color-input ui-interactive" value="#2471a3" aria-label="Result panel color">
-                                        </label>
+                                        </div>
                                     </div>
-                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-reaction-color-state="early">
+                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-2" data-reaction-color-state="early">
                                         <span class="text-sm font-bold tracking-widest uppercase text-white">False start</span>
-                                        <label class="reaction-time-color-row flex items-center justify-between gap-3 min-w-0">
+                                        <div class="reaction-time-color-row flex items-center justify-between gap-2 min-w-0">
                                             <span class="text-xs text-slate-500 tracking-wide uppercase font-bold tracking-widest">Panel</span>
                                             <input type="color" id="reaction-time-color-early" data-reaction-color-state="early" class="reaction-time-color-input ui-interactive" value="#b33030" aria-label="False start panel color">
-                                        </label>
+                                        </div>
                                     </div>
                                     <button type="button" id="reaction-time-colors-default" class="reaction-time-colors-default col-span-2 topbar-action-btn ui-interactive w-full rounded-lg h-10 px-3 text-xs font-bold tracking-widest uppercase text-slate-400 hover:text-redneon-500 hover:bg-matte-800 border border-matte-800">Restore defaults</button>
                                 </div>
