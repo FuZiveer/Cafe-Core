@@ -1,10 +1,15 @@
-(function() {
+(function () {
   "use strict";
-  var REMOTE_AUTH = "https://cafe-core.onrender.com";
-  var host = window.location.hostname;
-  var proto = window.location.protocol;
-  var localDev = host === "localhost" || host === "127.0.0.1" || host === "[::1]";
-  if (!localDev && (host === "fuziveer.github.io" || proto === "file:")) {
-    window.__CAFE_AUTH_ORIGIN = REMOTE_AUTH;
+
+  const RENDER_AUTH_ORIGIN = "https://cafe-core.onrender.com";
+  const hostname = window.location.hostname;
+  const pageProtocol = window.location.protocol;
+  const isLoopbackHost =
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+  const needsRemoteAuthOrigin =
+    !isLoopbackHost && (hostname === "fuziveer.github.io" || pageProtocol === "file:");
+
+  if (needsRemoteAuthOrigin) {
+    window.__CAFE_AUTH_ORIGIN = RENDER_AUTH_ORIGIN;
   }
 })();

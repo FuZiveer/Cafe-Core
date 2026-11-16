@@ -14,7 +14,12 @@ const PAGE_FILES = {
   sensitivity: "pages/sensitivity.html",
   edpi: "pages/edpi.html",
   lineups: "pages/lineups.html",
-  "aim-trainer": "pages/aim-trainer.html"
+  "aim-trainer": "pages/aim-trainer.html",
+  "reaction-time": "pages/reaction-time.html",
+  "cps-tester": "pages/cps-tester.html",
+  "mpr-tester": "pages/mpr-tester.html",
+  "keyboard-checker": "pages/keyboard-checker.html",
+  "wifi-speed": "pages/wifi-speed.html"
 };
 function toJsString(value) {
   return JSON.stringify(value);

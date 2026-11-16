@@ -1,0 +1,96 @@
+<div id="page-reaction-time" class="main-page reaction-time-page w-full">
+                <div id="reaction-time-hub" class="reaction-time-hub">
+                    <div class="reaction-time-hub-actions">
+                        <button type="button" id="reaction-time-reset" class="reaction-time-settings-corner ui-interactive" disabled aria-label="Reset saved scores">
+                            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+                            <span>Reset</span>
+                        </button>
+                        <button type="button" id="reaction-time-settings-open" class="reaction-time-settings-corner ui-interactive" aria-label="Reaction time colors" aria-haspopup="dialog" aria-expanded="false" aria-controls="reaction-time-settings-modal">
+                            <i class="fa-solid fa-gear" aria-hidden="true"></i>
+                            <span>Settings</span>
+                        </button>
+                    </div>
+                    <div class="reaction-time-hub-main w-full max-w-5xl mx-auto p-8 pb-12">
+                        <div class="page-intro mb-8">
+                            <h2 class="text-xl font-bold tracking-widest uppercase text-white">Reaction Time Checker</h2>
+                            <p class="text-sm text-slate-400 mt-2 tracking-wide">Measures your reaction time</p>
+                        </div>
+                        <div class="reaction-time-wrap flex flex-col gap-3 min-w-0">
+                            <button type="button" id="reaction-time-arena" class="reaction-time-arena ui-interactive reaction-time-arena--idle w-full min-h-[14rem] sm:min-h-[18rem] flex flex-col items-center justify-center text-center p-8 select-none touch-manipulation" aria-live="polite">
+                                <p id="reaction-time-primary" class="reaction-time-primary text-lg sm:text-xl font-semibold tracking-wide leading-snug max-w-md">Click anywhere to start</p>
+                                <p id="reaction-time-secondary" class="reaction-time-secondary text-sm tracking-wide mt-2 opacity-90 max-w-md" hidden></p>
+                            </button>
+                            <div class="reaction-time-stats bg-matte-900 rounded-lg border border-matte-800 p-3 sm:p-4 w-full min-w-0" aria-live="polite">
+                                <div class="reaction-time-stats-metrics grid grid-cols-2 w-full min-w-0 gap-3 sm:gap-0 sm:divide-x sm:divide-matte-800">
+                                    <div class="reaction-time-stat bg-matte-950 rounded-lg sm:rounded-none sm:bg-transparent px-4 py-3 flex flex-col items-center text-center justify-center min-h-[3.5rem]">
+                                        <span class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">Average</span>
+                                        <span id="reaction-time-average" class="reaction-time-stat-value text-xl font-semibold text-white tabular-nums leading-none">0 ms</span>
+                                    </div>
+                                    <div class="reaction-time-stat bg-matte-950 rounded-lg sm:rounded-none sm:bg-transparent px-4 py-3 flex flex-col items-center text-center justify-center min-h-[3.5rem]">
+                                        <span class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">Attempts</span>
+                                        <span id="reaction-time-attempts" class="reaction-time-stat-value text-xl font-semibold text-white tabular-nums leading-none">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <section class="reaction-time-chart bg-matte-900 rounded-lg border border-matte-800 p-4 w-full min-w-0" aria-labelledby="reaction-time-chart-title">
+                                <h3 id="reaction-time-chart-title" class="text-sm font-bold tracking-widest uppercase text-white mb-3">Score history</h3>
+                                <svg id="reaction-time-history-svg" class="reaction-time-history-svg w-full h-auto" viewBox="0 0 560 168" role="img" focusable="false" aria-label="Line graph of your reaction times in milliseconds"></svg>
+                                <h3 class="reaction-time-chart-subhead text-sm font-bold tracking-widest uppercase text-white mt-5 mb-3">Typical reaction speeds</h3>
+                                <svg id="reaction-time-distribution-svg" class="reaction-time-distribution-svg w-full h-auto" viewBox="0 0 560 168" role="img" aria-labelledby="reaction-time-chart-title"></svg>
+                            </section>
+                        </div>
+                    </div>
+                    <div id="reaction-time-settings-modal" class="reaction-time-settings-modal settings-modal hidden fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reaction-time-settings-title" aria-hidden="true">
+                        <button type="button" id="reaction-time-settings-backdrop" class="modal-backdrop settings-modal-backdrop absolute inset-0 ui-interactive" aria-label="Close reaction time settings" tabindex="-1"></button>
+                        <div class="settings-modal-shell reaction-time-settings-shell">
+                            <div class="settings-modal-panel relative w-full bg-matte-900 rounded-lg p-5 flex flex-col min-h-0 max-h-[min(32rem,calc(100dvh-2rem))]">
+                                <div class="flex items-center justify-between gap-3 mb-4 shrink-0">
+                                    <h3 id="reaction-time-settings-title" class="text-sm font-bold tracking-widest uppercase text-white">Panel colors</h3>
+                                    <button type="button" id="reaction-time-settings-close" class="topbar-action-btn ui-interactive w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-redneon-500 hover:bg-matte-800 relative" aria-label="Close reaction time settings">
+                                        <i class="fa-solid fa-xmark text-sm" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <div class="reaction-time-settings-body settings-modal-body flex-1 min-h-0 overflow-y-auto grid grid-cols-2 gap-3 min-w-0">
+                                    <p class="col-span-2 text-xs text-slate-500 tracking-wide leading-snug">Each state color is saved in this browser only.</p>
+                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-reaction-color-state="idle">
+                                        <span class="text-sm font-bold tracking-widest uppercase text-white">Idle</span>
+                                        <label class="reaction-time-color-row flex items-center justify-between gap-3 min-w-0">
+                                            <span class="text-xs text-slate-500 tracking-wide uppercase font-bold tracking-widest">Panel</span>
+                                            <input type="color" id="reaction-time-color-idle" data-reaction-color-state="idle" class="reaction-time-color-input ui-interactive" value="#1e3a5f" aria-label="Idle panel color">
+                                        </label>
+                                    </div>
+                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-reaction-color-state="wait">
+                                        <span class="text-sm font-bold tracking-widest uppercase text-white">Waiting</span>
+                                        <label class="reaction-time-color-row flex items-center justify-between gap-3 min-w-0">
+                                            <span class="text-xs text-slate-500 tracking-wide uppercase font-bold tracking-widest">Panel</span>
+                                            <input type="color" id="reaction-time-color-wait" data-reaction-color-state="wait" class="reaction-time-color-input ui-interactive" value="#b33030" aria-label="Waiting panel color">
+                                        </label>
+                                    </div>
+                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-reaction-color-state="go">
+                                        <span class="text-sm font-bold tracking-widest uppercase text-white">Ready</span>
+                                        <label class="reaction-time-color-row flex items-center justify-between gap-3 min-w-0">
+                                            <span class="text-xs text-slate-500 tracking-wide uppercase font-bold tracking-widest">Panel</span>
+                                            <input type="color" id="reaction-time-color-go" data-reaction-color-state="go" class="reaction-time-color-input ui-interactive" value="#3d9a4a" aria-label="Ready panel color">
+                                        </label>
+                                    </div>
+                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-reaction-color-state="result">
+                                        <span class="text-sm font-bold tracking-widest uppercase text-white">Result</span>
+                                        <label class="reaction-time-color-row flex items-center justify-between gap-3 min-w-0">
+                                            <span class="text-xs text-slate-500 tracking-wide uppercase font-bold tracking-widest">Panel</span>
+                                            <input type="color" id="reaction-time-color-result" data-reaction-color-state="result" class="reaction-time-color-input ui-interactive" value="#2471a3" aria-label="Result panel color">
+                                        </label>
+                                    </div>
+                                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex flex-col gap-3" data-reaction-color-state="early">
+                                        <span class="text-sm font-bold tracking-widest uppercase text-white">False start</span>
+                                        <label class="reaction-time-color-row flex items-center justify-between gap-3 min-w-0">
+                                            <span class="text-xs text-slate-500 tracking-wide uppercase font-bold tracking-widest">Panel</span>
+                                            <input type="color" id="reaction-time-color-early" data-reaction-color-state="early" class="reaction-time-color-input ui-interactive" value="#b33030" aria-label="False start panel color">
+                                        </label>
+                                    </div>
+                                    <button type="button" id="reaction-time-colors-default" class="reaction-time-colors-default col-span-2 topbar-action-btn ui-interactive w-full rounded-lg h-10 px-3 text-xs font-bold tracking-widest uppercase text-slate-400 hover:text-redneon-500 hover:bg-matte-800 border border-matte-800">Restore defaults</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>

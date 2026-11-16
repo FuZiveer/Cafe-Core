@@ -17,7 +17,14 @@ const flyoutData = coreFreeze({
       { id: "tool-sens", name: "Sensitivity Converter", icon: "fa-bolt" },
       { id: "tool-edpi", name: "EDPI Calculator", icon: "fa-calculator" },
       { id: "tool-aim", name: "Aim Trainer", icon: "fa-crosshairs" },
-      { id: "tool-bottleneck", name: "Bottleneck Checker", icon: "fa-microchip" }
+      { type: "divider" },
+      { id: "tool-reaction", name: "RT Checker", icon: "fa-stopwatch" },
+      { id: "tool-cps", name: "CPS Checker", icon: "fa-computer-mouse" },
+      { id: "tool-mpr", name: "MPR Checker", icon: "fa-gauge-high" },
+      { type: "divider" },
+      { id: "tool-bottleneck", name: "Bottleneck Checker", icon: "fa-microchip" },
+      { id: "tool-keyboard", name: "Keyboard Checker", icon: "fa-keyboard" },
+      { id: "tool-wifi-speed", name: "Wifi Speed Test", icon: "fa-wifi" }
     ]
   },
   strats: {
@@ -119,7 +126,12 @@ const mainPageIds = coreFreeze({
   sensitivity: "page-sensitivity",
   edpi: "page-edpi",
   lineups: "page-lineups",
-  "aim-trainer": "page-aim-trainer"
+  "aim-trainer": "page-aim-trainer",
+  "reaction-time": "page-reaction-time",
+  "cps-tester": "page-cps-tester",
+  "mpr-tester": "page-mpr-tester",
+  "keyboard-checker": "page-keyboard-checker",
+  "wifi-speed": "page-wifi-speed"
 });
 window.mainPageIds = mainPageIds;
 const CAFE_MOBILE_MAX_WIDTH_PX = 767;
@@ -588,6 +600,21 @@ window.clearMainPageInitState = function clearMainPageInitState(pageKey) {
   if (pageKey === "aim-trainer" && typeof window.teardownAimTrainerPage === "function") {
     window.teardownAimTrainerPage();
   }
+  if (pageKey === "reaction-time" && typeof window.teardownReactionTimePage === "function") {
+    window.teardownReactionTimePage();
+  }
+  if (pageKey === "cps-tester" && typeof window.teardownCpsTesterPage === "function") {
+    window.teardownCpsTesterPage();
+  }
+  if (pageKey === "mpr-tester" && typeof window.teardownMprTesterPage === "function") {
+    window.teardownMprTesterPage();
+  }
+  if (pageKey === "keyboard-checker" && typeof window.teardownKeyboardCheckerPage === "function") {
+    window.teardownKeyboardCheckerPage();
+  }
+  if (pageKey === "wifi-speed" && typeof window.teardownWifiSpeedPage === "function") {
+    window.teardownWifiSpeedPage();
+  }
   if (pageKey === "lineups") {
     closeLineupsVideoModal();
     pauseLineupsVideos();
@@ -784,6 +811,21 @@ window.initMainPage = async function initMainPage(pageKey) {
     case "aim-trainer":
       if (typeof window.initAimTrainerPage === "function") window.initAimTrainerPage();
       break;
+    case "reaction-time":
+      initReactionTimeTest();
+      break;
+    case "cps-tester":
+      initCpsTester();
+      break;
+    case "mpr-tester":
+      if (typeof window.initMprTesterPage === "function") window.initMprTesterPage();
+      break;
+    case "keyboard-checker":
+      if (typeof window.initKeyboardCheckerPage === "function") window.initKeyboardCheckerPage();
+      break;
+    case "wifi-speed":
+      if (typeof window.initWifiSpeedPage === "function") window.initWifiSpeedPage();
+      break;
     case "default":
       syncDefaultPageView();
       initHomeFeatureCardTilt();
@@ -807,6 +849,11 @@ function mainPageKeyForFlyoutItem(itemId) {
   if (itemId === "tool-sens") return "sensitivity";
   if (itemId === "tool-edpi") return "edpi";
   if (itemId === "tool-aim") return "aim-trainer";
+  if (itemId === "tool-reaction") return "reaction-time";
+  if (itemId === "tool-cps") return "cps-tester";
+  if (itemId === "tool-mpr") return "mpr-tester";
+  if (itemId === "tool-keyboard") return "keyboard-checker";
+  if (itemId === "tool-wifi-speed") return "wifi-speed";
   if (itemId === "strat-tips" || itemId === "strat-lineups") {
     return TIPS_AND_TRICKS_PAGE_ENABLED ? "lineups" : "default";
   }
@@ -872,6 +919,11 @@ const mainPageKeyToFlyoutItemId = {
   sensitivity: "tool-sens",
   bottleneck: "tool-bottleneck",
   "aim-trainer": "tool-aim",
+  "reaction-time": "tool-reaction",
+  "cps-tester": "tool-cps",
+  "mpr-tester": "tool-mpr",
+  "keyboard-checker": "tool-keyboard",
+  "wifi-speed": "tool-wifi-speed",
   branding: "more-branding",
   fuziveer: "more-fuziveer",
   "black-listed": "more-black-listed",
@@ -962,7 +1014,7 @@ function warmMainPageCache(pageKey) {
 const SIDEBAR_PREFETCH_PAGES = {
   home: ["default"],
   apps: ["apps"],
-  tools: ["bottleneck", "sensitivity", "edpi", "aim-trainer"],
+  tools: ["sensitivity", "edpi", "aim-trainer", "reaction-time", "cps-tester", "mpr-tester", "bottleneck", "keyboard-checker", "wifi-speed"],
   strats: ["lineups"],
   more: ["branding", "fuziveer", "black-listed", "privacy", "terms"]
 };
@@ -3723,6 +3775,1112 @@ function initEdpiCalculator() {
   window.__edpiCalculatorMounted = true;
   updateEdpiCalculation();
 }
+const REACTION_TIME_STORAGE_KEY = "cafe-reaction-time-scores-v1";
+const REACTION_TIME_MIN_DELAY_MS = 1e3;
+const REACTION_TIME_MAX_DELAY_MS = 5500;
+const REACTION_TIME_MAX_SAVED = 50;
+const REACTION_TIME_COLORS_KEY = "cafe-reaction-time-colors-v1";
+const REACTION_TIME_COLOR_STATES = ["idle", "wait", "go", "result", "early"];
+const REACTION_TIME_DEFAULT_PANEL_COLORS = {
+  idle: "#1e3a5f",
+  wait: "#b33030",
+  go: "#3d9a4a",
+  result: "#2471a3",
+  early: "#b33030"
+};
+let reactionTimeSettingsCloseTimer = null;
+function reactionTimeNormalizeHex(value, fallback) {
+  if (typeof value !== "string") return fallback;
+  let hex = value.trim().toLowerCase();
+  if (!hex.startsWith("#")) hex = `#${hex}`;
+  if (/^#[0-9a-f]{3}$/.test(hex)) {
+    hex = `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  }
+  return /^#[0-9a-f]{6}$/.test(hex) ? hex : fallback;
+}
+function reactionTimeHexToRgb(hex) {
+  const norm = reactionTimeNormalizeHex(hex, "#000000");
+  return {
+    r: parseInt(norm.slice(1, 3), 16),
+    g: parseInt(norm.slice(3, 5), 16),
+    b: parseInt(norm.slice(5, 7), 16)
+  };
+}
+function reactionTimeRgbToHex(r, g, b) {
+  const clamp = (n) => Math.max(0, Math.min(255, Math.round(n)));
+  return `#${[clamp(r), clamp(g), clamp(b)]
+    .map((n) => n.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+function reactionTimeMixHex(baseHex, mixHex, amount) {
+  const a = reactionTimeHexToRgb(baseHex);
+  const b = reactionTimeHexToRgb(mixHex);
+  const t = Math.max(0, Math.min(1, amount));
+  return reactionTimeRgbToHex(
+    a.r + (b.r - a.r) * t,
+    a.g + (b.g - a.g) * t,
+    a.b + (b.b - a.b) * t
+  );
+}
+function reactionTimeReadableText(hex) {
+  const { r, g, b } = reactionTimeHexToRgb(hex);
+  const l = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return l > 0.62 ? "#0f172a" : "#ffffff";
+}
+function reactionTimeDeriveStateColors(bgHex) {
+  const bg = reactionTimeNormalizeHex(bgHex, "#1e3a5f");
+  return {
+    bg,
+    border: reactionTimeMixHex(bg, "#ffffff", 0.14),
+    fg: reactionTimeReadableText(bg)
+  };
+}
+function reactionTimeDefaultColorTheme() {
+  const theme = Object.create(null);
+  REACTION_TIME_COLOR_STATES.forEach((state) => {
+    theme[state] = reactionTimeDeriveStateColors(REACTION_TIME_DEFAULT_PANEL_COLORS[state]);
+  });
+  return theme;
+}
+function loadReactionTimeColors() {
+  const theme = reactionTimeDefaultColorTheme();
+  try {
+    const raw = localStorage.getItem(REACTION_TIME_COLORS_KEY);
+    if (!raw) return theme;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return theme;
+    REACTION_TIME_COLOR_STATES.forEach((state) => {
+      const entry = parsed[state];
+      if (entry && typeof entry.bg === "string") {
+        theme[state] = reactionTimeDeriveStateColors(entry.bg);
+      }
+    });
+  } catch {
+    return theme;
+  }
+  return theme;
+}
+function reactionTimeColorStateFromInput(input) {
+  if (!input) return "";
+  const fromData = input.dataset.reactionColorState;
+  if (fromData && REACTION_TIME_COLOR_STATES.includes(fromData)) return fromData;
+  const fromId = String(input.id || "").replace("reaction-time-color-", "");
+  return REACTION_TIME_COLOR_STATES.includes(fromId) ? fromId : "";
+}
+function saveReactionTimeColors(theme) {
+  const payload = Object.create(null);
+  REACTION_TIME_COLOR_STATES.forEach((state) => {
+    const bg = theme[state]?.bg ?? REACTION_TIME_DEFAULT_PANEL_COLORS[state];
+    payload[state] = { bg: reactionTimeNormalizeHex(bg, REACTION_TIME_DEFAULT_PANEL_COLORS[state]) };
+  });
+  try {
+    localStorage.setItem(REACTION_TIME_COLORS_KEY, JSON.stringify(payload));
+    return true;
+  } catch {
+    return false;
+  }
+}
+function persistReactionTimeColorsFromInputs() {
+  const theme = getReactionTimeColorTheme();
+  let touched = false;
+  const modal = document.getElementById("reaction-time-settings-modal");
+  const scope = modal || document.getElementById("page-reaction-time") || document;
+  scope.querySelectorAll(".reaction-time-color-input").forEach((input) => {
+    const state = reactionTimeColorStateFromInput(input);
+    if (!state) return;
+    const bg = reactionTimeNormalizeHex(input.value, REACTION_TIME_DEFAULT_PANEL_COLORS[state]);
+    input.value = bg;
+    theme[state] = reactionTimeDeriveStateColors(bg);
+    touched = true;
+  });
+  if (!touched) return theme;
+  commitReactionTimeColorTheme(theme);
+  return theme;
+}
+function getReactionTimeColorTheme() {
+  if (!window.__reactionTimeColorTheme) {
+    window.__reactionTimeColorTheme = loadReactionTimeColors();
+  }
+  return window.__reactionTimeColorTheme;
+}
+function commitReactionTimeColorTheme(theme) {
+  window.__reactionTimeColorTheme = theme;
+  saveReactionTimeColors(theme);
+  applyReactionTimeTheme(theme);
+}
+function refreshReactionTimeColorThemeFromStorage() {
+  const theme = loadReactionTimeColors();
+  window.__reactionTimeColorTheme = theme;
+  syncReactionTimeColorInputs(theme);
+  applyReactionTimeTheme(theme);
+  return theme;
+}
+function applyReactionTimeTheme(theme) {
+  const arena = document.getElementById("reaction-time-arena");
+  if (!arena || !theme) return;
+  REACTION_TIME_COLOR_STATES.forEach((state) => {
+    const colors = theme[state];
+    if (!colors) return;
+    arena.style.setProperty(`--rt-${state}-bg`, colors.bg);
+    arena.style.setProperty(`--rt-${state}-border`, colors.border);
+    arena.style.setProperty(`--rt-${state}-fg`, colors.fg);
+  });
+}
+function syncReactionTimeColorInputs(theme) {
+  REACTION_TIME_COLOR_STATES.forEach((state) => {
+    const input = document.getElementById(`reaction-time-color-${state}`);
+    if (!input || !theme[state]) return;
+    input.value = theme[state].bg;
+  });
+}
+function syncReactionTimeSettingsModalUi() {
+  syncReactionTimeColorInputs(getReactionTimeColorTheme());
+}
+window.closeReactionTimeSettingsModal = function closeReactionTimeSettingsModal() {
+  const modal = document.getElementById("reaction-time-settings-modal");
+  const openBtn = document.getElementById("reaction-time-settings-open");
+  if (!modal) return;
+  if (modal.classList.contains("is-open")) persistReactionTimeColorsFromInputs();
+  if (modal.classList.contains("hidden")) return;
+  clearTimeout(reactionTimeSettingsCloseTimer);
+  reactionTimeSettingsCloseTimer = null;
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("settings-modal-open");
+  openBtn?.setAttribute("aria-expanded", "false");
+  const closeDelay = typeof isReducedMotionEnabled === "function" && isReducedMotionEnabled() ? 0 : MOTION_MS;
+  reactionTimeSettingsCloseTimer = setTimeout(() => {
+    modal.classList.add("hidden");
+    reactionTimeSettingsCloseTimer = null;
+  }, closeDelay);
+};
+function removeOrphanReactionTimeSettingsModals() {
+  const page = document.getElementById("page-reaction-time");
+  const inPage = page?.querySelector("#reaction-time-settings-modal");
+  const keep =
+    inPage || document.querySelector("#page-reaction-time #reaction-time-settings-modal") || document.getElementById("reaction-time-settings-modal");
+  document.querySelectorAll("#reaction-time-settings-modal").forEach((node) => {
+    if (keep && node !== keep) node.remove();
+  });
+}
+function bindReactionTimeColorInputs(modal, signal) {
+  if (!modal) return;
+  const onColorPick = (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || !input.classList.contains("reaction-time-color-input")) return;
+    if (!modal.contains(input)) return;
+    const state = reactionTimeColorStateFromInput(input);
+    if (!state) return;
+    const theme = getReactionTimeColorTheme();
+    const bg = reactionTimeNormalizeHex(input.value, REACTION_TIME_DEFAULT_PANEL_COLORS[state]);
+    input.value = bg;
+    theme[state] = reactionTimeDeriveStateColors(bg);
+    commitReactionTimeColorTheme(theme);
+  };
+  const opts = signal ? { signal } : undefined;
+  modal.addEventListener("input", onColorPick, opts);
+  modal.addEventListener("change", onColorPick, opts);
+}
+function initReactionTimeSettingsModal(mountSignal) {
+  removeOrphanReactionTimeSettingsModals();
+  const modal = document.getElementById("reaction-time-settings-modal");
+  const openBtn = document.getElementById("reaction-time-settings-open");
+  const closeBtn = document.getElementById("reaction-time-settings-close");
+  const backdrop = document.getElementById("reaction-time-settings-backdrop");
+  const defaultsBtn = document.getElementById("reaction-time-colors-default");
+  if (!modal || !openBtn) return;
+  const signal = mountSignal || undefined;
+  const open = () => {
+    clearTimeout(reactionTimeSettingsCloseTimer);
+    reactionTimeSettingsCloseTimer = null;
+    portalAppModalToBody(modal);
+    syncReactionTimeSettingsModalUi();
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("settings-modal-open");
+    if (typeof isReducedMotionEnabled !== "function" || !isReducedMotionEnabled()) void modal.offsetHeight;
+    modal.classList.add("is-open");
+    openBtn.setAttribute("aria-expanded", "true");
+    closeBtn?.focus();
+  };
+  const close = () => {
+    persistReactionTimeColorsFromInputs();
+    window.closeReactionTimeSettingsModal();
+  };
+  openBtn.addEventListener("click", open, signal ? { signal } : undefined);
+  closeBtn?.addEventListener("click", close, signal ? { signal } : undefined);
+  backdrop?.addEventListener("click", close, signal ? { signal } : undefined);
+  modal.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape") close();
+    },
+    signal ? { signal } : undefined
+  );
+  bindReactionTimeColorInputs(modal, signal);
+  defaultsBtn?.addEventListener(
+    "click",
+    () => {
+      const defaults = reactionTimeDefaultColorTheme();
+      const theme = getReactionTimeColorTheme();
+      REACTION_TIME_COLOR_STATES.forEach((state) => {
+        theme[state] = defaults[state];
+      });
+      commitReactionTimeColorTheme(theme);
+      syncReactionTimeColorInputs(theme);
+    },
+    signal ? { signal } : undefined
+  );
+}
+const REACTION_TIME_POP_MEAN_MS = 273;
+const REACTION_TIME_POP_SIGMA_MS = 47;
+const REACTION_TIME_CHART_MIN_MS = 130;
+const REACTION_TIME_CHART_MAX_MS = 470;
+const REACTION_TIME_CHART_BIN_MS = 10;
+function reactionTimeNormalPdf(x, mu, sigma) {
+  const z = (x - mu) / sigma;
+  return (Math.exp(-0.5 * z * z) / (sigma * Math.sqrt(2 * Math.PI)));
+}
+function msToReactionChartX(ms, plotX, plotW) {
+  const span = REACTION_TIME_CHART_MAX_MS - REACTION_TIME_CHART_MIN_MS;
+  const t = (ms - REACTION_TIME_CHART_MIN_MS) / span;
+  return plotX + Math.max(0, Math.min(1, t)) * plotW;
+}
+function reactionTimeScoreColor(ms) {
+  if (ms <= 220) return "#4caf50";
+  if (ms <= 280) return "#94a3b8";
+  if (ms <= 340) return "#f59e0b";
+  return "#ff1e43";
+}
+function renderReactionTimeDistributionChart(avgMs) {
+  const svg = document.getElementById("reaction-time-distribution-svg");
+  if (!svg) return;
+  const w = 560;
+  const h = 168;
+  const pad = { l: 36, r: 16, t: 22, b: 28 };
+  const plotW = w - pad.l - pad.r;
+  const plotH = h - pad.t - pad.b;
+  const bins = [];
+  let peak = 0;
+  for (let ms = REACTION_TIME_CHART_MIN_MS; ms <= REACTION_TIME_CHART_MAX_MS; ms += REACTION_TIME_CHART_BIN_MS) {
+    const density = reactionTimeNormalPdf(ms, REACTION_TIME_POP_MEAN_MS, REACTION_TIME_POP_SIGMA_MS);
+    bins.push({ ms, density });
+    if (density > peak) peak = density;
+  }
+  const barW = plotW / bins.length;
+  const parts = [
+    `<rect width="${w}" height="${h}" fill="transparent"/>`,
+    `<line x1="${pad.l}" y1="${pad.t + plotH}" x2="${pad.l + plotW}" y2="${pad.t + plotH}" stroke="#26262b" stroke-width="1"/>`
+  ];
+  bins.forEach((bin, i) => {
+    const barH = peak > 0 ? (bin.density / peak) * (plotH - 6) : 0;
+    const x = pad.l + i * barW;
+    const y = pad.t + plotH - barH;
+    parts.push(
+      `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${(barW - 0.75).toFixed(2)}" height="${barH.toFixed(2)}" fill="#3f3f46" rx="1"/>`
+    );
+  });
+  const medianX = msToReactionChartX(REACTION_TIME_POP_MEAN_MS, pad.l, plotW);
+  parts.push(
+    `<line x1="${medianX.toFixed(2)}" y1="${pad.t}" x2="${medianX.toFixed(2)}" y2="${pad.t + plotH}" stroke="#64748b" stroke-width="1" stroke-dasharray="4 3"/>`,
+    `<text x="${medianX.toFixed(2)}" y="${h - 8}" text-anchor="middle" fill="#64748b" font-size="10" font-family="inherit">273</text>`
+  );
+  for (let tick = 150; tick <= 450; tick += 100) {
+    if (tick === 273) continue;
+    const tx = msToReactionChartX(tick, pad.l, plotW);
+    parts.push(
+      `<text x="${tx.toFixed(2)}" y="${h - 8}" text-anchor="middle" fill="#64748b" font-size="10" font-family="inherit">${tick}</text>`
+    );
+  }
+  if (avgMs != null) {
+    const userX = msToReactionChartX(avgMs, pad.l, plotW);
+    parts.push(
+      `<line x1="${userX.toFixed(2)}" y1="${pad.t}" x2="${userX.toFixed(2)}" y2="${pad.t + plotH}" stroke="#ff1e43" stroke-width="2"/>`,
+      `<text x="${userX.toFixed(2)}" y="10" text-anchor="middle" dominant-baseline="hanging" fill="#ff1e43" font-size="10" font-weight="600" font-family="inherit">YOU ${avgMs}</text>`
+    );
+    svg.setAttribute(
+      "aria-label",
+      `Typical reaction speed distribution with your average at ${avgMs} milliseconds`
+    );
+  } else {
+    svg.setAttribute("aria-label", "Typical human reaction speed distribution");
+  }
+  svg.innerHTML = parts.join("");
+}
+function reactionTimeNiceAxisBounds(min, max) {
+  const span = Math.max(40, max - min);
+  const step = span <= 80 ? 20 : span <= 160 ? 40 : span <= 320 ? 50 : 100;
+  const ymin = Math.floor((min - step * 0.5) / step) * step;
+  const ymax = Math.ceil((max + step * 0.5) / step) * step;
+  return { ymin: Math.max(80, ymin), ymax: Math.max(ymin + step, ymax), step };
+}
+function reactionTimeHistoryTicks(ymin, ymax, step) {
+  const ticks = [];
+  for (let v = ymin; v <= ymax + step * 0.001; v += step) ticks.push(Math.round(v));
+  return ticks;
+}
+function reactionTimeHistoryY(ms, ymin, ymax, padT, plotH) {
+  const span = ymax - ymin;
+  const t = span > 0 ? (ms - ymin) / span : 0.5;
+  return padT + plotH - Math.max(0, Math.min(1, t)) * plotH;
+}
+function reactionTimeHistoryX(index, count, padL, plotW) {
+  if (count <= 1) return padL + plotW / 2;
+  return padL + (index / (count - 1)) * plotW;
+}
+const REACTION_TIME_HISTORY_EMPTY_AXIS = { ymin: 180, ymax: 360, step: 40 };
+function renderReactionTimeHistoryChart(scores) {
+  const svg = document.getElementById("reaction-time-history-svg");
+  if (!svg) return;
+  const w = 560;
+  const h = 168;
+  const pad = { l: 40, r: 12, t: 14, b: 28 };
+  const plotW = w - pad.l - pad.r;
+  const plotH = h - pad.t - pad.b;
+  const slots = Math.min(scores.length, 40);
+  const slice = scores.slice(-slots);
+  const axis =
+    slice.length > 0
+      ? reactionTimeNiceAxisBounds(Math.min(...slice), Math.max(...slice))
+      : REACTION_TIME_HISTORY_EMPTY_AXIS;
+  const ticks = reactionTimeHistoryTicks(axis.ymin, axis.ymax, axis.step);
+  const parts = [
+    `<rect width="${w}" height="${h}" fill="transparent"/>`,
+    `<line x1="${pad.l}" y1="${pad.t + plotH}" x2="${pad.l + plotW}" y2="${pad.t + plotH}" stroke="#26262b" stroke-width="1"/>`,
+    `<line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t + plotH}" stroke="#26262b" stroke-width="1"/>`
+  ];
+  ticks.forEach((tick) => {
+    const y = reactionTimeHistoryY(tick, axis.ymin, axis.ymax, pad.t, plotH);
+    parts.push(
+      `<line x1="${pad.l}" y1="${y.toFixed(2)}" x2="${pad.l + plotW}" y2="${y.toFixed(2)}" stroke="#1f1f23" stroke-width="1"/>`,
+      `<text x="${(pad.l - 6).toFixed(2)}" y="${(y + 3).toFixed(2)}" text-anchor="end" fill="#64748b" font-size="10" font-family="inherit">${tick}</text>`
+    );
+  });
+  const points = slice.map((ms, i) => ({
+    ms,
+    x: reactionTimeHistoryX(i, slice.length, pad.l, plotW),
+    y: reactionTimeHistoryY(ms, axis.ymin, axis.ymax, pad.t, plotH)
+  }));
+  if (points.length > 1) {
+    const polyline = points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+    parts.push(`<polyline points="${polyline}" fill="none" stroke="#475569" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`);
+  }
+  const avg = meanReactionTimeMs(scores);
+  if (avg != null) {
+    const ay = reactionTimeHistoryY(avg, axis.ymin, axis.ymax, pad.t, plotH);
+    parts.push(
+      `<line x1="${pad.l}" y1="${ay.toFixed(2)}" x2="${pad.l + plotW}" y2="${ay.toFixed(2)}" stroke="#ff1e43" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.9"/>`,
+      `<text x="${(pad.l + plotW - 2).toFixed(2)}" y="${(ay - 4).toFixed(2)}" text-anchor="end" fill="#ff1e43" font-size="10" font-weight="600" font-family="inherit">AVG ${avg}</text>`
+    );
+  }
+  points.forEach((p, i) => {
+    const attempt = scores.length - slice.length + i + 1;
+    parts.push(
+      `<circle class="reaction-time-chart-point" data-attempt="${attempt}" data-ms="${p.ms}" cx="${p.x.toFixed(2)}" cy="${p.y.toFixed(2)}" r="4" fill="${reactionTimeScoreColor(p.ms)}" stroke="#131317" stroke-width="2" tabindex="-1"/>`
+    );
+  });
+  parts.push(
+    `<text x="${(pad.l + plotW / 2).toFixed(2)}" y="${h - 8}" text-anchor="middle" fill="#475569" font-size="10" font-family="inherit">Attempt</text>`,
+    `<text x="${(pad.l - 30).toFixed(2)}" y="${(pad.t + plotH / 2).toFixed(2)}" text-anchor="middle" fill="#475569" font-size="10" font-family="inherit" transform="rotate(-90 ${pad.l - 30} ${pad.t + plotH / 2})">ms</text>`
+  );
+  svg.innerHTML = parts.join("");
+  svg.setAttribute(
+    "aria-label",
+    slice.length
+      ? `Line graph of your last ${slice.length} reaction times in milliseconds`
+      : "Empty line graph for your reaction times in milliseconds"
+  );
+}
+function renderReactionTimeCharts(scores) {
+  const avg = meanReactionTimeMs(scores);
+  renderReactionTimeHistoryChart(scores);
+  renderReactionTimeDistributionChart(avg);
+}
+let reactionTimeChartTooltipTarget = null;
+function ensureReactionTimeChartTooltip() {
+  let tip = document.getElementById("reaction-time-chart-tooltip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "reaction-time-chart-tooltip";
+    tip.className = "cafe-ui-tooltip reaction-time-chart-tooltip tooltip-closed hidden";
+    tip.setAttribute("role", "tooltip");
+    tip.setAttribute("aria-hidden", "true");
+    document.body.appendChild(tip);
+  }
+  return tip;
+}
+function hideReactionTimeChartTooltip() {
+  const tip = document.getElementById("reaction-time-chart-tooltip");
+  reactionTimeChartTooltipTarget = null;
+  hideCafeTooltip(tip);
+}
+function positionReactionTimeChartTooltip(target) {
+  const tip = document.getElementById("reaction-time-chart-tooltip");
+  if (!tip || !target) return;
+  const rect = target.getBoundingClientRect();
+  tip.style.left = `${rect.left + rect.width / 2}px`;
+  tip.style.top = `${rect.top - 4}px`;
+  tip.style.transform = "translate(-50%, -100%)";
+}
+function showReactionTimeChartTooltip(target) {
+  const tip = ensureReactionTimeChartTooltip();
+  const attempt = target.getAttribute("data-attempt") || "";
+  const ms = target.getAttribute("data-ms") || "";
+  tip.textContent = `Attempt ${attempt}: ${ms} ms`;
+  const layout = () => positionReactionTimeChartTooltip(target);
+  tip.setAttribute("aria-hidden", "false");
+  reactionTimeChartTooltipTarget = target;
+  revealCafeTooltip(tip, layout);
+}
+function bindReactionTimeChartTooltips() {
+  const svg = document.getElementById("reaction-time-history-svg");
+  if (!svg || svg.dataset.chartTipBound === "1") return;
+  svg.dataset.chartTipBound = "1";
+  const onPointerOver = (event) => {
+    const point = event.target.closest?.(".reaction-time-chart-point");
+    if (!point || !svg.contains(point)) {
+      if (reactionTimeChartTooltipTarget) hideReactionTimeChartTooltip();
+      return;
+    }
+    if (reactionTimeChartTooltipTarget === point) {
+      positionReactionTimeChartTooltip(point);
+      return;
+    }
+    showReactionTimeChartTooltip(point);
+  };
+  const onPointerOut = (event) => {
+    const point = event.target.closest?.(".reaction-time-chart-point");
+    if (!point || reactionTimeChartTooltipTarget !== point) return;
+    const next = event.relatedTarget;
+    if (next && (point === next || point.contains(next))) return;
+    hideReactionTimeChartTooltip();
+  };
+  svg.addEventListener("pointerover", onPointerOver);
+  svg.addEventListener("pointerout", onPointerOut);
+  svg.addEventListener("pointerleave", hideReactionTimeChartTooltip);
+  const onScroll = () => {
+    if (!reactionTimeChartTooltipTarget) return;
+    positionReactionTimeChartTooltip(reactionTimeChartTooltipTarget);
+  };
+  window.addEventListener("scroll", onScroll, true);
+  window.addEventListener("resize", onScroll);
+  svg._reactionChartTipOver = onPointerOver;
+  svg._reactionChartTipOut = onPointerOut;
+  svg._reactionChartTipLeave = hideReactionTimeChartTooltip;
+  svg._reactionChartTipScroll = onScroll;
+}
+function unbindReactionTimeChartTooltips() {
+  hideReactionTimeChartTooltip();
+  const svg = document.getElementById("reaction-time-history-svg");
+  if (!svg || svg.dataset.chartTipBound !== "1") return;
+  if (svg._reactionChartTipOver) svg.removeEventListener("pointerover", svg._reactionChartTipOver);
+  if (svg._reactionChartTipOut) svg.removeEventListener("pointerout", svg._reactionChartTipOut);
+  if (svg._reactionChartTipLeave) svg.removeEventListener("pointerleave", svg._reactionChartTipLeave);
+  if (svg._reactionChartTipScroll) {
+    window.removeEventListener("scroll", svg._reactionChartTipScroll, true);
+    window.removeEventListener("resize", svg._reactionChartTipScroll);
+  }
+  delete svg._reactionChartTipOver;
+  delete svg._reactionChartTipOut;
+  delete svg._reactionChartTipLeave;
+  delete svg._reactionChartTipScroll;
+  delete svg.dataset.chartTipBound;
+}
+function loadReactionTimeScores() {
+  try {
+    const raw = localStorage.getItem(REACTION_TIME_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((n) => typeof n === "number" && Number.isFinite(n) && n > 0 && n < 6e4);
+  } catch {
+    return [];
+  }
+}
+function saveReactionTimeScores(scores) {
+  try {
+    localStorage.setItem(REACTION_TIME_STORAGE_KEY, JSON.stringify(scores.slice(-REACTION_TIME_MAX_SAVED)));
+  } catch {
+  }
+}
+function meanReactionTimeMs(scores) {
+  if (!scores.length) return null;
+  const sum = scores.reduce((acc, n) => acc + n, 0);
+  return Math.round(sum / scores.length);
+}
+function renderReactionTimeStats(scores) {
+  const avgEl = document.getElementById("reaction-time-average");
+  const attemptsEl = document.getElementById("reaction-time-attempts");
+  if (attemptsEl) attemptsEl.textContent = String(scores.length);
+  if (!avgEl) return;
+  const avg = meanReactionTimeMs(scores);
+  avgEl.textContent = avg != null ? `${avg} ms` : "0 ms";
+  renderReactionTimeCharts(scores);
+}
+function syncReactionTimeResetButton(scores) {
+  const resetBtn = document.getElementById("reaction-time-reset");
+  if (resetBtn) resetBtn.disabled = !scores.length;
+}
+function setReactionTimeArenaState(arena, primaryEl, secondaryEl, mode, primaryText, secondaryText, scoreMode) {
+  arena.classList.remove(
+    "reaction-time-arena--idle",
+    "reaction-time-arena--wait",
+    "reaction-time-arena--go",
+    "reaction-time-arena--result",
+    "reaction-time-arena--early"
+  );
+  arena.classList.add(`reaction-time-arena--${mode}`);
+  primaryEl.classList.toggle("reaction-time-primary--score", Boolean(scoreMode));
+  primaryEl.textContent = primaryText;
+  if (secondaryText) {
+    secondaryEl.hidden = false;
+    secondaryEl.textContent = secondaryText;
+  } else {
+    secondaryEl.hidden = true;
+    secondaryEl.textContent = "";
+  }
+}
+function initReactionTimeTest() {
+  if (window.__reactionTimeMounted) return;
+  const arena = document.getElementById("reaction-time-arena");
+  const primaryEl = document.getElementById("reaction-time-primary");
+  const secondaryEl = document.getElementById("reaction-time-secondary");
+  if (!arena || !primaryEl || !secondaryEl) return;
+  window.__reactionTimeMountAbort?.abort();
+  window.__reactionTimeMountAbort = new AbortController();
+  const mountSignal = window.__reactionTimeMountAbort.signal;
+  refreshReactionTimeColorThemeFromStorage();
+  initReactionTimeSettingsModal(mountSignal);
+  const scores = loadReactionTimeScores();
+  renderReactionTimeStats(scores);
+  syncReactionTimeResetButton(scores);
+  bindReactionTimeChartTooltips();
+  const resetBtn = document.getElementById("reaction-time-reset");
+  let phase = "idle";
+  let waitTimer = null;
+  let goStamp = 0;
+  let goArmed = false;
+  let suppressNextArenaClick = false;
+  const clearWaitTimer = () => {
+    if (waitTimer != null) {
+      clearTimeout(waitTimer);
+      waitTimer = null;
+    }
+  };
+  const randomWaitMs = () =>
+    REACTION_TIME_MIN_DELAY_MS + Math.random() * (REACTION_TIME_MAX_DELAY_MS - REACTION_TIME_MIN_DELAY_MS);
+  const toIdle = () => {
+    phase = "idle";
+    clearWaitTimer();
+    goArmed = false;
+    goStamp = 0;
+    suppressNextArenaClick = false;
+    setReactionTimeArenaState(arena, primaryEl, secondaryEl, "idle", "Click anywhere to start", "", false);
+  };
+  const armGoStimulus = () => {
+    goArmed = false;
+    goStamp = 0;
+    setReactionTimeArenaState(arena, primaryEl, secondaryEl, "go", "Click!", "", false);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (phase !== "go") return;
+        goStamp = performance.now();
+        goArmed = true;
+      });
+    });
+  };
+  const startWait = () => {
+    phase = "wait";
+    clearWaitTimer();
+    setReactionTimeArenaState(arena, primaryEl, secondaryEl, "wait", "Wait for green\u2026", "", false);
+    waitTimer = setTimeout(() => {
+      waitTimer = null;
+      if (phase !== "wait") return;
+      phase = "go";
+      armGoStimulus();
+    }, randomWaitMs());
+  };
+  const showEarly = () => {
+    phase = "early";
+    goArmed = false;
+    clearWaitTimer();
+    setReactionTimeArenaState(arena, primaryEl, secondaryEl, "early", "Too soon!", "Click to try again", false);
+  };
+  const showResult = (ms) => {
+    phase = "result";
+    goArmed = false;
+    scores.push(ms);
+    saveReactionTimeScores(scores);
+    renderReactionTimeStats(scores);
+    syncReactionTimeResetButton(scores);
+    setReactionTimeArenaState(arena, primaryEl, secondaryEl, "result", `${ms} ms`, "Click to continue", true);
+  };
+  const onResetScores = (event) => {
+    event.stopPropagation();
+    if (!scores.length) return;
+    scores.length = 0;
+    saveReactionTimeScores(scores);
+    renderReactionTimeStats(scores);
+    syncReactionTimeResetButton(scores);
+    clearWaitTimer();
+    toIdle();
+  };
+  const recordGoReaction = () => {
+    if (phase !== "go" || !goArmed) return false;
+    const ms = Math.max(0, Math.round(performance.now() - goStamp));
+    showResult(ms);
+    return true;
+  };
+  const onArenaActivate = (event) => {
+    if (event.type === "keydown") {
+      if (event.key !== " " && event.key !== "Enter") return;
+      event.preventDefault();
+    }
+    if (event.type === "click" && suppressNextArenaClick) {
+      suppressNextArenaClick = false;
+      return;
+    }
+    if (phase === "go") {
+      recordGoReaction();
+      return;
+    }
+    if (phase === "idle" || phase === "result" || phase === "early") {
+      startWait();
+      return;
+    }
+    if (phase === "wait") {
+      showEarly();
+    }
+  };
+  const onArenaPointerDown = (event) => {
+    if (event.button !== 0) return;
+    if (phase === "go" && goArmed) {
+      event.preventDefault();
+      if (recordGoReaction()) suppressNextArenaClick = true;
+    }
+  };
+  arena.addEventListener("pointerdown", onArenaPointerDown, { signal: mountSignal });
+  arena.addEventListener("click", onArenaActivate);
+  arena.addEventListener("keydown", onArenaActivate);
+  if (resetBtn) resetBtn.addEventListener("click", onResetScores);
+  const teardown = () => {
+    clearWaitTimer();
+    unbindReactionTimeChartTooltips();
+    window.closeReactionTimeSettingsModal?.();
+    window.__reactionTimeMountAbort?.abort();
+    window.__reactionTimeMountAbort = undefined;
+    const settingsModal = document.getElementById("reaction-time-settings-modal");
+    if (settingsModal?.parentNode === document.body) settingsModal.remove();
+    window.__reactionTimeColorTheme = undefined;
+    arena.removeEventListener("pointerdown", onArenaPointerDown);
+    arena.removeEventListener("click", onArenaActivate);
+    arena.removeEventListener("keydown", onArenaActivate);
+    if (resetBtn) resetBtn.removeEventListener("click", onResetScores);
+    REACTION_TIME_COLOR_STATES.forEach((state) => {
+      arena.style.removeProperty(`--rt-${state}-bg`);
+      arena.style.removeProperty(`--rt-${state}-border`);
+      arena.style.removeProperty(`--rt-${state}-fg`);
+    });
+    window.__reactionTimeMounted = false;
+    window.teardownReactionTimePage = undefined;
+    toIdle();
+  };
+  window.teardownReactionTimePage = teardown;
+  window.__reactionTimeMounted = true;
+  toIdle();
+}
+const CPS_TESTER_STORAGE_KEY = "cafe-cps-scores-v1";
+const CPS_TESTER_DURATION_KEY = "cafe-cps-duration-v1";
+const CPS_TESTER_MAX_SAVED = 50;
+const CPS_TESTER_DEFAULT_DURATION_SEC = 5;
+const CPS_TESTER_DURATION_OPTIONS = [1, 2, 5, 10, 15, 30, 60];
+const CPS_TESTER_RESULT_COOLDOWN_MS = 2000;
+let cpsTesterSettingsCloseTimer = null;
+function loadCpsTesterDurationSec() {
+  try {
+    const raw = localStorage.getItem(CPS_TESTER_DURATION_KEY);
+    const n = Number(raw);
+    if (CPS_TESTER_DURATION_OPTIONS.includes(n)) return n;
+  } catch {
+  }
+  return CPS_TESTER_DEFAULT_DURATION_SEC;
+}
+function saveCpsTesterDurationSec(sec) {
+  try {
+    localStorage.setItem(CPS_TESTER_DURATION_KEY, String(sec));
+  } catch {
+  }
+}
+window.closeCpsTesterSettingsModal = function closeCpsTesterSettingsModal() {
+  const modal = document.getElementById("cps-tester-settings-modal");
+  const openBtn = document.getElementById("cps-tester-settings-open");
+  if (!modal) return;
+  if (modal.classList.contains("hidden")) return;
+  clearTimeout(cpsTesterSettingsCloseTimer);
+  cpsTesterSettingsCloseTimer = null;
+  modal.classList.remove("is-open");
+  modal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("settings-modal-open");
+  openBtn?.setAttribute("aria-expanded", "false");
+  const closeDelay = typeof isReducedMotionEnabled === "function" && isReducedMotionEnabled() ? 0 : MOTION_MS;
+  cpsTesterSettingsCloseTimer = setTimeout(() => {
+    modal.classList.add("hidden");
+    cpsTesterSettingsCloseTimer = null;
+  }, closeDelay);
+};
+function removeOrphanCpsTesterSettingsModals() {
+  const page = document.getElementById("page-cps-tester");
+  const inPage = page?.querySelector("#cps-tester-settings-modal");
+  const keep =
+    inPage || document.querySelector("#page-cps-tester #cps-tester-settings-modal") || document.getElementById("cps-tester-settings-modal");
+  document.querySelectorAll("#cps-tester-settings-modal").forEach((node) => {
+    if (keep && node !== keep) node.remove();
+  });
+}
+function initCpsTesterSettingsModal(mountSignal, beforeOpen, onClosePersist) {
+  removeOrphanCpsTesterSettingsModals();
+  const modal = document.getElementById("cps-tester-settings-modal");
+  const openBtn = document.getElementById("cps-tester-settings-open");
+  const closeBtn = document.getElementById("cps-tester-settings-close");
+  const backdrop = document.getElementById("cps-tester-settings-backdrop");
+  if (!modal || !openBtn) return;
+  const signal = mountSignal || undefined;
+  const open = () => {
+    if (openBtn.disabled) return;
+    clearTimeout(cpsTesterSettingsCloseTimer);
+    cpsTesterSettingsCloseTimer = null;
+    portalAppModalToBody(modal);
+    beforeOpen?.();
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("settings-modal-open");
+    if (typeof isReducedMotionEnabled !== "function" || !isReducedMotionEnabled()) void modal.offsetHeight;
+    modal.classList.add("is-open");
+    openBtn.setAttribute("aria-expanded", "true");
+    closeBtn?.focus();
+  };
+  const close = () => {
+    onClosePersist?.();
+    window.closeCpsTesterSettingsModal();
+  };
+  openBtn.addEventListener("click", open, signal ? { signal } : undefined);
+  closeBtn?.addEventListener("click", close, signal ? { signal } : undefined);
+  backdrop?.addEventListener("click", close, signal ? { signal } : undefined);
+  modal.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape") close();
+    },
+    signal ? { signal } : undefined
+  );
+}
+function loadCpsTesterScores() {
+  try {
+    const raw = localStorage.getItem(CPS_TESTER_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry) => entry && typeof entry.cps === "number" && Number.isFinite(entry.cps))
+      .slice(-CPS_TESTER_MAX_SAVED);
+  } catch {
+    return [];
+  }
+}
+function saveCpsTesterScores(scores) {
+  try {
+    localStorage.setItem(CPS_TESTER_STORAGE_KEY, JSON.stringify(scores.slice(-CPS_TESTER_MAX_SAVED)));
+  } catch {
+  }
+}
+function formatCpsValue(cps) {
+  const n = Number(cps);
+  if (!Number.isFinite(n)) return "—";
+  return n.toFixed(1);
+}
+function renderCpsTesterStats(scores) {
+  const bestEl = document.getElementById("cps-tester-best");
+  const attemptsEl = document.getElementById("cps-tester-attempts");
+  if (!bestEl || !attemptsEl) return;
+  attemptsEl.textContent = String(scores.length);
+  if (!scores.length) {
+    bestEl.textContent = "0";
+    return;
+  }
+  const best = scores.reduce((max, entry) => (entry.cps > max ? entry.cps : max), 0);
+  bestEl.textContent = formatCpsValue(best);
+}
+function syncCpsTesterResetButton(scores) {
+  const resetBtn = document.getElementById("cps-tester-reset");
+  if (!resetBtn) return;
+  resetBtn.disabled = !scores.length;
+}
+function setCpsTesterArenaState(arena, primaryEl, secondaryEl, mode, primaryText, secondaryText, scoreMode) {
+  arena.classList.remove("cps-tester-arena--idle", "cps-tester-arena--active", "cps-tester-arena--result");
+  arena.classList.add(`cps-tester-arena--${mode}`);
+  primaryEl.classList.toggle("cps-tester-primary--score", Boolean(scoreMode));
+  primaryEl.textContent = primaryText;
+  if (secondaryText) {
+    secondaryEl.hidden = false;
+    secondaryEl.textContent = secondaryText;
+  } else {
+    secondaryEl.hidden = true;
+    secondaryEl.textContent = "";
+  }
+}
+function initCpsTester() {
+  if (window.__cpsTesterMounted) return;
+  const arena = document.getElementById("cps-tester-arena");
+  const primaryEl = document.getElementById("cps-tester-primary");
+  const secondaryEl = document.getElementById("cps-tester-secondary");
+  const liveTimerEl = document.getElementById("cps-tester-live-timer");
+  const liveCpsEl = document.getElementById("cps-tester-live-cps");
+  const liveScoreEl = document.getElementById("cps-tester-live-score");
+  const cooldownEl = document.getElementById("cps-tester-cooldown");
+  const cooldownBarEl = document.getElementById("cps-tester-cooldown-bar");
+  const durationGlide = document.getElementById("cps-tester-duration-glide");
+  const resetBtn = document.getElementById("cps-tester-reset");
+  const settingsOpenBtn = document.getElementById("cps-tester-settings-open");
+  if (!arena || !primaryEl || !secondaryEl || !liveTimerEl || !liveCpsEl || !liveScoreEl || !durationGlide) return;
+  window.__cpsTesterMountAbort?.abort();
+  window.__cpsTesterMountAbort = new AbortController();
+  const mountSignal = window.__cpsTesterMountAbort.signal;
+  const scores = loadCpsTesterScores();
+  renderCpsTesterStats(scores);
+  syncCpsTesterResetButton(scores);
+  let phase = "idle";
+  let durationSec = loadCpsTesterDurationSec();
+  let clicks = 0;
+  let startedAt = 0;
+  let endAt = 0;
+  let tickTimer = null;
+  let cooldownTimer = null;
+  let resultUnlockAt = 0;
+  let lastResultCpsLabel = "";
+  const setCooldownBarVisible = (active) => {
+    arena.classList.toggle("cps-tester-arena--cooldown", active);
+    if (cooldownEl) {
+      cooldownEl.hidden = !active;
+      cooldownEl.setAttribute("aria-hidden", active ? "false" : "true");
+    }
+  };
+  const resetCooldownBarFill = () => {
+    if (!cooldownBarEl) return;
+    cooldownBarEl.style.transition = "none";
+    cooldownBarEl.style.transform = "scaleX(1)";
+  };
+  const syncLiveMetrics = () => {
+    if (phase === "idle") {
+      liveTimerEl.textContent = "0";
+      liveCpsEl.textContent = "0";
+      liveScoreEl.textContent = "0";
+      return;
+    }
+    if (phase === "running") {
+      const left = Math.max(0, (endAt - performance.now()) / 1000);
+      const elapsed = Math.max(0.001, (performance.now() - startedAt) / 1000);
+      liveTimerEl.textContent = left <= 0 ? "0" : left.toFixed(1);
+      liveScoreEl.textContent = String(clicks);
+      liveCpsEl.textContent = formatCpsValue(clicks / elapsed);
+      return;
+    }
+    if (phase === "result") {
+      liveTimerEl.textContent = "0";
+      liveScoreEl.textContent = String(clicks);
+      liveCpsEl.textContent = formatCpsValue(clicks / durationSec);
+    }
+  };
+  const syncCpsDurationGlide = (instant = true) => {
+    if (!durationGlide) return;
+    durationGlide.dataset.value = String(durationSec);
+    syncGlideSelector(durationGlide, { instant });
+  };
+  const persistCpsDurationFromState = () => {
+    if (!CPS_TESTER_DURATION_OPTIONS.includes(durationSec)) return;
+    saveCpsTesterDurationSec(durationSec);
+  };
+  const readCpsDurationFromGlide = () => {
+    if (!durationGlide) return null;
+    const next = Number(durationGlide.dataset.value);
+    return CPS_TESTER_DURATION_OPTIONS.includes(next) ? next : null;
+  };
+  const applyCpsDurationFromGlide = () => {
+    if (phase === "running" || !durationGlide) return;
+    const next = readCpsDurationFromGlide();
+    if (next == null) return;
+    durationSec = next;
+    persistCpsDurationFromState();
+    if (phase === "idle") {
+      setCpsTesterArenaState(arena, primaryEl, secondaryEl, "idle", "Click anywhere to start", "", false);
+    }
+  };
+  const setDurationControlsEnabled = (enabled) => {
+    if (!durationGlide) return;
+    durationGlide.classList.toggle("glide-selector--locked", !enabled);
+    durationGlide.querySelectorAll(".glide-selector-option").forEach((btn) => {
+      btn.disabled = !enabled;
+    });
+    if (settingsOpenBtn) settingsOpenBtn.disabled = !enabled;
+  };
+  durationGlide.dataset.value = String(durationSec);
+  initGlideSelectorRoot(durationGlide, {
+    valueKey: "cpsDuration",
+    onChange: applyCpsDurationFromGlide
+  });
+  syncCpsDurationGlide(true);
+  persistCpsDurationFromState();
+  initCpsTesterSettingsModal(
+    mountSignal,
+    () => {
+      durationSec = loadCpsTesterDurationSec();
+      syncCpsDurationGlide(true);
+    },
+    applyCpsDurationFromGlide
+  );
+  const clearTickTimer = () => {
+    if (tickTimer != null) {
+      clearInterval(tickTimer);
+      tickTimer = null;
+    }
+  };
+  const clearCooldownTimer = () => {
+    if (cooldownTimer != null) {
+      clearTimeout(cooldownTimer);
+      cooldownTimer = null;
+    }
+    setCooldownBarVisible(false);
+    resetCooldownBarFill();
+  };
+  const canStartAfterResult = () => phase === "result" && performance.now() >= resultUnlockAt;
+  const beginResultCooldown = (cpsLabel) => {
+    clearCooldownTimer();
+    lastResultCpsLabel = cpsLabel;
+    const reducedMotion = typeof isReducedMotionEnabled === "function" && isReducedMotionEnabled();
+    const cooldownMs = reducedMotion ? 0 : CPS_TESTER_RESULT_COOLDOWN_MS;
+    resultUnlockAt = performance.now() + cooldownMs;
+    setCpsTesterArenaState(arena, primaryEl, secondaryEl, "result", cpsLabel, "Click to continue", true);
+    if (cooldownMs <= 0) return;
+    setCooldownBarVisible(true);
+    resetCooldownBarFill();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (phase !== "result" || !cooldownBarEl) return;
+        cooldownBarEl.style.transition = `transform ${cooldownMs}ms linear`;
+        cooldownBarEl.style.transform = "scaleX(0)";
+      });
+    });
+    cooldownTimer = setTimeout(() => {
+      cooldownTimer = null;
+      if (phase !== "result") return;
+      setCooldownBarVisible(false);
+      resetCooldownBarFill();
+    }, cooldownMs);
+  };
+  const updateTimerDisplay = () => {
+    if (phase !== "running") return;
+    const left = Math.max(0, (endAt - performance.now()) / 1000);
+    syncLiveMetrics();
+    if (left <= 0) finishRun();
+  };
+  const toIdle = () => {
+    phase = "idle";
+    clearTickTimer();
+    clearCooldownTimer();
+    resultUnlockAt = 0;
+    clicks = 0;
+    setDurationControlsEnabled(true);
+    syncLiveMetrics();
+    setCpsTesterArenaState(arena, primaryEl, secondaryEl, "idle", "Click anywhere to start", "", false);
+  };
+  const finishRun = () => {
+    if (phase !== "running") return;
+    phase = "result";
+    clearTickTimer();
+    setDurationControlsEnabled(true);
+    const cps = clicks / durationSec;
+    scores.push({
+      cps,
+      clicks,
+      durationSec,
+      at: Date.now()
+    });
+    saveCpsTesterScores(scores);
+    renderCpsTesterStats(scores);
+    syncCpsTesterResetButton(scores);
+    const cpsLabel = formatCpsValue(cps);
+    syncLiveMetrics();
+    beginResultCooldown(`${cpsLabel} CPS`);
+  };
+  const startRun = (initialClicks = 0) => {
+    clearCooldownTimer();
+    resultUnlockAt = 0;
+    const glideDuration = readCpsDurationFromGlide();
+    if (glideDuration != null) durationSec = glideDuration;
+    persistCpsDurationFromState();
+    phase = "running";
+    clicks = initialClicks;
+    startedAt = performance.now();
+    endAt = startedAt + durationSec * 1000;
+    setDurationControlsEnabled(false);
+    syncLiveMetrics();
+    tickTimer = setInterval(updateTimerDisplay, 50);
+    setCpsTesterArenaState(arena, primaryEl, secondaryEl, "active", "Keep clicking!", "", false);
+  };
+  const registerClick = () => {
+    if (phase === "idle") {
+      startRun(1);
+      return;
+    }
+    if (phase === "result") {
+      if (!canStartAfterResult()) return;
+      startRun(1);
+      return;
+    }
+    if (phase !== "running") return;
+    clicks += 1;
+    syncLiveMetrics();
+  };
+  const onArenaPointerDown = (event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    registerClick();
+  };
+  const onResetScores = (event) => {
+    event.stopPropagation();
+    if (!scores.length) return;
+    scores.length = 0;
+    saveCpsTesterScores(scores);
+    renderCpsTesterStats(scores);
+    syncCpsTesterResetButton(scores);
+    clearTickTimer();
+    toIdle();
+  };
+  const onArenaKeyDown = (event) => {
+    if (event.key !== " " && event.key !== "Enter") return;
+    event.preventDefault();
+    registerClick();
+  };
+  arena.addEventListener("pointerdown", onArenaPointerDown, { signal: mountSignal });
+  arena.addEventListener("keydown", onArenaKeyDown, { signal: mountSignal });
+  arena.addEventListener("contextmenu", (event) => event.preventDefault(), { signal: mountSignal });
+  if (resetBtn) resetBtn.addEventListener("click", onResetScores, { signal: mountSignal });
+  const teardown = () => {
+    clearTickTimer();
+    clearCooldownTimer();
+    window.closeCpsTesterSettingsModal?.();
+    window.__cpsTesterMountAbort?.abort();
+    window.__cpsTesterMountAbort = undefined;
+    const settingsModal = document.getElementById("cps-tester-settings-modal");
+    if (settingsModal?.parentNode === document.body) settingsModal.remove();
+    unbindGlideSelectorRoot(durationGlide);
+    window.__cpsTesterMounted = false;
+    window.teardownCpsTesterPage = undefined;
+    toIdle();
+  };
+  window.teardownCpsTesterPage = teardown;
+  window.__cpsTesterMounted = true;
+  toIdle();
+}
 async function initBottleneckChecker() {
   initBottleneckResolutionGlide();
   initToolPicklistDismiss();
@@ -4470,6 +5628,7 @@ function isAppModalCloseButton(btn) {
   const id = btn.id || "";
   if (id.endsWith("-modal-close")) return true;
   if (id === "aim-trainer-settings-close") return true;
+  if (id === "reaction-time-settings-close") return true;
   return false;
 }
 function hideModalCloseTooltip() {
@@ -4891,6 +6050,9 @@ function applyFlyoutMenuContent(type) {
   if (!contentEl || !flyoutData[type]) return;
   const indicatorMarkup = flyoutIndicator ? flyoutIndicator.outerHTML : "";
   contentEl.innerHTML = indicatorMarkup + flyoutItemsForMenu(type).map((item) => {
+    if (item.type === "divider") {
+      return `<div class="flyout-divider" role="separator" aria-hidden="true"></div>`;
+    }
     const navDisabled = !item.href && isFlyoutItemNavDisabled(item.id);
     const isSelected = !item.href && !navDisabled && selectedFlyoutItem === item.id;
     const iconFamily = item.iconFamily || "fa-solid";
@@ -5635,6 +6797,16 @@ function initModalEscapeClose() {
     const aimSettingsModal = document.getElementById("aim-trainer-settings-modal");
     if (aimSettingsModal && aimSettingsModal.classList.contains("is-open")) {
       window.AimTrainerSettings?.close?.();
+      return;
+    }
+    const reactionSettingsModal = document.getElementById("reaction-time-settings-modal");
+    if (reactionSettingsModal && reactionSettingsModal.classList.contains("is-open")) {
+      window.closeReactionTimeSettingsModal?.();
+      return;
+    }
+    const cpsSettingsModal = document.getElementById("cps-tester-settings-modal");
+    if (cpsSettingsModal && cpsSettingsModal.classList.contains("is-open")) {
+      window.closeCpsTesterSettingsModal?.();
       return;
     }
     const notificationDropdownEl = document.getElementById("notification-dropdown");

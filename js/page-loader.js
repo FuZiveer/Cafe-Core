@@ -12,7 +12,12 @@
     sensitivity: "pages/sensitivity.html",
     edpi: "pages/edpi.html",
     lineups: "pages/lineups.html",
-    "aim-trainer": "pages/aim-trainer.html"
+    "aim-trainer": "pages/aim-trainer.html",
+    "reaction-time": "pages/reaction-time.html",
+    "cps-tester": "pages/cps-tester.html",
+    "mpr-tester": "pages/mpr-tester.html",
+    "keyboard-checker": "pages/keyboard-checker.html",
+    "wifi-speed": "pages/wifi-speed.html"
   });
   const htmlCache = new Map();
   const mountPromises = new Map();
@@ -25,19 +30,19 @@
     const inFlight = scriptLoadPromises.get(src);
     if (inFlight) return inFlight;
     const promise = new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = src;
-      s.defer = true;
-      s.onload = () => {
+      const scriptElement = document.createElement("script");
+      scriptElement.src = src;
+      scriptElement.defer = true;
+      scriptElement.onload = () => {
         loadedScripts.add(src);
         scriptLoadPromises.delete(src);
         resolve();
       };
-      s.onerror = () => {
+      scriptElement.onerror = () => {
         scriptLoadPromises.delete(src);
         reject(new Error("Failed to load " + src));
       };
-      document.body.appendChild(s);
+      document.body.appendChild(scriptElement);
     });
     scriptLoadPromises.set(src, promise);
     return promise;
@@ -108,6 +113,15 @@
     if (pageKey === "aim-trainer") {
       await ensureAimTrainerScripts();
     }
+    if (pageKey === "mpr-tester") {
+      await ensureMprTesterScripts();
+    }
+    if (pageKey === "keyboard-checker") {
+      await ensureKeyboardCheckerScripts();
+    }
+    if (pageKey === "wifi-speed") {
+      await ensureWifiSpeedScripts();
+    }
   }
   async function preparePageForMount(pageKey) {
     if (!mainPagePaths[pageKey]) return;
@@ -124,6 +138,24 @@
     });
     preparePromises.set(pageKey, promise);
     return promise;
+  }
+  async function ensureKeyboardCheckerScripts() {
+    if (typeof window.initKeyboardCheckerPage !== "function") {
+      await loadScript("js/keyboard-checker.js");
+    }
+  }
+  async function ensureWifiSpeedScripts() {
+    if (typeof window.initWifiSpeedPage !== "function") {
+      await loadScript("js/wifi-speed.js");
+    }
+  }
+  async function ensureMprTesterScripts() {
+    if (typeof window.MprPollingEngine === "undefined") {
+      await loadScript("js/mpr-polling-engine.js");
+    }
+    if (typeof window.initMprTesterPage !== "function") {
+      await loadScript("js/mpr-tester.js");
+    }
   }
   async function ensureAimTrainerScripts() {
     if (typeof SENS_GAMES_CATALOG === "undefined") {
@@ -170,15 +202,15 @@
       const html = await fetchPageHtml(pageKey);
       const host = Dom.byId("main-content");
       if (!host) throw new Error("#main-content missing");
-      const tpl = document.createElement("template");
-      tpl.innerHTML = html.trim();
-      const el = tpl.content.firstElementChild;
-      if (!el) throw new Error("Empty page fragment: " + pageKey);
-      host.appendChild(el);
+      const htmlTemplate = document.createElement("template");
+      htmlTemplate.innerHTML = html.trim();
+      const pageElement = htmlTemplate.content.firstElementChild;
+      if (!pageElement) throw new Error("Empty page fragment: " + pageKey);
+      host.appendChild(pageElement);
       if (typeof window.initMainPage === "function") {
         void window.initMainPage(pageKey);
       }
-      return el;
+      return pageElement;
     })();
     mountPromises.set(pageKey, promise);
     try {
