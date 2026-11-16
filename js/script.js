@@ -20,11 +20,11 @@ const flyoutData = coreFreeze({
       { type: "divider" },
       { id: "tool-reaction", name: "RT Checker", icon: "fa-stopwatch" },
       { id: "tool-cps", name: "CPS Checker", icon: "fa-computer-mouse" },
-      { id: "tool-mpr", name: "MPR Checker", icon: "fa-gauge-high" },
+      { id: "tool-mpr", name: "MPR Checker", icon: "fa-wave-square" },
       { type: "divider" },
       { id: "tool-bottleneck", name: "Bottleneck Checker", icon: "fa-microchip" },
       { id: "tool-keyboard", name: "Keyboard Checker", icon: "fa-keyboard" },
-      { id: "tool-wifi-speed", name: "Wifi Speed Test", icon: "fa-wifi" }
+      { id: "tool-wifi-speed", name: "Wifi Speed Checker", icon: "fa-wifi" }
         ]
     },
     strats: {
