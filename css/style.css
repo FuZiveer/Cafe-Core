@@ -6353,6 +6353,11 @@ html.reduce-motion .cps-tester-cooldown-bar {
 }
 .wifi-speed-live {
   font-variant-numeric: tabular-nums;
+  opacity: 1;
+}
+.cps-tester-arena--active .wifi-speed-live.cps-tester-primary--score {
+  opacity: 1;
+  color: #fff;
 }
 .keyboard-checker-zone {
   container-type: inline-size;

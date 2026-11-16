@@ -14,8 +14,12 @@
     return p === "http:" || p === "https:";
   }
 
+  const WIFI_SPEED_IDLE_DOWNLOAD = "0 Mbps";
+  const WIFI_SPEED_IDLE_UPLOAD = "0 Mbps";
+  const WIFI_SPEED_IDLE_LATENCY = "0 ms";
+
   function formatMbps(bitsPerSecond) {
-    if (!Number.isFinite(bitsPerSecond) || bitsPerSecond <= 0) return "—";
+    if (!Number.isFinite(bitsPerSecond) || bitsPerSecond <= 0) return WIFI_SPEED_IDLE_DOWNLOAD;
     const mbps = bitsPerSecond / 1e6;
     if (mbps >= 100) return `${Math.round(mbps)} Mbps`;
     if (mbps >= 10) return `${mbps.toFixed(1)} Mbps`;
@@ -23,7 +27,7 @@
   }
 
   function formatLatency(ms) {
-    if (!Number.isFinite(ms) || ms <= 0) return "—";
+    if (!Number.isFinite(ms) || ms <= 0) return WIFI_SPEED_IDLE_LATENCY;
     return `${Math.round(ms)} ms`;
   }
 
@@ -249,6 +253,12 @@
     let isTestRunning = false;
     let phaseProgressTimer = null;
 
+    const resetWifiSpeedStatsToIdle = () => {
+      downloadEl.textContent = WIFI_SPEED_IDLE_DOWNLOAD;
+      uploadEl.textContent = WIFI_SPEED_IDLE_UPLOAD;
+      latencyEl.textContent = WIFI_SPEED_IDLE_LATENCY;
+    };
+
     const resetProgressBarFill = () => {
       if (!progressBar) return;
       progressBar.style.transition = "none";
@@ -283,24 +293,38 @@
       }, ms);
     };
 
-    const showLive = (show, text) => {
+    const hideLiveSpeed = () => {
       if (!live) return;
-      live.classList.toggle("hidden", !show);
-      live.setAttribute("aria-hidden", show ? "false" : "true");
-      if (show && text != null) live.textContent = text;
-      if (show) {
-        primary.classList.add("hidden");
-        primary.hidden = true;
-        secondary.hidden = true;
+      live.classList.add("hidden");
+      live.classList.remove("cps-tester-primary--score");
+      live.hidden = true;
+      live.setAttribute("aria-hidden", "true");
+    };
+
+    const showLiveSpeed = (text, phaseLabel) => {
+      if (!live) return;
+      live.classList.remove("hidden");
+      live.classList.add("cps-tester-primary--score");
+      live.hidden = false;
+      live.setAttribute("aria-hidden", "false");
+      if (text != null) live.textContent = text;
+      primary.classList.add("hidden");
+      primary.hidden = true;
+      if (secondary) {
+        secondary.hidden = !phaseLabel;
+        secondary.textContent = phaseLabel || "";
       }
     };
 
-    const setPhaseLabel = (text) => {
+    const setPhaseLabel = (text, subtext) => {
+      hideLiveSpeed();
       primary.hidden = false;
       primary.classList.remove("hidden");
       primary.textContent = text;
-      secondary.hidden = true;
-      secondary.textContent = "";
+      if (secondary) {
+        secondary.hidden = !subtext;
+        secondary.textContent = subtext || "";
+      }
     };
 
     const resetUiForRun = () => {
@@ -311,23 +335,25 @@
       progressWrap.hidden = false;
       progressWrap.setAttribute("aria-hidden", "false");
       resetProgressBarFill();
-      showLive(false);
+      hideLiveSpeed();
       setArenaState(arena, "running");
-      arena.disabled = true;
     };
 
-    const finishUi = (message) => {
+    const returnArenaToIdle = (errorSubtext) => {
       isTestRunning = false;
-      arena.disabled = false;
-      setArenaState(arena, "done");
+      setArenaState(arena, "idle");
       clearPhaseProgressTimer();
       progressWrap.hidden = true;
       progressWrap.setAttribute("aria-hidden", "true");
       resetProgressBarFill();
-      showLive(false);
+      hideLiveSpeed();
+      primary.hidden = false;
       primary.classList.remove("hidden");
-      primary.textContent = message || "Click to test again";
-      secondary.hidden = true;
+      primary.textContent = "Click to start";
+      if (secondary) {
+        secondary.hidden = !errorSubtext;
+        secondary.textContent = errorSubtext || "";
+      }
     };
 
     const runTest = async () => {
@@ -351,45 +377,35 @@
         latencyEl.textContent = formatLatency(latency);
 
         arena.classList.add("wifi-speed-arena--download");
-        showLive(true, "—");
+        showLiveSpeed(WIFI_SPEED_IDLE_DOWNLOAD, "Measuring download");
         startSmoothPhaseProgress(PHASE_DURATION_MS);
         const downloadBps = await measureDownload(testAbortSignal, PHASE_DURATION_MS, (bps) =>
-          showLive(true, formatMbps(bps))
+          showLiveSpeed(formatMbps(bps), "Measuring download")
         );
         downloadEl.textContent = formatMbps(downloadBps);
 
         arena.classList.remove("wifi-speed-arena--download");
         arena.classList.add("wifi-speed-arena--upload");
+        showLiveSpeed(WIFI_SPEED_IDLE_UPLOAD, "Measuring upload");
         startSmoothPhaseProgress(PHASE_DURATION_MS);
         const uploadBps = await measureUpload(testAbortSignal, PHASE_DURATION_MS, (bps) =>
-          showLive(true, formatMbps(bps))
+          showLiveSpeed(formatMbps(bps), "Measuring upload")
         );
         uploadEl.textContent = formatMbps(uploadBps);
 
-        finishUi("Test complete — click to run again");
+        returnArenaToIdle();
       } catch (err) {
         if (err?.name === "AbortError") {
-          isTestRunning = false;
-          arena.disabled = false;
-          setArenaState(arena, "idle");
-          progressWrap.hidden = true;
-          showLive(false);
-          primary.classList.remove("hidden");
-          primary.textContent = "Click to start speed test";
-          secondary.hidden = true;
-          downloadEl.textContent = "—";
-          uploadEl.textContent = "—";
-          latencyEl.textContent = "—";
+          resetWifiSpeedStatsToIdle();
+          returnArenaToIdle();
           return;
         }
-        finishUi("Test failed — click to retry");
-        secondary.hidden = false;
-        secondary.textContent =
+        const errorSubtext =
           err?.message === "Failed to fetch" || err?.message?.includes("fetch")
             ? "Network blocked or unreachable. Check connection, VPN, or ad blockers."
             : "Something went wrong during the test.";
-        downloadEl.textContent = "—";
-        uploadEl.textContent = "—";
+        resetWifiSpeedStatsToIdle();
+        returnArenaToIdle(errorSubtext);
       } finally {
         arena.classList.remove("wifi-speed-arena--download", "wifi-speed-arena--upload");
       }

@@ -7,9 +7,9 @@
                         </div>
                         <div class="wifi-speed-wrap flex flex-col gap-3 min-w-0">
                             <button type="button" id="wifi-speed-arena" class="cps-tester-arena wifi-speed-arena ui-interactive cps-tester-arena--idle w-full min-h-[14rem] sm:min-h-[18rem] flex flex-col items-center justify-center text-center p-8 pb-10 select-none touch-manipulation" aria-live="polite">
-                                <p id="wifi-speed-primary" class="cps-tester-primary wifi-speed-primary text-lg sm:text-xl font-semibold tracking-wide leading-snug max-w-md">Click to start speed test</p>
+                                <p id="wifi-speed-primary" class="cps-tester-primary wifi-speed-primary text-lg sm:text-xl font-semibold tracking-wide leading-snug max-w-md">Click to start</p>
                                 <p id="wifi-speed-live" class="cps-tester-primary wifi-speed-live text-4xl sm:text-5xl font-bold tabular-nums leading-none mt-2 hidden" aria-hidden="true">—</p>
-                                <p id="wifi-speed-secondary" class="cps-tester-secondary wifi-speed-secondary text-sm tracking-wide mt-2 opacity-90 max-w-md" hidden></p>
+                                <p id="wifi-speed-secondary" class="cps-tester-secondary wifi-speed-secondary text-sm tracking-wide mt-2 max-w-md" hidden></p>
                                 <div id="wifi-speed-progress" class="cps-tester-cooldown wifi-speed-progress" hidden aria-hidden="true">
                                     <div class="cps-tester-cooldown-track">
                                         <div id="wifi-speed-progress-bar" class="cps-tester-cooldown-bar wifi-speed-progress-bar"></div>
@@ -20,15 +20,15 @@
                                 <div class="wifi-speed-stats-row grid grid-cols-3 w-full min-w-0 gap-3 sm:gap-0 sm:divide-x sm:divide-matte-800">
                                     <div class="wifi-speed-stat bg-matte-950 rounded-lg sm:rounded-none sm:bg-transparent px-3 sm:px-4 py-3 flex flex-col items-center text-center justify-center min-h-[3.5rem]">
                                         <span class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">Download</span>
-                                        <span id="wifi-speed-download" class="wifi-speed-stat-value text-xl font-semibold text-white tabular-nums leading-none">—</span>
+                                        <span id="wifi-speed-download" class="wifi-speed-stat-value text-xl font-semibold text-white tabular-nums leading-none">0 Mbps</span>
                                     </div>
                                     <div class="wifi-speed-stat bg-matte-950 rounded-lg sm:rounded-none sm:bg-transparent px-3 sm:px-4 py-3 flex flex-col items-center text-center justify-center min-h-[3.5rem]">
                                         <span class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">Upload</span>
-                                        <span id="wifi-speed-upload" class="wifi-speed-stat-value text-xl font-semibold text-white tabular-nums leading-none">—</span>
+                                        <span id="wifi-speed-upload" class="wifi-speed-stat-value text-xl font-semibold text-white tabular-nums leading-none">0 Mbps</span>
                                     </div>
                                     <div class="wifi-speed-stat bg-matte-950 rounded-lg sm:rounded-none sm:bg-transparent px-3 sm:px-4 py-3 flex flex-col items-center text-center justify-center min-h-[3.5rem]">
                                         <span class="text-[11px] font-bold tracking-widest uppercase text-slate-500 mb-1.5">Latency</span>
-                                        <span id="wifi-speed-latency" class="wifi-speed-stat-value text-xl font-semibold text-white tabular-nums leading-none">—</span>
+                                        <span id="wifi-speed-latency" class="wifi-speed-stat-value text-xl font-semibold text-white tabular-nums leading-none">0 ms</span>
                                     </div>
                                 </div>
                             </div>

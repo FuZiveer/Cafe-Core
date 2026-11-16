@@ -3993,6 +3993,7 @@ function initReactionTimeSettingsModal(mountSignal) {
   if (!modal || !openBtn) return;
   const signal = mountSignal || undefined;
   const open = () => {
+    if (openBtn.disabled) return;
     clearTimeout(reactionTimeSettingsCloseTimer);
     reactionTimeSettingsCloseTimer = null;
     portalAppModalToBody(modal);
@@ -4358,6 +4359,11 @@ function initReactionTimeTest() {
   syncReactionTimeResetButton(scores);
   bindReactionTimeChartTooltips();
   const resetBtn = document.getElementById("reaction-time-reset");
+  const settingsOpenBtn = document.getElementById("reaction-time-settings-open");
+  const setReactionTimeSettingsEnabled = (enabled) => {
+    if (settingsOpenBtn) settingsOpenBtn.disabled = !enabled;
+    if (!enabled) window.closeReactionTimeSettingsModal?.();
+  };
   let phase = "idle";
   let waitTimer = null;
   let goStamp = 0;
@@ -4377,6 +4383,7 @@ function initReactionTimeTest() {
     goArmed = false;
     goStamp = 0;
     suppressNextArenaClick = false;
+    setReactionTimeSettingsEnabled(true);
     setReactionTimeArenaState(arena, primaryEl, secondaryEl, "idle", "Click to start", "", false);
   };
   const armGoStimulus = () => {
@@ -4394,6 +4401,7 @@ function initReactionTimeTest() {
   const startWait = () => {
     phase = "wait";
     clearWaitTimer();
+    setReactionTimeSettingsEnabled(false);
     setReactionTimeArenaState(arena, primaryEl, secondaryEl, "wait", "Wait for green\u2026", "", false);
     waitTimer = setTimeout(() => {
       waitTimer = null;
@@ -4406,11 +4414,13 @@ function initReactionTimeTest() {
     phase = "early";
     goArmed = false;
     clearWaitTimer();
+    setReactionTimeSettingsEnabled(true);
     setReactionTimeArenaState(arena, primaryEl, secondaryEl, "early", "Too soon!", "Click to try again", false);
   };
   const showResult = (ms) => {
     phase = "result";
     goArmed = false;
+    setReactionTimeSettingsEnabled(true);
     scores.push(ms);
     saveReactionTimeScores(scores);
     renderReactionTimeStats(scores);
