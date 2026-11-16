@@ -4,7 +4,7 @@
   const CLOUDFLARE_DOWNLOAD_ENDPOINT = "https://speed.cloudflare.com/__down";
   const CLOUDFLARE_UPLOAD_ENDPOINT = "https://speed.cloudflare.com/__up";
   const LATENCY_PROBE_BYTES = 1000;
-  const PHASE_DURATION_MS = 5_000;
+  const PHASE_DURATION_MS = 10_000;
   const DOWNLOAD_CHUNK_BYTES = 1_000_000;
   const UPLOAD_CHUNK_BYTES = 2_000_000;
   const LABEL_MEASURING_DOWNLOAD = "Measuring download...";
@@ -112,80 +112,83 @@
     return samples.length % 2 ? samples[mid] : (samples[mid - 1] + samples[mid]) / 2;
   }
 
-  const THROUGHPUT_LIVE_WINDOW_MS = 300;
+  const THROUGHPUT_SAMPLE_INTERVAL_MS = 1_000;
 
   function createThroughputTracker(onLiveBps) {
     const started = performance.now();
     let totalBytes = 0;
-    let windowBytes = 0;
-    let windowStart = performance.now();
-    const windowSamples = [];
+    let intervalBytes = 0;
+    let intervalStart = performance.now();
+    let closed = false;
 
-    const emitWindowRate = (now) => {
-      const dtMs = now - windowStart;
-      if (dtMs < 16 || windowBytes <= 0) return;
-      const bps = (windowBytes * 8) / (dtMs / 1000);
-      windowSamples.push(bps);
+    const emitIntervalRate = (now) => {
+      if (closed) return;
+      const dtMs = now - intervalStart;
+      const seconds = Math.max(dtMs / 1000, 0.001);
+      const bps = intervalBytes > 0 ? (intervalBytes * 8) / seconds : 0;
       onLiveBps?.(bps);
-      windowBytes = 0;
-      windowStart = now;
+      intervalBytes = 0;
+      intervalStart = now;
+    };
+
+    const intervalId = setInterval(() => {
+      emitIntervalRate(performance.now());
+    }, THROUGHPUT_SAMPLE_INTERVAL_MS);
+
+    const stop = () => {
+      if (closed) return;
+      closed = true;
+      clearInterval(intervalId);
     };
 
     const addBytes = (byteCount) => {
-      if (byteCount <= 0) return;
-      const now = performance.now();
+      if (byteCount <= 0 || closed) return;
       totalBytes += byteCount;
-      windowBytes += byteCount;
-      const dtMs = now - windowStart;
-      if (dtMs >= THROUGHPUT_LIVE_WINDOW_MS) {
-        emitWindowRate(now);
-        return;
-      }
-      if (dtMs >= 16) {
-        onLiveBps?.((windowBytes * 8) / (dtMs / 1000));
-      }
+      intervalBytes += byteCount;
     };
 
     const finalize = () => {
+      stop();
       const now = performance.now();
-      emitWindowRate(now);
-      const sessionBps = (totalBytes * 8) / Math.max((now - started) / 1000, 0.001);
-      if (!windowSamples.length) return sessionBps;
-      const sum = windowSamples.reduce((acc, n) => acc + n, 0);
-      return sum / windowSamples.length;
+      const elapsedSec = Math.max((now - started) / 1000, 0.001);
+      return (totalBytes * 8) / elapsedSec;
     };
 
-    return { addBytes, finalize };
+    return { addBytes, finalize, stop };
   }
 
   async function measureDownload(signal, durationMs, onLiveBps) {
     const deadline = performance.now() + durationMs;
     const tracker = createThroughputTracker(onLiveBps);
     const stillMeasuring = () => performance.now() < deadline;
+    let phaseBps = 0;
 
-    while (stillMeasuring()) {
-      if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const remaining = deadline - performance.now();
-      if (remaining < 80) break;
-      const linked = linkAbortWithTimeout(signal, remaining);
-      try {
-        const res = await fetch(`${CLOUDFLARE_DOWNLOAD_ENDPOINT}?bytes=${DOWNLOAD_CHUNK_BYTES}&r=${Math.random()}`, {
-          method: "GET",
-          cache: "no-store",
-          signal: linked.signal
-        });
-        if (!res.ok) throw new Error("Download failed");
-        await readResponseBytes(res, tracker.addBytes, stillMeasuring);
-      } catch (err) {
-        if (signal.aborted) throw err;
-        if (stillMeasuring() && err?.name !== "AbortError") throw err;
-        break;
-      } finally {
-        linked.cancel();
+    try {
+      while (stillMeasuring()) {
+        if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+        const remaining = deadline - performance.now();
+        if (remaining < 80) break;
+        const linked = linkAbortWithTimeout(signal, remaining);
+        try {
+          const res = await fetch(`${CLOUDFLARE_DOWNLOAD_ENDPOINT}?bytes=${DOWNLOAD_CHUNK_BYTES}&r=${Math.random()}`, {
+            method: "GET",
+            cache: "no-store",
+            signal: linked.signal
+          });
+          if (!res.ok) throw new Error("Download failed");
+          await readResponseBytes(res, tracker.addBytes, stillMeasuring);
+        } catch (err) {
+          if (signal.aborted) throw err;
+          if (stillMeasuring() && err?.name !== "AbortError") throw err;
+          break;
+        } finally {
+          linked.cancel();
+        }
       }
+    } finally {
+      phaseBps = tracker.finalize();
     }
-
-    return tracker.finalize();
+    return phaseBps;
   }
 
   async function measureUpload(signal, durationMs, onLiveBps) {
@@ -193,33 +196,37 @@
     const deadline = performance.now() + durationMs;
     const tracker = createThroughputTracker(onLiveBps);
     const stillMeasuring = () => performance.now() < deadline;
+    let phaseBps = 0;
 
-    while (stillMeasuring()) {
-      if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-      const remaining = deadline - performance.now();
-      if (remaining < 80) break;
-      const linked = linkAbortWithTimeout(signal, remaining);
-      try {
-        const res = await fetch(`${CLOUDFLARE_UPLOAD_ENDPOINT}?r=${Math.random()}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/octet-stream" },
-          body: payload,
-          cache: "no-store",
-          signal: linked.signal
-        });
-        if (!res.ok) throw new Error("Upload failed");
-        await res.arrayBuffer();
-        tracker.addBytes(payload.byteLength);
-      } catch (err) {
-        if (signal.aborted) throw err;
-        if (stillMeasuring() && err?.name !== "AbortError") throw err;
-        break;
-      } finally {
-        linked.cancel();
+    try {
+      while (stillMeasuring()) {
+        if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+        const remaining = deadline - performance.now();
+        if (remaining < 80) break;
+        const linked = linkAbortWithTimeout(signal, remaining);
+        try {
+          const res = await fetch(`${CLOUDFLARE_UPLOAD_ENDPOINT}?r=${Math.random()}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/octet-stream" },
+            body: payload,
+            cache: "no-store",
+            signal: linked.signal
+          });
+          if (!res.ok) throw new Error("Upload failed");
+          await res.arrayBuffer();
+          tracker.addBytes(payload.byteLength);
+        } catch (err) {
+          if (signal.aborted) throw err;
+          if (stillMeasuring() && err?.name !== "AbortError") throw err;
+          break;
+        } finally {
+          linked.cancel();
+        }
       }
+    } finally {
+      phaseBps = tracker.finalize();
     }
-
-    return tracker.finalize();
+    return phaseBps;
   }
 
   function setArenaState(arena, state) {
@@ -367,18 +374,22 @@
         arena.classList.add("wifi-speed-arena--download");
         showLiveSpeed(WIFI_SPEED_IDLE_DOWNLOAD, LABEL_MEASURING_DOWNLOAD);
         startSmoothPhaseProgress(PHASE_DURATION_MS);
-        const downloadBps = await measureDownload(testAbortSignal, PHASE_DURATION_MS, (bps) =>
-          showLiveSpeed(formatMbps(bps), LABEL_MEASURING_DOWNLOAD)
-        );
+        const downloadBps = await measureDownload(testAbortSignal, PHASE_DURATION_MS, (bps) => {
+          const label = formatMbps(bps);
+          showLiveSpeed(label, LABEL_MEASURING_DOWNLOAD);
+          downloadEl.textContent = label;
+        });
         downloadEl.textContent = formatMbps(downloadBps);
 
         arena.classList.remove("wifi-speed-arena--download");
         arena.classList.add("wifi-speed-arena--upload");
         showLiveSpeed(WIFI_SPEED_IDLE_UPLOAD, LABEL_MEASURING_UPLOAD);
         startSmoothPhaseProgress(PHASE_DURATION_MS);
-        const uploadBps = await measureUpload(testAbortSignal, PHASE_DURATION_MS, (bps) =>
-          showLiveSpeed(formatMbps(bps), LABEL_MEASURING_UPLOAD)
-        );
+        const uploadBps = await measureUpload(testAbortSignal, PHASE_DURATION_MS, (bps) => {
+          const label = formatMbps(bps);
+          showLiveSpeed(label, LABEL_MEASURING_UPLOAD);
+          uploadEl.textContent = label;
+        });
         uploadEl.textContent = formatMbps(uploadBps);
 
         returnArenaToIdle();
