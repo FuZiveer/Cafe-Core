@@ -7,7 +7,8 @@
   const PHASE_DURATION_MS = 5_000;
   const DOWNLOAD_CHUNK_BYTES = 1_000_000;
   const UPLOAD_CHUNK_BYTES = 2_000_000;
-  const LIVE_SPEED_UPDATE_INTERVAL_MS = 200;
+  const LABEL_MEASURING_DOWNLOAD = "Measuring download...";
+  const LABEL_MEASURING_UPLOAD = "Measuring upload...";
 
   function canRunNetworkTest() {
     const p = location.protocol;
@@ -111,23 +112,55 @@
     return samples.length % 2 ? samples[mid] : (samples[mid - 1] + samples[mid]) / 2;
   }
 
-  async function measureDownload(signal, durationMs, onInstantMbps) {
-    const started = performance.now();
-    const deadline = started + durationMs;
-    let totalBytes = 0;
-    let lastTick = started;
-    let windowBytes = 0;
+  const THROUGHPUT_LIVE_WINDOW_MS = 300;
 
-    const pushTick = () => {
+  function createThroughputTracker(onLiveBps) {
+    const started = performance.now();
+    let totalBytes = 0;
+    let windowBytes = 0;
+    let windowStart = performance.now();
+    const windowSamples = [];
+
+    const emitWindowRate = (now) => {
+      const dtMs = now - windowStart;
+      if (dtMs < 16 || windowBytes <= 0) return;
+      const bps = (windowBytes * 8) / (dtMs / 1000);
+      windowSamples.push(bps);
+      onLiveBps?.(bps);
+      windowBytes = 0;
+      windowStart = now;
+    };
+
+    const addBytes = (byteCount) => {
+      if (byteCount <= 0) return;
       const now = performance.now();
-      const dt = now - lastTick;
-      if (dt >= LIVE_SPEED_UPDATE_INTERVAL_MS && windowBytes > 0) {
-        onInstantMbps?.((windowBytes * 8) / (dt / 1000));
-        windowBytes = 0;
-        lastTick = now;
+      totalBytes += byteCount;
+      windowBytes += byteCount;
+      const dtMs = now - windowStart;
+      if (dtMs >= THROUGHPUT_LIVE_WINDOW_MS) {
+        emitWindowRate(now);
+        return;
+      }
+      if (dtMs >= 16) {
+        onLiveBps?.((windowBytes * 8) / (dtMs / 1000));
       }
     };
 
+    const finalize = () => {
+      const now = performance.now();
+      emitWindowRate(now);
+      const sessionBps = (totalBytes * 8) / Math.max((now - started) / 1000, 0.001);
+      if (!windowSamples.length) return sessionBps;
+      const sum = windowSamples.reduce((acc, n) => acc + n, 0);
+      return sum / windowSamples.length;
+    };
+
+    return { addBytes, finalize };
+  }
+
+  async function measureDownload(signal, durationMs, onLiveBps) {
+    const deadline = performance.now() + durationMs;
+    const tracker = createThroughputTracker(onLiveBps);
     const stillMeasuring = () => performance.now() < deadline;
 
     while (stillMeasuring()) {
@@ -142,16 +175,7 @@
           signal: linked.signal
         });
         if (!res.ok) throw new Error("Download failed");
-        const chunkBytes = await readResponseBytes(
-          res,
-          (increment) => {
-            windowBytes += increment;
-            pushTick();
-          },
-          stillMeasuring
-        );
-        totalBytes += chunkBytes;
-        pushTick();
+        await readResponseBytes(res, tracker.addBytes, stillMeasuring);
       } catch (err) {
         if (signal.aborted) throw err;
         if (stillMeasuring() && err?.name !== "AbortError") throw err;
@@ -161,18 +185,13 @@
       }
     }
 
-    const seconds = Math.max((performance.now() - started) / 1000, 0.001);
-    return (totalBytes * 8) / seconds;
+    return tracker.finalize();
   }
 
-  async function measureUpload(signal, durationMs, onInstantMbps) {
+  async function measureUpload(signal, durationMs, onLiveBps) {
     const payload = new Uint8Array(UPLOAD_CHUNK_BYTES);
-    const started = performance.now();
-    const deadline = started + durationMs;
-    let totalBytes = 0;
-    let lastTick = started;
-    let windowBytes = 0;
-
+    const deadline = performance.now() + durationMs;
+    const tracker = createThroughputTracker(onLiveBps);
     const stillMeasuring = () => performance.now() < deadline;
 
     while (stillMeasuring()) {
@@ -180,7 +199,6 @@
       const remaining = deadline - performance.now();
       if (remaining < 80) break;
       const linked = linkAbortWithTimeout(signal, remaining);
-      const chunkStart = performance.now();
       try {
         const res = await fetch(`${CLOUDFLARE_UPLOAD_ENDPOINT}?r=${Math.random()}`, {
           method: "POST",
@@ -191,19 +209,7 @@
         });
         if (!res.ok) throw new Error("Upload failed");
         await res.arrayBuffer();
-        totalBytes += payload.byteLength;
-
-        const chunkMs = performance.now() - chunkStart;
-        windowBytes += payload.byteLength;
-        const now = performance.now();
-        if (now - lastTick >= LIVE_SPEED_UPDATE_INTERVAL_MS) {
-          const bps = (windowBytes * 8) / ((now - lastTick) / 1000);
-          onInstantMbps?.(bps);
-          windowBytes = 0;
-          lastTick = now;
-        } else if (chunkMs > 0) {
-          onInstantMbps?.((payload.byteLength * 8) / (chunkMs / 1000));
-        }
+        tracker.addBytes(payload.byteLength);
       } catch (err) {
         if (signal.aborted) throw err;
         if (stillMeasuring() && err?.name !== "AbortError") throw err;
@@ -213,8 +219,7 @@
       }
     }
 
-    const seconds = Math.max((performance.now() - started) / 1000, 0.001);
-    return (totalBytes * 8) / seconds;
+    return tracker.finalize();
   }
 
   function setArenaState(arena, state) {
@@ -316,31 +321,17 @@
       }
     };
 
-    const setPhaseLabel = (text, subtext) => {
-      hideLiveSpeed();
-      primary.hidden = false;
-      primary.classList.remove("hidden");
-      primary.textContent = text;
-      if (secondary) {
-        secondary.hidden = !subtext;
-        secondary.textContent = subtext || "";
-      }
-    };
-
     const resetUiForRun = () => {
       downloadEl.textContent = "…";
       uploadEl.textContent = "…";
       latencyEl.textContent = "…";
-      setPhaseLabel("Measuring latency…");
       progressWrap.hidden = false;
       progressWrap.setAttribute("aria-hidden", "false");
       resetProgressBarFill();
-      hideLiveSpeed();
       setArenaState(arena, "running");
     };
 
     const returnArenaToIdle = (errorSubtext) => {
-      isTestRunning = false;
       setArenaState(arena, "idle");
       clearPhaseProgressTimer();
       progressWrap.hidden = true;
@@ -373,27 +364,32 @@
       resetUiForRun();
 
       try {
-        const latency = await measureLatency(testAbortSignal);
-        latencyEl.textContent = formatLatency(latency);
-
         arena.classList.add("wifi-speed-arena--download");
-        showLiveSpeed(WIFI_SPEED_IDLE_DOWNLOAD, "Measuring download");
+        showLiveSpeed(WIFI_SPEED_IDLE_DOWNLOAD, LABEL_MEASURING_DOWNLOAD);
         startSmoothPhaseProgress(PHASE_DURATION_MS);
         const downloadBps = await measureDownload(testAbortSignal, PHASE_DURATION_MS, (bps) =>
-          showLiveSpeed(formatMbps(bps), "Measuring download")
+          showLiveSpeed(formatMbps(bps), LABEL_MEASURING_DOWNLOAD)
         );
         downloadEl.textContent = formatMbps(downloadBps);
 
         arena.classList.remove("wifi-speed-arena--download");
         arena.classList.add("wifi-speed-arena--upload");
-        showLiveSpeed(WIFI_SPEED_IDLE_UPLOAD, "Measuring upload");
+        showLiveSpeed(WIFI_SPEED_IDLE_UPLOAD, LABEL_MEASURING_UPLOAD);
         startSmoothPhaseProgress(PHASE_DURATION_MS);
         const uploadBps = await measureUpload(testAbortSignal, PHASE_DURATION_MS, (bps) =>
-          showLiveSpeed(formatMbps(bps), "Measuring upload")
+          showLiveSpeed(formatMbps(bps), LABEL_MEASURING_UPLOAD)
         );
         uploadEl.textContent = formatMbps(uploadBps);
 
         returnArenaToIdle();
+
+        try {
+          const latency = await measureLatency(testAbortSignal);
+          latencyEl.textContent = formatLatency(latency);
+        } catch (latencyErr) {
+          if (latencyErr?.name === "AbortError") throw latencyErr;
+          latencyEl.textContent = WIFI_SPEED_IDLE_LATENCY;
+        }
       } catch (err) {
         if (err?.name === "AbortError") {
           resetWifiSpeedStatsToIdle();
@@ -407,6 +403,7 @@
         resetWifiSpeedStatsToIdle();
         returnArenaToIdle(errorSubtext);
       } finally {
+        isTestRunning = false;
         arena.classList.remove("wifi-speed-arena--download", "wifi-speed-arena--upload");
       }
     };
