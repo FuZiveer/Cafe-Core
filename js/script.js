@@ -519,6 +519,14 @@ async function animateDefaultPageInPlace() {
     initHomeFeatureCardTilt();
 }
 let mainPageNavQueue = Promise.resolve();
+const PAGE_PREPARE_MAX_WAIT_MS = 2500;
+function waitForPagePrepareWarm(promise) {
+  if (!promise || typeof promise.then !== "function") return Promise.resolve();
+  return Promise.race([
+    promise.catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, PAGE_PREPARE_MAX_WAIT_MS))
+  ]);
+}
 function setMainPage(pageKey, options = {}) {
   mainPageNavQueue = mainPageNavQueue.then(() => setMainPageInternal(normalizeMainPageKey(pageKey), options)).catch((error) => console.error("Main page navigation failed:", error));
     return mainPageNavQueue;
@@ -553,7 +561,7 @@ async function setMainPageInternal(pageKey, options = {}) {
       resetMainPageMotion(prevPage);
       window.pageLoader.unmountMainPageElement(prevPage);
     }
-    await pageReady;
+    await waitForPagePrepareWarm(pageReady);
     const nextPage2 = await window.pageLoader.mountMainPageElement(nextKey);
     if (!nextPage2) return;
     applyMainPageInstant(nextPage2);
@@ -573,7 +581,7 @@ async function setMainPageInternal(pageKey, options = {}) {
     resetMainPageMotion(prevPage);
     void prevPage.offsetHeight;
   prevPage.classList.add("main-page-exit");
-  await Promise.all([waitForMainPageExit(prevPage, token), pageReady]);
+  await Promise.all([waitForMainPageExit(prevPage, token), waitForPagePrepareWarm(pageReady)]);
   if (token !== mainPageAnimToken) return;
   window.pageLoader.unmountMainPageElement(prevPage);
   const nextPage = await window.pageLoader.mountMainPageElement(nextKey);
@@ -642,16 +650,34 @@ function bindHomeFeatureCardTiltLifecycle() {
     }
   });
 }
+const IMAGE_PRELOAD_TIMEOUT_MS = 1200;
+function preloadImageUrl(src, timeoutMs = IMAGE_PRELOAD_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    const done = () => resolve();
+    const loader = new Image();
+    loader.onload = loader.onerror = done;
+    loader.src = src;
+    setTimeout(done, timeoutMs);
+  });
+}
+function decodeImageWithTimeout(img, timeoutMs = IMAGE_PRELOAD_TIMEOUT_MS) {
+  if (!img || typeof img.decode !== "function") return Promise.resolve();
+  return Promise.race([
+    img.decode().catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, timeoutMs))
+  ]);
+}
 async function preloadHomeHeroMarqueeImages(track) {
   const imgs = [...track.querySelectorAll("img[src]")];
   const urls = [...new Set(imgs.map((img) => img.getAttribute("src")).filter(Boolean))];
-    await Promise.all(urls.map((src) => new Promise((resolve) => {
-        const loader = new Image();
-        loader.onload = loader.onerror = resolve;
-        loader.src = src;
-    })));
-  await Promise.all(imgs.map((img) => typeof img.decode === "function" ? img.decode().catch(() => {
-  }) : Promise.resolve()));
+  await Promise.race([
+    Promise.all(urls.map((src) => preloadImageUrl(src))),
+    new Promise((resolve) => setTimeout(resolve, IMAGE_PRELOAD_TIMEOUT_MS + 200))
+  ]);
+  await Promise.race([
+    Promise.all(imgs.map((img) => decodeImageWithTimeout(img))),
+    new Promise((resolve) => setTimeout(resolve, IMAGE_PRELOAD_TIMEOUT_MS + 200))
+  ]);
 }
 function setupHomeHeroMarqueeTrack(track) {
   const marquee = track.closest(".home-hero-marquee");
@@ -675,7 +701,9 @@ function setupHomeHeroMarqueeTrack(track) {
         track.appendChild(half.cloneNode(true));
     track.dataset.marqueeReady = "1";
     track.querySelectorAll("img[src]").forEach((img) => {
-      img.loading = "eager";
+      img.loading = "lazy";
+      img.decoding = "async";
+      if (!img.getAttribute("fetchpriority")) img.setAttribute("fetchpriority", "low");
     });
         void preloadHomeHeroMarqueeImages(track).then(() => {
       marquee.classList.add("home-hero-marquee--ready");
@@ -7381,13 +7409,11 @@ function isHomeHeroPanelImage(img) {
 }
 function applyImageLazyDefaults(img) {
   if (!img || img.tagName !== "IMG") return;
-  if (isHomeHeroPanelImage(img)) {
-    img.loading = "eager";
-    img.decoding = "async";
-    return;
-  }
   if (!img.getAttribute("loading")) img.loading = "lazy";
   if (!img.hasAttribute("decoding")) img.decoding = "async";
+  if (!img.getAttribute("fetchpriority") && !isHomeHeroPanelImage(img)) {
+    img.setAttribute("fetchpriority", "low");
+  }
 }
 function scanImageLazyDefaults(root = document) {
   const scope = root.nodeType === 1 ? root : document;

@@ -25,6 +25,7 @@
   const chunkLoadPromises = new Map();
   const loadedScripts = new Set();
   const scriptLoadPromises = new Map();
+  const PAGE_FETCH_TIMEOUT_MS = 8000;
   function loadScript(src) {
     if (loadedScripts.has(src)) return Promise.resolve();
     const inFlight = scriptLoadPromises.get(src);
@@ -33,12 +34,21 @@
       const scriptElement = document.createElement("script");
       scriptElement.src = src;
       scriptElement.defer = true;
+      if (src.includes("page-chunks/")) {
+        scriptElement.setAttribute("fetchpriority", "high");
+      }
+      const timeoutId = setTimeout(() => {
+        scriptLoadPromises.delete(src);
+        reject(new Error("Timed out loading " + src));
+      }, PAGE_FETCH_TIMEOUT_MS);
       scriptElement.onload = () => {
+        clearTimeout(timeoutId);
         loadedScripts.add(src);
         scriptLoadPromises.delete(src);
         resolve();
       };
       scriptElement.onerror = () => {
+        clearTimeout(timeoutId);
         scriptLoadPromises.delete(src);
         reject(new Error("Failed to load " + src));
       };
@@ -81,7 +91,12 @@
     if (!path) throw new Error("Unknown page: " + pageKey);
     if (isHttpProtocol()) {
       try {
-        const response = await fetch(path);
+        const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+        const timeoutId = controller
+          ? setTimeout(() => controller.abort(), PAGE_FETCH_TIMEOUT_MS)
+          : null;
+        const response = await fetch(path, controller ? { signal: controller.signal } : undefined);
+        if (timeoutId) clearTimeout(timeoutId);
         if (response.ok) {
           const text = await response.text();
           htmlCache.set(pageKey, text);
