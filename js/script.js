@@ -7,9 +7,6 @@ const MOTION_TRANSITION = CoreMotion.standardTransition;
 const INDICATOR_LAYOUT_TRANSITION = CoreMotion.indicatorLayoutTransition;
 let indicatorAnimToken = 0;
 const TIPS_AND_TRICKS_PAGE_ENABLED = window.CafeCore.Features.tipsAndTricksPage;
-const STRATS_FLYOUT_ITEMS = [
-  { id: "strat-tips", name: "Videos", icon: "fa-video" }
-];
 const flyoutData = coreFreeze({
     tools: {
     title: "Tools Menu",
@@ -26,10 +23,6 @@ const flyoutData = coreFreeze({
       { id: "tool-keyboard", name: "Keyboard Checker", icon: "fa-keyboard" },
       { id: "tool-wifi-speed", name: "Wifi Speed Checker", icon: "fa-wifi" }
         ]
-    },
-    strats: {
-    title: "Strats Menu",
-    items: STRATS_FLYOUT_ITEMS
     },
     more: {
     title: "More Menu",
@@ -49,7 +42,7 @@ const topBarLabels = coreFreeze({
   home: "Home",
   apps: "Apps",
   tools: "Tools",
-  strats: "Strats",
+  videos: "Videos",
   more: "More"
 });
 let activeFlyoutType = null;
@@ -854,13 +847,16 @@ function mainPageKeyForFlyoutItem(itemId) {
   if (itemId === "tool-mpr") return "mpr-tester";
   if (itemId === "tool-keyboard") return "keyboard-checker";
   if (itemId === "tool-wifi-speed") return "wifi-speed";
-  if (itemId === "strat-tips" || itemId === "strat-lineups") {
+  if (itemId === "tool-videos" || itemId === "strat-tips" || itemId === "strat-lineups") {
     return TIPS_AND_TRICKS_PAGE_ENABLED ? "lineups" : "default";
   }
   return "default";
 }
 function flyoutNavDisabledReason(itemId) {
-  if ((itemId === "strat-tips" || itemId === "strat-lineups") && !TIPS_AND_TRICKS_PAGE_ENABLED) {
+  if (
+    (itemId === "tool-videos" || itemId === "strat-tips" || itemId === "strat-lineups") &&
+    !TIPS_AND_TRICKS_PAGE_ENABLED
+  ) {
     return "soon";
   }
   if (itemId === "tool-aim" && isAimTrainerMobileBlocked()) return "desktop";
@@ -895,7 +891,7 @@ function applyEmptyPageNavDisabledState(root = document) {
     } else if (flyoutReason === "desktop") {
       badge.className = "home-badge home-badge--soon";
       badge.textContent = "Desktop only";
-    } else if (itemId === "strat-tips" || itemId === "tool-aim") {
+    } else if (itemId === "tool-videos" || itemId === "strat-tips" || itemId === "tool-aim") {
       badge.className = "home-badge home-badge--live";
       badge.textContent = "Functional";
     }
@@ -1015,7 +1011,7 @@ const SIDEBAR_PREFETCH_PAGES = {
   home: ["default"],
   apps: ["apps"],
   tools: ["sensitivity", "edpi", "aim-trainer", "reaction-time", "cps-tester", "mpr-tester", "bottleneck", "keyboard-checker", "wifi-speed"],
-  strats: ["lineups"],
+  videos: ["lineups"],
   more: ["branding", "fuziveer", "black-listed", "privacy", "terms"]
 };
 function warmPagesForSidebarTab(tabType) {
@@ -1139,6 +1135,16 @@ function syncNavUiForMainPage(pageKey, { animate = false } = {}) {
         setTopBarTitle(topBarLabels.apps, {
             animate,
       iconClasses: getTopBarIconClassesFromEl(appsBtn)
+        });
+        return;
+    }
+  if (pageKey === "lineups") {
+        selectedFlyoutItem = null;
+    const videosBtn = document.getElementById("btn-videos");
+    setSidebarNavActive(videosBtn, { animate });
+    setTopBarTitle(topBarLabels.videos, {
+            animate,
+      iconClasses: getTopBarIconClassesFromEl(videosBtn)
         });
         return;
     }
@@ -4967,6 +4973,7 @@ async function initBottleneckChecker() {
 }
 function mainPageKeyForSidebarTab(tabType) {
   if (tabType === "apps") return "apps";
+  if (tabType === "videos") return "lineups";
   return "default";
 }
 function renderAppCard(app) {
@@ -5349,6 +5356,22 @@ function applyTopBarIcon(iconEl, iconClasses) {
     iconEl.className = `${TOPBAR_ICON_UTILITIES} ${iconClasses}`.trim();
     currentTopBarIconClasses = iconClasses;
 }
+function applyModalTitleIcon(iconEl, iconClasses) {
+  if (!iconEl) return;
+  iconEl.className = `modal-title-icon ${TOPBAR_ICON_UTILITIES} ${iconClasses}`.trim();
+}
+function applyModalTitleContent(titleEl, iconEl, title, iconClasses) {
+  if (titleEl) titleEl.textContent = title;
+  applyModalTitleIcon(iconEl, iconClasses);
+}
+function modalTitleIconSignature(iconEl) {
+  return getTopBarIconClassesFromEl(iconEl);
+}
+function normalizeFaIconClasses(iconClasses) {
+  const probe = document.createElement("i");
+  probe.className = String(iconClasses || "");
+  return getTopBarIconClassesFromEl(probe);
+}
 function resetTopBarTitleMotion(titleRowEl) {
     if (!titleRowEl) return;
   titleRowEl.classList.remove("topbar-title-exit", "topbar-title-enter-prep");
@@ -5488,7 +5511,7 @@ function sidebarNavTooltipLabel(btn) {
   const fromLabel = btn.querySelector(".btn-label")?.textContent?.trim();
   if (fromLabel) return fromLabel;
   if (btn.id === "btn-home") return topBarLabels.home;
-  if (btn.id === "btn-strats") return topBarLabels.strats;
+  if (btn.id === "btn-videos") return topBarLabels.videos;
   if (btn.id === "btn-more") return topBarLabels.more;
   if (btn.id === "btn-settings") return "Settings";
   if (btn.id === "btn-sidebar-collapse") return isCollapsed ? "Expand" : "Collapse";
@@ -6600,7 +6623,7 @@ function applyResponsiveLayout() {
     destroyHomeFeatureCardTilt();
   } else if (currentMainPageKey === "default") {
     initHomeFeatureCardTilt();
-  }
+    }
     syncIndicatorWithSidebarToggle();
     syncMobileMenuButton();
 }
@@ -6638,6 +6661,9 @@ function setSettingsModalOpen(open) {
             syncSettingsUiRefreshGlide();
             syncSettingsTabGlider({ instant: true });
         });
+    resetFlyoutTitleMotion(document.getElementById("settings-modal-title-row"));
+    resetFlyoutSwapMotion(document.querySelector("#settings-modal .settings-modal-body"));
+    syncSettingsModalTitle(settingsTabId);
         return;
     }
   modal.classList.remove("is-open");
@@ -6664,6 +6690,147 @@ function handleSettingsClick() {
     toggleSettingsModal();
 }
 let settingsTabId = "system";
+let settingsModalTitleAnimToken = 0;
+let settingsModalBodyAnimToken = 0;
+const SETTINGS_TAB_TITLES = Object.freeze({
+  system: "System",
+  sound: "Sound"
+});
+function readTabBtnPanelLabel(btn, fallback) {
+  const label = btn?.querySelector(".settings-tab-btn-label")?.textContent?.trim();
+  return label || fallback || "";
+}
+function readTabBtnPanelIcon(btn, fallback) {
+  const icon = btn?.querySelector(".settings-tab-btn-icon");
+  if (icon) {
+    const fa = getTopBarIconClassesFromEl(icon);
+    if (fa) return fa;
+  }
+  return fallback || "fa-solid fa-gear";
+}
+function settingsTabPanelMeta(tabId) {
+  const id = tabId === "sound" ? "sound" : "system";
+  const btn = document.querySelector(`#settings-tab-row .settings-tab-btn[data-settings-tab="${id}"]`);
+  return {
+    title: readTabBtnPanelLabel(btn, SETTINGS_TAB_TITLES[id]),
+    icon: readTabBtnPanelIcon(btn, SETTINGS_TAB_ICONS[id])
+  };
+}
+const SETTINGS_TAB_ICONS = Object.freeze({
+  system: "fa-solid fa-desktop",
+  sound: "fa-solid fa-volume-high"
+});
+function waitForSettingsModalSwapExit(el, token, liveToken) {
+  return new Promise((resolve) => {
+    if (!el) {
+      resolve();
+      return;
+    }
+    const onExitEnd = (e) => {
+      if (token !== liveToken()) return;
+      if (e && e.propertyName !== "transform") return;
+      el.removeEventListener("transitionend", onExitEnd);
+      resolve();
+    };
+    el.addEventListener("transitionend", onExitEnd);
+    setTimeout(() => {
+      if (token !== liveToken()) return;
+      el.removeEventListener("transitionend", onExitEnd);
+      onExitEnd({ propertyName: "transform" });
+    }, motionTimeoutMs(MOTION_MS + 40));
+  });
+}
+function animateSettingsModalTitleSwap(nextTitle, iconClasses) {
+  const row = document.getElementById("settings-modal-title-row");
+  const titleEl = document.getElementById("settings-modal-title");
+  const iconEl = document.getElementById("settings-modal-title-icon");
+  const motionEl = row || titleEl;
+  if (!motionEl) return Promise.resolve();
+  const next = String(nextTitle || "");
+  const nextIcon = String(iconClasses || SETTINGS_TAB_ICONS.system);
+  const sameContent =
+    titleEl?.textContent === next && modalTitleIconSignature(iconEl) === normalizeFaIconClasses(nextIcon);
+  if (isReducedMotionEnabled() || sameContent) {
+    settingsModalTitleAnimToken += 1;
+    applyModalTitleContent(titleEl, iconEl, next, nextIcon);
+    resetFlyoutTitleMotion(motionEl);
+    return Promise.resolve();
+  }
+  settingsModalTitleAnimToken += 1;
+  const token = settingsModalTitleAnimToken;
+  resetFlyoutTitleMotion(motionEl);
+  void motionEl.offsetHeight;
+  motionEl.classList.add("flyout-title-exit");
+  return waitForSettingsModalSwapExit(motionEl, token, () => settingsModalTitleAnimToken).then(() => {
+    if (token !== settingsModalTitleAnimToken) return;
+    applyModalTitleContent(titleEl, iconEl, next, nextIcon);
+    motionEl.classList.remove("flyout-title-exit");
+    motionEl.classList.add("flyout-title-enter-prep");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (token !== settingsModalTitleAnimToken) return;
+        motionEl.classList.remove("flyout-title-enter-prep");
+      });
+    });
+  });
+}
+function animateSettingsModalBodySwap(bodyEl, applyFn) {
+  if (!bodyEl) {
+    applyFn?.();
+    return Promise.resolve();
+  }
+  if (isReducedMotionEnabled()) {
+    settingsModalBodyAnimToken += 1;
+    applyFn?.();
+    resetFlyoutSwapMotion(bodyEl);
+    return Promise.resolve();
+  }
+  settingsModalBodyAnimToken += 1;
+  const token = settingsModalBodyAnimToken;
+  resetFlyoutSwapMotion(bodyEl);
+  void bodyEl.offsetHeight;
+  bodyEl.classList.add("flyout-content-exit");
+  return waitForSettingsModalSwapExit(bodyEl, token, () => settingsModalBodyAnimToken).then(() => {
+    if (token !== settingsModalBodyAnimToken) return;
+    applyFn?.();
+    resetFlyoutSwapMotion(bodyEl);
+    bodyEl.classList.add("flyout-content-enter-prep");
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (token !== settingsModalBodyAnimToken) return;
+        bodyEl.classList.remove("flyout-content-enter-prep");
+      });
+    });
+  });
+}
+function syncSettingsModalTitle(tabId) {
+  const titleEl = document.getElementById("settings-modal-title");
+  const iconEl = document.getElementById("settings-modal-title-icon");
+  const row = document.getElementById("settings-modal-title-row");
+  if (!titleEl) return;
+  const id = tabId === "sound" ? "sound" : "system";
+  const { title, icon } = settingsTabPanelMeta(id);
+  applyModalTitleContent(titleEl, iconEl, title, icon);
+  resetFlyoutTitleMotion(row || titleEl);
+}
+function syncSettingsTabButtons(tabId, { instant = false, fromIndex } = {}) {
+  const id = tabId === "sound" ? "sound" : "system";
+  document.querySelectorAll(".settings-tab-btn[data-settings-tab]").forEach((btn) => {
+    const selected = btn.dataset.settingsTab === id;
+    btn.classList.toggle("active", selected);
+    btn.setAttribute("aria-selected", selected ? "true" : "false");
+  });
+  syncSettingsTabGlider({ instant, fromIndex });
+}
+function applySettingsTabContent(tabId) {
+  const id = tabId === "sound" ? "sound" : "system";
+  settingsTabId = id;
+  document.querySelectorAll(".settings-modal-section[data-settings-section]").forEach((section) => {
+    const show = section.dataset.settingsSection === id;
+    section.hidden = !show;
+    section.classList.toggle("hidden", !show);
+  });
+}
 function verticalTabGliderAnimToken(row) {
   if (!row) return 0;
   return parseInt(row.dataset.tabGliderAnimToken || "0", 10) || 0;
@@ -6681,14 +6848,15 @@ function finishVerticalTabGlider(glider, top, height) {
 }
 function animateVerticalTabGliderCross(row, glider, fromBtn, toBtn, fromIndex, toIndex) {
   const token = nextVerticalTabGliderAnimToken(row);
-    const transition = `top ${MOTION_MS}ms ${MOTION_EASE}, height ${MOTION_MS}ms ${MOTION_EASE}`;
+    const transition = `top ${MOTION_MS}ms ${MOTION_EASE}`;
     const fromTop = fromBtn.offsetTop;
     const fromH = fromBtn.offsetHeight;
     const toTop = toBtn.offsetTop;
     const toH = toBtn.offsetHeight;
+    const wrapH = fromH;
     const goingDown = toIndex > fromIndex;
-    const exitTop = goingDown ? -(fromH + 4) : row.clientHeight + 4;
-    const enterTop = goingDown ? row.clientHeight + 4 : -(toH + 4);
+    const exitTop = goingDown ? -(wrapH + 4) : row.clientHeight + 4;
+    const enterTop = goingDown ? row.clientHeight + 4 : -(wrapH + 4);
   const settleGlider = () => {
     if (verticalTabGliderAnimToken(row) !== token) return;
     finishVerticalTabGlider(glider, toTop, toH);
@@ -6698,7 +6866,7 @@ function animateVerticalTabGliderCross(row, glider, fromBtn, toBtn, fromIndex, t
   row.classList.remove("is-instant");
   glider.style.transition = "none";
     glider.style.top = `${fromTop}px`;
-    glider.style.height = `${fromH}px`;
+    glider.style.height = `${wrapH}px`;
     void glider.offsetHeight;
     glider.style.transition = transition;
     glider.style.top = `${exitTop}px`;
@@ -6708,7 +6876,7 @@ function animateVerticalTabGliderCross(row, glider, fromBtn, toBtn, fromIndex, t
     glider.removeEventListener("transitionend", onExitEnd);
     glider.style.transition = "none";
         glider.style.top = `${enterTop}px`;
-        glider.style.height = `${toH}px`;
+        glider.style.height = `${wrapH}px`;
         void glider.offsetHeight;
         requestAnimationFrame(() => {
       if (token !== verticalTabGliderAnimToken(row)) return;
@@ -6753,6 +6921,9 @@ function syncVerticalTabGlider(row, glider, { instant = false, fromIndex } = {})
   glider.style.transition = "";
     glider.style.top = `${toTop}px`;
     glider.style.height = `${toH}px`;
+  glider.style.width = "";
+  glider.style.left = "";
+  glider.style.right = "";
 }
 function syncSettingsTabGlider({ instant = false, fromIndex } = {}) {
     syncVerticalTabGlider(
@@ -6763,18 +6934,22 @@ function syncSettingsTabGlider({ instant = false, fromIndex } = {}) {
 }
 function setSettingsTab(tabId, { instant = false, fromIndex } = {}) {
   const id = tabId === "sound" ? "sound" : "system";
-    settingsTabId = id;
-  document.querySelectorAll(".settings-tab-btn[data-settings-tab]").forEach((btn) => {
-        const selected = btn.dataset.settingsTab === id;
-    btn.classList.toggle("active", selected);
-    btn.setAttribute("aria-selected", selected ? "true" : "false");
-    });
-  document.querySelectorAll(".settings-modal-section[data-settings-section]").forEach((section) => {
-        const show = section.dataset.settingsSection === id;
-        section.hidden = !show;
-    section.classList.toggle("hidden", !show);
-    });
-    syncSettingsTabGlider({ instant, fromIndex });
+  const sameTab = settingsTabId === id;
+  if (instant || isReducedMotionEnabled() || sameTab) {
+    applySettingsTabContent(id);
+    syncSettingsTabButtons(id, { instant: true, fromIndex });
+    syncSettingsModalTitle(id);
+    return;
+  }
+  const row = document.getElementById("settings-tab-row");
+  const resolvedFrom = fromIndex ?? parseInt(row?.dataset.glideIndex ?? "0", 10);
+  syncSettingsTabButtons(id, { instant: false, fromIndex: resolvedFrom });
+  const bodyEl = document.querySelector("#settings-modal .settings-modal-body");
+  const { title: nextTitle, icon: nextIcon } = settingsTabPanelMeta(id);
+  animateSettingsModalTitleSwap(nextTitle, nextIcon);
+  animateSettingsModalBodySwap(bodyEl, () => {
+    applySettingsTabContent(id);
+  });
 }
 function initSettingsModalTabs() {
   const row = document.getElementById("settings-tab-row");
@@ -6898,7 +7073,7 @@ function initModalEscapeClose() {
 function handleSidebarClick(clickedBtn, tabType) {
     closeSettingsModal();
     closeLineupsVideoModal();
-  if (tabType === "tools" || tabType === "strats" || tabType === "more") {
+  if (tabType === "tools" || tabType === "more") {
     if (isMobileLayout() && !document.body.classList.contains("mobile-nav-open")) {
             setMobileNavOpen(true);
         }
@@ -7354,9 +7529,6 @@ window.addEventListener("DOMContentLoaded", () => {
     applyEmptyPageNavDisabledState(document);
     const flyout = document.getElementById("flyout-panel");
     const flyoutOpen = flyout && !flyout.classList.contains("-translate-x-full") && flyout.getAttribute("aria-hidden") === "false";
-    if (activeFlyoutType === "strats" && flyoutOpen && activeFlyoutParentBtn) {
-      openFlyout("strats", activeFlyoutParentBtn);
-    }
     if (activeFlyoutType === "more" && flyoutOpen && activeFlyoutParentBtn) {
       openFlyout("more", activeFlyoutParentBtn);
     }
@@ -7401,3 +7573,11 @@ window.CafeCore.mount("App", {
     BottleneckModel,
   tipsAndTricksPageEnabled: TIPS_AND_TRICKS_PAGE_ENABLED
 });
+window.resetFlyoutTitleMotion = resetFlyoutTitleMotion;
+window.resetFlyoutSwapMotion = resetFlyoutSwapMotion;
+window.applyModalTitleContent = applyModalTitleContent;
+window.applyModalTitleIcon = applyModalTitleIcon;
+window.modalTitleIconSignature = modalTitleIconSignature;
+window.normalizeFaIconClasses = normalizeFaIconClasses;
+window.readTabBtnPanelLabel = readTabBtnPanelLabel;
+window.readTabBtnPanelIcon = readTabBtnPanelIcon;

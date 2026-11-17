@@ -66,12 +66,12 @@
                     <section class="home-section">
                         <header class="home-section-head page-intro">
                             <h3 class="home-section-title">Tools</h3>
-                            <p class="text-xs text-slate-500 tracking-wide max-w-md mx-auto">Sens converters, a bottleneck check, and aim training</p>
+                            <p class="text-xs text-slate-500 tracking-wide max-w-md mx-auto">Every calculator, checker, and trainer from the Tools menu</p>
                         </header>
                         <div class="home-tools-layout">
                         <div class="home-section-grid home-section-grid--three">
-                            <button type="button" onclick="navigateToMainPage('sensitivity')" class="home-feature-card home-feature-card--featured ui-interactive rounded-lg text-left">
-                                <span class="home-feature-card-bg" style="background-image: url('images/wallpaperflare.com_wallpaper.jpg')" aria-hidden="true"></span>
+                            <button type="button" data-nav-flyout="tool-sens" onclick="navigateToFlyoutItem('tool-sens')" class="home-feature-card home-feature-card--featured ui-interactive rounded-lg text-left">
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-teal-grunge.jpg')" aria-hidden="true"></span>
                                 <span class="home-feature-card-body p-5">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="home-feature-card-icon-wrap">
@@ -86,8 +86,8 @@
                                     </div>
                                 </span>
                             </button>
-                            <button type="button" onclick="navigateToMainPage('edpi')" class="home-feature-card home-feature-card--featured ui-interactive rounded-lg text-left">
-                                <span class="home-feature-card-bg" style="background-image: url('images/wallpaperflare.com_wallpaper%20(1).jpg')" aria-hidden="true"></span>
+                            <button type="button" data-nav-flyout="tool-edpi" onclick="navigateToFlyoutItem('tool-edpi')" class="home-feature-card home-feature-card--featured ui-interactive rounded-lg text-left">
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-pink-network.jpg')" aria-hidden="true"></span>
                                 <span class="home-feature-card-body p-5">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="home-feature-card-icon-wrap">
@@ -102,24 +102,8 @@
                                     </div>
                                 </span>
                             </button>
-                            <button type="button" onclick="navigateToMainPage('bottleneck')" class="home-feature-card ui-interactive rounded-lg text-left">
-                                <span class="home-feature-card-bg" style="background-image: url('images/wallpaperflare.com_wallpaper%20(2).jpg')" aria-hidden="true"></span>
-                                <span class="home-feature-card-body p-5">
-                                    <div class="flex items-start justify-between gap-3">
-                                        <div class="home-feature-card-icon-wrap">
-                                            <i class="fa-solid fa-microchip text-lg home-feature-card-icon" aria-hidden="true"></i>
-                                        </div>
-                                        <span class="home-badge home-badge--live">Functional</span>
-                                    </div>
-                                    <div class="min-w-0 mt-auto">
-                                        <h4 class="text-sm font-bold tracking-widest uppercase text-white">Bottleneck Checker</h4>
-                                        <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">Spot CPU vs GPU limits at your resolution.</p>
-                                        <span class="home-feature-card-link">Navigate to tab <i class="fa-solid fa-arrow-right text-[10px]" aria-hidden="true"></i></span>
-                                    </div>
-                                </span>
-                            </button>
                             <button type="button" data-nav-flyout="tool-aim" onclick="navigateToFlyoutItem('tool-aim')" class="home-feature-card ui-interactive rounded-lg text-left">
-                                <span class="home-feature-card-bg" style="background-image: url('images/asdfff.jpg')" aria-hidden="true"></span>
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-teal-leaves.jpg')" aria-hidden="true"></span>
                                 <span class="home-feature-card-body p-5">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="home-feature-card-icon-wrap">
@@ -135,18 +119,109 @@
                                 </span>
                             </button>
                         </div>
+                        <div class="home-section-grid home-section-grid--three">
+                            <button type="button" data-nav-flyout="tool-reaction" onclick="navigateToFlyoutItem('tool-reaction')" class="home-feature-card ui-interactive rounded-lg text-left">
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-tri-grid.jpg')" aria-hidden="true"></span>
+                                <span class="home-feature-card-body p-5">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="home-feature-card-icon-wrap">
+                                            <i class="fa-solid fa-stopwatch text-lg home-feature-card-icon" aria-hidden="true"></i>
+                                        </div>
+                                        <span class="home-badge home-badge--live">Functional</span>
+                                    </div>
+                                    <div class="min-w-0 mt-auto">
+                                        <h4 class="text-sm font-bold tracking-widest uppercase text-white">RT Checker</h4>
+                                        <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">Measures your reaction time.</p>
+                                        <span class="home-feature-card-link">Navigate to tab <i class="fa-solid fa-arrow-right text-[10px]" aria-hidden="true"></i></span>
+                                    </div>
+                                </span>
+                            </button>
+                            <button type="button" data-nav-flyout="tool-cps" onclick="navigateToFlyoutItem('tool-cps')" class="home-feature-card ui-interactive rounded-lg text-left">
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-magenta-streaks.jpg')" aria-hidden="true"></span>
+                                <span class="home-feature-card-body p-5">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="home-feature-card-icon-wrap">
+                                            <i class="fa-solid fa-computer-mouse text-lg home-feature-card-icon" aria-hidden="true"></i>
+                                        </div>
+                                        <span class="home-badge home-badge--live">Functional</span>
+                                    </div>
+                                    <div class="min-w-0 mt-auto">
+                                        <h4 class="text-sm font-bold tracking-widest uppercase text-white">CPS Checker</h4>
+                                        <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">Measure how many clicks you can register per second.</p>
+                                        <span class="home-feature-card-link">Navigate to tab <i class="fa-solid fa-arrow-right text-[10px]" aria-hidden="true"></i></span>
+                                    </div>
+                                </span>
+                            </button>
+                            <button type="button" data-nav-flyout="tool-mpr" onclick="navigateToFlyoutItem('tool-mpr')" class="home-feature-card ui-interactive rounded-lg text-left">
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-dark-mosaic.jpg')" aria-hidden="true"></span>
+                                <span class="home-feature-card-body p-5">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="home-feature-card-icon-wrap">
+                                            <i class="fa-solid fa-wave-square text-lg home-feature-card-icon" aria-hidden="true"></i>
+                                        </div>
+                                        <span class="home-badge home-badge--live">Functional</span>
+                                    </div>
+                                    <div class="min-w-0 mt-auto">
+                                        <h4 class="text-sm font-bold tracking-widest uppercase text-white">MPR Checker</h4>
+                                        <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">Mouse polling rate — movement reports per second.</p>
+                                        <span class="home-feature-card-link">Navigate to tab <i class="fa-solid fa-arrow-right text-[10px]" aria-hidden="true"></i></span>
+                                    </div>
+                                </span>
+                            </button>
                         </div>
-                    </section>
-
-                    <div class="home-section-split">
-                    <section class="home-section home-section--split">
-                        <header class="home-section-head home-section-head--split">
-                            <h3 class="home-section-title">Strats</h3>
-                            <p class="text-xs text-slate-500 tracking-wide max-w-md">Strats to use in your game</p>
-                        </header>
-                        <div class="home-section-grid home-section-grid--pair">
-                            <button type="button" data-nav-flyout="strat-tips" onclick="navigateToFlyoutItem('strat-tips')" class="home-feature-card ui-interactive rounded-lg text-left">
-                                <span class="home-feature-card-bg" style="background-image: url('images/wallpaperflare.com_wallpaper%20(4).jpg')" aria-hidden="true"></span>
+                        <div class="home-section-grid home-section-grid--three">
+                            <button type="button" data-nav-flyout="tool-bottleneck" onclick="navigateToFlyoutItem('tool-bottleneck')" class="home-feature-card ui-interactive rounded-lg text-left">
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-dark-facets.jpg')" aria-hidden="true"></span>
+                                <span class="home-feature-card-body p-5">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="home-feature-card-icon-wrap">
+                                            <i class="fa-solid fa-microchip text-lg home-feature-card-icon" aria-hidden="true"></i>
+                                        </div>
+                                        <span class="home-badge home-badge--live">Functional</span>
+                                    </div>
+                                    <div class="min-w-0 mt-auto">
+                                        <h4 class="text-sm font-bold tracking-widest uppercase text-white">Bottleneck Checker</h4>
+                                        <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">Spot CPU vs GPU limits at your resolution.</p>
+                                        <span class="home-feature-card-link">Navigate to tab <i class="fa-solid fa-arrow-right text-[10px]" aria-hidden="true"></i></span>
+                                    </div>
+                                </span>
+                            </button>
+                            <button type="button" data-nav-flyout="tool-keyboard" onclick="navigateToFlyoutItem('tool-keyboard')" class="home-feature-card ui-interactive rounded-lg text-left">
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-dual-network.jpg')" aria-hidden="true"></span>
+                                <span class="home-feature-card-body p-5">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="home-feature-card-icon-wrap">
+                                            <i class="fa-solid fa-keyboard text-lg home-feature-card-icon" aria-hidden="true"></i>
+                                        </div>
+                                        <span class="home-badge home-badge--live">Functional</span>
+                                    </div>
+                                    <div class="min-w-0 mt-auto">
+                                        <h4 class="text-sm font-bold tracking-widest uppercase text-white">Keyboard Checker</h4>
+                                        <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">Verify each key on your keyboard works.</p>
+                                        <span class="home-feature-card-link">Navigate to tab <i class="fa-solid fa-arrow-right text-[10px]" aria-hidden="true"></i></span>
+                                    </div>
+                                </span>
+                            </button>
+                            <button type="button" data-nav-flyout="tool-wifi-speed" onclick="navigateToFlyoutItem('tool-wifi-speed')" class="home-feature-card ui-interactive rounded-lg text-left">
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-maze-peaks.jpg')" aria-hidden="true"></span>
+                                <span class="home-feature-card-body p-5">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="home-feature-card-icon-wrap">
+                                            <i class="fa-solid fa-wifi text-lg home-feature-card-icon" aria-hidden="true"></i>
+                                        </div>
+                                        <span class="home-badge home-badge--live">Functional</span>
+                                    </div>
+                                    <div class="min-w-0 mt-auto">
+                                        <h4 class="text-sm font-bold tracking-widest uppercase text-white">Wifi Speed Checker</h4>
+                                        <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">Measure download and upload throughput.</p>
+                                        <span class="home-feature-card-link">Navigate to tab <i class="fa-solid fa-arrow-right text-[10px]" aria-hidden="true"></i></span>
+                                    </div>
+                                </span>
+                            </button>
+                        </div>
+                        <div class="home-section-grid home-section-grid--three">
+                            <button type="button" data-nav-page="lineups" onclick="navigateToMainPage('lineups')" class="home-feature-card ui-interactive rounded-lg text-left">
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-prism-shards.jpg')" aria-hidden="true"></span>
                                 <span class="home-feature-card-body p-5">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="home-feature-card-icon-wrap">
@@ -156,14 +231,16 @@
                                     </div>
                                     <div class="min-w-0 mt-auto">
                                         <h4 class="text-sm font-bold tracking-widest uppercase text-white">Videos</h4>
-                                        <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">Strats to use in your selected game</p>
+                                        <p class="text-xs text-slate-400 mt-2 tracking-wide leading-snug">Strats to use in your selected game.</p>
                                         <span class="home-feature-card-link">Navigate to tab <i class="fa-solid fa-arrow-right text-[10px]" aria-hidden="true"></i></span>
                                     </div>
                                 </span>
                             </button>
                         </div>
+                        </div>
                     </section>
 
+                    <div class="home-section-split">
                     <section class="home-section home-section--split">
                         <header class="home-section-head home-section-head--split">
                             <h3 class="home-section-title">Apps &amp; assets</h3>
@@ -171,7 +248,7 @@
                         </header>
                         <div class="home-section-grid home-section-grid--pair">
                             <button type="button" onclick="navigateToMainPage('apps')" class="home-feature-card ui-interactive rounded-lg text-left">
-                                <span class="home-feature-card-bg" style="background-image: url('images/wallpaperflare.com_wallpaper%20(6).jpg')" aria-hidden="true"></span>
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-corner-shards.jpg')" aria-hidden="true"></span>
                                 <span class="home-feature-card-body p-5">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="home-feature-card-icon-wrap">
@@ -187,7 +264,7 @@
                                 </span>
                             </button>
                             <button type="button" onclick="navigateToMainPage('branding')" class="home-feature-card ui-interactive rounded-lg text-left">
-                                <span class="home-feature-card-bg" style="background-image: url('images/wallpaperflare.com_wallpaper%20(7).jpg')" aria-hidden="true"></span>
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-color-splash.jpg')" aria-hidden="true"></span>
                                 <span class="home-feature-card-body p-5">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="home-feature-card-icon-wrap">
@@ -229,7 +306,7 @@
                                 </span>
                             </button>
                             <button type="button" onclick="navigateToMainPage('fuziveer')" class="home-feature-card ui-interactive rounded-lg text-left">
-                                <span class="home-feature-card-bg" style="background-image: url('images/piqsels.com-id-zblne.jpg')" aria-hidden="true"></span>
+                                <span class="home-feature-card-bg" style="background-image: url('images/bg-blue-lowpoly.jpg')" aria-hidden="true"></span>
                                 <span class="home-feature-card-body p-5">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="home-feature-card-icon-wrap">

@@ -501,17 +501,23 @@ html.reduce-motion body > main.bg-matte-950::after {
     color: #ff1e43 !important;
 }
 #flyout-content,
-#flyout-footer {
+#flyout-footer,
+#settings-modal .settings-modal-body,
+#aim-trainer-settings-modal .aim-trainer-settings-body {
   transition:
     transform var(--motion-duration) var(--motion-ease-open),
     opacity var(--motion-duration) var(--motion-ease-open);
 }
-#flyout-content {
+#flyout-content,
+#settings-modal .settings-modal-body,
+#aim-trainer-settings-modal .aim-trainer-settings-body {
     position: relative;
     isolation: isolate;
 }
 #flyout-content.flyout-content-exit,
-#flyout-footer.flyout-content-exit {
+#flyout-footer.flyout-content-exit,
+#settings-modal .settings-modal-body.flyout-content-exit,
+#aim-trainer-settings-modal .aim-trainer-settings-body.flyout-content-exit {
     transform: translate3d(0, 10px, 0);
     opacity: 0;
   transition:
@@ -519,13 +525,20 @@ html.reduce-motion body > main.bg-matte-950::after {
     opacity var(--motion-duration) var(--motion-ease-close);
 }
 #flyout-content.flyout-content-enter-prep,
-#flyout-footer.flyout-content-enter-prep {
+#flyout-footer.flyout-content-enter-prep,
+#settings-modal .settings-modal-body.flyout-content-enter-prep,
+#aim-trainer-settings-modal .aim-trainer-settings-body.flyout-content-enter-prep {
     transition: none;
     transform: translate3d(0, -10px, 0);
     opacity: 0;
 }
-#flyout-title-viewport {
+#flyout-title-viewport,
+#settings-modal-title-viewport,
+#aim-trainer-settings-title-viewport {
     height: 1.25rem;
+    overflow: hidden;
+    min-width: 0;
+    flex: 1;
 }
 #flyout-title {
   transition: transform var(--motion-duration) var(--motion-ease-open), opacity var(--motion-duration) var(--motion-ease-open);
@@ -813,19 +826,23 @@ body.layout-mobile #sidebar-nav-tooltip {
 #topbar-title-viewport {
     height: 1.25rem;
 }
-#topbar-title-row {
+#topbar-title-row,
+.modal-title-row {
   transition: transform var(--motion-duration) var(--motion-ease-open), opacity var(--motion-duration) var(--motion-ease-open);
 }
-#topbar-title-row.topbar-title-exit {
+#topbar-title-row.topbar-title-exit,
+.modal-title-row.flyout-title-exit {
     transform: translate3d(0, 100%, 0);
     opacity: 0;
   transition: transform var(--motion-duration) var(--motion-ease-close), opacity var(--motion-duration) var(--motion-ease-close);
 }
-#topbar-title-row.topbar-title-enter-prep {
+#topbar-title-row.topbar-title-enter-prep,
+.modal-title-row.flyout-title-enter-prep {
     transition: none;
     transform: translate3d(0, -100%, 0);
     opacity: 0;
 }
+.modal-title-icon,
 #topbar-icon {
     display: inline-flex;
     align-items: center;
@@ -1062,7 +1079,7 @@ body.bl-roster-player-modal-open {
   border: var(--ui-panel-border);
     border-radius: var(--radius-ui);
   clip-path: none;
-    min-width: 7.25rem;
+    min-width: 8.5rem;
     overflow: hidden;
 }
 .settings-tab-glider {
@@ -1089,10 +1106,12 @@ html.reduce-motion .settings-tab-glider {
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    width: 100%;
     height: var(--settings-tab-btn-height);
     min-height: var(--settings-tab-btn-height);
-    padding: 0 0.75rem;
+    padding: 0 0.625rem;
     border: none;
     border-radius: var(--radius-ui);
   clip-path: none;
@@ -1116,6 +1135,23 @@ html.reduce-motion .settings-tab-glider {
     color: #ff1e43;
     cursor: default;
     pointer-events: none;
+}
+.settings-tab-btn-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    color: currentColor;
+    opacity: 0.92;
+}
+.settings-tab-btn-label {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+    min-width: 0;
 }
 .settings-modal-section[hidden] {
     display: none;
@@ -3269,6 +3305,11 @@ html.reduce-motion .home-hero-marquee-track--ltr {
         width: auto;
         max-width: none;
     }
+    .home-section-grid--three > .home-feature-card:only-child {
+        flex: 0 0 calc((100% - 1.5rem) / 3);
+        width: calc((100% - 1.5rem) / 3);
+        max-width: calc((100% - 1.5rem) / 3);
+    }
     .home-section-grid--pair {
         justify-content: flex-start;
     container-type: inline-size;
@@ -4970,12 +5011,17 @@ html.reduce-motion .aim-trainer-start-overlay .aim-countdown span {
   filter: drop-shadow(1px 0 0 rgba(0, 0, 0, 0.9)) drop-shadow(-1px 0 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.9)) !important;
 }
 .aim-trainer-chpreview-canvas {
+    --aim-chpreview-bg: #0a0a0c;
     display: block;
     width: 140px;
     height: 140px;
   border-radius: var(--radius-ui);
-    background: #0a0a0c;
+    background-color: var(--aim-chpreview-bg);
+    transition: background-color 150ms var(--motion-ease);
     flex-shrink: 0;
+}
+html.reduce-motion .aim-trainer-chpreview-canvas {
+    transition: none;
 }
 .aim-trainer-chpreview-bg-btn {
     width: 1.75rem;
@@ -5005,6 +5051,29 @@ html.reduce-motion .aim-trainer-start-overlay .aim-countdown span {
     grid-template-columns: 5.5rem 1.75rem minmax(0, 1fr);
     align-items: center;
     gap: 0.75rem;
+}
+.aim-trainer-settings-range > span:first-child,
+.aim-trainer-settings-range > strong,
+.aim-trainer-settings-range .aim-trainer-range-wrap {
+    transition: opacity 150ms var(--motion-ease);
+}
+html.reduce-motion .aim-trainer-settings-range > span:first-child,
+html.reduce-motion .aim-trainer-settings-range > strong,
+html.reduce-motion .aim-trainer-settings-range .aim-trainer-range-wrap {
+    transition: none;
+}
+.aim-trainer-settings-range.is-disabled {
+    pointer-events: none;
+    cursor: not-allowed;
+}
+.aim-trainer-settings-range.is-disabled > span:first-child,
+.aim-trainer-settings-range.is-disabled > strong,
+.aim-trainer-settings-range.is-disabled .aim-trainer-range-wrap {
+    opacity: var(--ui-nav-disabled-opacity);
+}
+.aim-trainer-settings-range.is-disabled .aim-trainer-range:disabled {
+    opacity: 1;
+    cursor: not-allowed;
 }
 .aim-trainer-range-wrap {
     --aim-range-ratio: 0;
@@ -5393,6 +5462,16 @@ html.reduce-motion .aim-trainer-start-overlay .aim-countdown span {
     pointer-events: none;
     flex-shrink: 0;
     box-sizing: border-box;
+    opacity: 1;
+    transition: opacity var(--motion-duration) var(--motion-ease-open);
+}
+.aim-trainer-chpreview-rail.aim-chpreview-exit {
+    opacity: 0;
+    transition: opacity var(--motion-duration) var(--motion-ease-close);
+}
+.aim-trainer-chpreview-rail.aim-chpreview-enter-prep {
+    transition: none;
+    opacity: 0;
 }
 .aim-trainer-chpreview-rail[hidden] {
     display: none;

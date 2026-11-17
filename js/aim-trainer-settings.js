@@ -2,6 +2,23 @@
   "use strict";
   const STORAGE_KEY = "cafe-aim-trainer-settings";
   const AIM_SECTIONS = ["session", "game", "target", "crosshair", "aspect"];
+  const AIM_SECTION_TITLES = Object.freeze({
+    session: "Session",
+    game: "Settings",
+    target: "Target",
+    crosshair: "Crosshair",
+    aspect: "Aspect"
+  });
+  const AIM_SECTION_ICONS = Object.freeze({
+    session: "fa-solid fa-stopwatch",
+    game: "fa-solid fa-sliders",
+    target: "fa-solid fa-bullseye",
+    crosshair: "fa-solid fa-crosshairs",
+    aspect: "fa-solid fa-expand"
+  });
+  let aimSettingsTitleAnimToken = 0;
+  let aimSettingsBodyAnimToken = 0;
+  let chPreviewAnimToken = 0;
   const AIM_ASPECTS = Object.freeze(["native", "16:9", "16:10", "5:4", "4:3", "3:2"]);
   const AIM_CH_PRESETS = Object.freeze(["#ff0000", "#00ff00", "#0000ff"]);
   const AIM_CH_CUSTOM = "custom";
@@ -336,6 +353,70 @@
     updateChColorPickerChrome();
     commitChPickerHsv();
   }
+  function waitChPreviewFade(rail, token) {
+    const fallback =
+      typeof motionTimeoutMs === "function"
+        ? motionTimeoutMs((typeof MOTION_MS === "number" ? MOTION_MS : 150) + 40)
+        : 190;
+    return new Promise((resolve) => {
+      const onEnd = (e) => {
+        if (token !== chPreviewAnimToken) return;
+        if (e && e.propertyName !== "opacity") return;
+        rail.removeEventListener("transitionend", onEnd);
+        resolve();
+      };
+      rail.addEventListener("transitionend", onEnd);
+      setTimeout(() => {
+        if (token !== chPreviewAnimToken) return;
+        rail.removeEventListener("transitionend", onEnd);
+        onEnd({ propertyName: "opacity" });
+      }, fallback);
+    });
+  }
+  function syncChPreviewRail(show, { instant = false } = {}) {
+    const rail = byId("aim-trainer-chpreview-rail");
+    if (!rail) return Promise.resolve();
+    const reduceMotion = typeof isReducedMotionEnabled === "function" && isReducedMotionEnabled();
+    if (instant || reduceMotion) {
+      chPreviewAnimToken += 1;
+      rail.classList.remove("aim-chpreview-exit", "aim-chpreview-enter-prep");
+      rail.hidden = !show;
+      rail.setAttribute("aria-hidden", show ? "false" : "true");
+      if (show) drawCrosshairPreview();
+      return Promise.resolve();
+    }
+    const isVisible = !rail.hidden;
+    if (show === isVisible) {
+      if (show) drawCrosshairPreview();
+      return Promise.resolve();
+    }
+    chPreviewAnimToken += 1;
+    const token = chPreviewAnimToken;
+    if (!show && isVisible) {
+      rail.classList.remove("aim-chpreview-enter-prep");
+      void rail.offsetHeight;
+      rail.classList.add("aim-chpreview-exit");
+      return waitChPreviewFade(rail, token).then(() => {
+        if (token !== chPreviewAnimToken) return;
+        rail.hidden = true;
+        rail.setAttribute("aria-hidden", "true");
+        rail.classList.remove("aim-chpreview-exit");
+      });
+    }
+    rail.hidden = false;
+    rail.setAttribute("aria-hidden", "false");
+    rail.classList.remove("aim-chpreview-exit");
+    rail.classList.add("aim-chpreview-enter-prep");
+    drawCrosshairPreview();
+    void rail.offsetHeight;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (token !== chPreviewAnimToken) return;
+        rail.classList.remove("aim-chpreview-enter-prep");
+      });
+    });
+    return Promise.resolve();
+  }
   function syncAimTrainerTabGlider({ instant = false, fromIndex } = {}) {
     const row = byId("aim-trainer-settings-tab-row");
     const glider = byId("aim-trainer-settings-tab-glider");
@@ -361,7 +442,140 @@
     });
     syncAimTrainerTabGlider({ instant, fromIndex });
   }
-  function showSettingsSection(name, { skipTabSync = false, instant = false, fromIndex } = {}) {
+  function aimSectionTitle(section) {
+    const btn = document.querySelector(
+      `#aim-trainer-settings-tab-row .settings-tab-btn[data-aim-section="${section}"]`
+    );
+    const readLabel = typeof readTabBtnPanelLabel === "function" ? readTabBtnPanelLabel : null;
+    if (readLabel) return readLabel(btn, AIM_SECTION_TITLES[section] || AIM_SECTION_TITLES.session);
+    return AIM_SECTION_TITLES[section] || AIM_SECTION_TITLES.session;
+  }
+  function aimSectionIcon(section) {
+    const btn = document.querySelector(
+      `#aim-trainer-settings-tab-row .settings-tab-btn[data-aim-section="${section}"]`
+    );
+    const readIcon = typeof readTabBtnPanelIcon === "function" ? readTabBtnPanelIcon : null;
+    if (readIcon) return readIcon(btn, AIM_SECTION_ICONS[section] || AIM_SECTION_ICONS.session);
+    return AIM_SECTION_ICONS[section] || AIM_SECTION_ICONS.session;
+  }
+  function aimSettingsTitleRow() {
+    return byId("aim-trainer-settings-title-row");
+  }
+  function normalizeAimFaIcon(iconClasses) {
+    if (typeof normalizeFaIconClasses === "function") return normalizeFaIconClasses(iconClasses);
+    return String(iconClasses || "");
+  }
+  function aimTitleIconSignature(iconEl) {
+    if (typeof modalTitleIconSignature === "function") return modalTitleIconSignature(iconEl);
+    return "";
+  }
+  function applyAimModalTitle(titleEl, iconEl, title, iconClasses) {
+    if (typeof applyModalTitleContent === "function") {
+      applyModalTitleContent(titleEl, iconEl, title, iconClasses);
+      return;
+    }
+    if (titleEl) titleEl.textContent = title;
+  }
+  function waitAimSettingsSwapExit(el, token, liveToken) {
+    return new Promise((resolve) => {
+      if (!el) {
+        resolve();
+        return;
+      }
+      const onExitEnd = (e) => {
+        if (token !== liveToken()) return;
+        if (e && e.propertyName !== "transform") return;
+        el.removeEventListener("transitionend", onExitEnd);
+        resolve();
+      };
+      const fallback =
+        typeof motionTimeoutMs === "function"
+          ? motionTimeoutMs((typeof MOTION_MS === "number" ? MOTION_MS : 150) + 40)
+          : 190;
+      el.addEventListener("transitionend", onExitEnd);
+      setTimeout(() => {
+        if (token !== liveToken()) return;
+        el.removeEventListener("transitionend", onExitEnd);
+        onExitEnd({ propertyName: "transform" });
+      }, fallback);
+    });
+  }
+  function animateAimSettingsTitleSwap(section) {
+    const row = aimSettingsTitleRow();
+    const titleEl = byId("aim-trainer-settings-title");
+    const iconEl = byId("aim-trainer-settings-title-icon");
+    const motionEl = row || titleEl;
+    if (!motionEl) return Promise.resolve();
+    const next = aimSectionTitle(section);
+    const nextIcon = aimSectionIcon(section);
+    const reduceMotion = typeof isReducedMotionEnabled === "function" && isReducedMotionEnabled();
+    const resetTitle = typeof resetFlyoutTitleMotion === "function" ? resetFlyoutTitleMotion : null;
+    const sameContent =
+      titleEl?.textContent === next && aimTitleIconSignature(iconEl) === normalizeAimFaIcon(nextIcon);
+    if (reduceMotion || sameContent) {
+      aimSettingsTitleAnimToken += 1;
+      applyAimModalTitle(titleEl, iconEl, next, nextIcon);
+      resetTitle?.(motionEl);
+      return Promise.resolve();
+    }
+    aimSettingsTitleAnimToken += 1;
+    const token = aimSettingsTitleAnimToken;
+    resetTitle?.(motionEl);
+    void motionEl.offsetHeight;
+    motionEl.classList.add("flyout-title-exit");
+    return waitAimSettingsSwapExit(motionEl, token, () => aimSettingsTitleAnimToken).then(() => {
+      if (token !== aimSettingsTitleAnimToken) return;
+      applyAimModalTitle(titleEl, iconEl, next, nextIcon);
+      motionEl.classList.remove("flyout-title-exit");
+      motionEl.classList.add("flyout-title-enter-prep");
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (token !== aimSettingsTitleAnimToken) return;
+          motionEl.classList.remove("flyout-title-enter-prep");
+        });
+      });
+    });
+  }
+  function animateAimSettingsBodySwap(bodyEl, applyFn) {
+    const resetBody = typeof resetFlyoutSwapMotion === "function" ? resetFlyoutSwapMotion : null;
+  if (!bodyEl) {
+    applyFn?.();
+    return Promise.resolve();
+  }
+    const reduceMotion = typeof isReducedMotionEnabled === "function" && isReducedMotionEnabled();
+    if (reduceMotion) {
+      aimSettingsBodyAnimToken += 1;
+      applyFn?.();
+      resetBody?.(bodyEl);
+      return Promise.resolve();
+    }
+    aimSettingsBodyAnimToken += 1;
+    const token = aimSettingsBodyAnimToken;
+    resetBody?.(bodyEl);
+    void bodyEl.offsetHeight;
+    bodyEl.classList.add("flyout-content-exit");
+    return waitAimSettingsSwapExit(bodyEl, token, () => aimSettingsBodyAnimToken).then(() => {
+      if (token !== aimSettingsBodyAnimToken) return;
+      applyFn?.();
+      resetBody?.(bodyEl);
+      bodyEl.classList.add("flyout-content-enter-prep");
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (token !== aimSettingsBodyAnimToken) return;
+          bodyEl.classList.remove("flyout-content-enter-prep");
+        });
+      });
+    });
+  }
+  function syncAimSettingsTitle(section) {
+    const titleEl = byId("aim-trainer-settings-title");
+    const iconEl = byId("aim-trainer-settings-title-icon");
+    const row = aimSettingsTitleRow();
+    if (!titleEl) return;
+    applyAimModalTitle(titleEl, iconEl, aimSectionTitle(section), aimSectionIcon(section));
+    if (typeof resetFlyoutTitleMotion === "function") resetFlyoutTitleMotion(row || titleEl);
+  }
+  function applySettingsSection(name, { skipTabSync = false, instant = false, fromIndex } = {}) {
     if (typeof closeAllToolPicklists === "function") closeAllToolPicklists();
     const active = AIM_SECTIONS.includes(name) ? name : DEFAULTS.section;
     settings.section = active;
@@ -372,12 +586,7 @@
     });
     if (!skipTabSync) syncSectionTabs(active, { instant, fromIndex });
     else syncAimTrainerTabGlider({ instant, fromIndex });
-    const previewRail = byId("aim-trainer-chpreview-rail");
-    if (previewRail) {
-      const showPreview = active === "crosshair";
-      previewRail.hidden = !showPreview;
-      previewRail.setAttribute("aria-hidden", showPreview ? "false" : "true");
-    }
+    syncChPreviewRail(active === "crosshair", { instant });
     if (active === "crosshair") {
       drawCrosshairPreview();
       if (settings.chcolorcustom) setChColorPickerOpen(true);
@@ -394,6 +603,33 @@
       setChColorPickerOpen(false);
     }
   }
+  function showSettingsSection(name, { skipTabSync = false, instant = false, fromIndex } = {}) {
+    const active = AIM_SECTIONS.includes(name) ? name : DEFAULTS.section;
+    const reduceMotion = typeof isReducedMotionEnabled === "function" && isReducedMotionEnabled();
+    const sameSection = settings.section === active;
+    if (instant || reduceMotion || sameSection) {
+      applySettingsSection(name, { skipTabSync, instant: true, fromIndex });
+      syncAimSettingsTitle(active);
+      return;
+    }
+    const modal = getSettingsModal();
+    const tabRow = byId("aim-trainer-settings-tab-row");
+    const resolvedFrom =
+      fromIndex ?? parseInt(tabRow?.dataset.glideIndex ?? String(AIM_SECTIONS.indexOf(settings.section)), 10);
+    if (settings.section === "crosshair" && active !== "crosshair") {
+      syncChPreviewRail(false, { instant: false });
+    }
+    if (!skipTabSync) {
+      syncSectionTabs(active, { instant: false, fromIndex: resolvedFrom });
+    } else {
+      syncAimTrainerTabGlider({ instant: false, fromIndex: resolvedFrom });
+    }
+    const bodyEl = modal?.querySelector(".aim-trainer-settings-body");
+    animateAimSettingsTitleSwap(active);
+    animateAimSettingsBodySwap(bodyEl, () => {
+      applySettingsSection(name, { skipTabSync: true, fromIndex: resolvedFrom });
+    });
+  }
   function syncAimRangeFill(input) {
     if (!input) return;
     const wrap = input.closest(".aim-trainer-range-wrap");
@@ -404,6 +640,19 @@
     const span = max - min;
     const ratio = span > 0 ? (value - min) / span : 0;
     wrap.style.setProperty("--aim-range-ratio", String(Math.max(0, Math.min(1, ratio))));
+  }
+  function syncChLinesDependentRanges() {
+    const linesOn = settings.chlines;
+    ["aim-trainer-ch-size", "aim-trainer-ch-gap"].forEach((id) => {
+      const input = byId(id);
+      if (!input) return;
+      input.disabled = !linesOn;
+      const label = input.closest(".aim-trainer-settings-range");
+      if (label) {
+        label.classList.toggle("is-disabled", !linesOn);
+        label.setAttribute("aria-disabled", linesOn ? "false" : "true");
+      }
+    });
   }
   function syncRangeUi() {
     const size = byId("aim-trainer-ch-size");
@@ -421,6 +670,7 @@
     syncAimRangeFill(size);
     syncAimRangeFill(gap);
     syncAimRangeFill(thick);
+    syncChLinesDependentRanges();
   }
   function syncSettingsToUi() {
     syncGlide(byId("aim-trainer-settings-timer-glide"), String(settings.timer));
@@ -449,14 +699,22 @@
     crosshair.classList.toggle("has-dot", settings.chdot);
     crosshair.classList.toggle("has-outline", settings.choutline);
   }
+  function syncPreviewCanvasBackground() {
+    const canvas = byId("aim-trainer-crosshair-preview");
+    if (!canvas) return;
+    const color = PREVIEW_BG_COLORS[previewBgIndex] || PREVIEW_BG_COLORS[0];
+    canvas.style.setProperty("--aim-chpreview-bg", color);
+  }
   function cyclePreviewBackground(delta) {
     const count = PREVIEW_BG_COLORS.length;
     previewBgIndex = ((previewBgIndex + delta) % count + count) % count;
+    syncPreviewCanvasBackground();
     drawCrosshairPreview();
   }
   function drawCrosshairPreview() {
     const canvas = byId("aim-trainer-crosshair-preview");
     if (!canvas) return;
+    syncPreviewCanvasBackground();
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth || 140;
     const h = canvas.clientHeight || 140;
@@ -467,8 +725,6 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = PREVIEW_BG_COLORS[previewBgIndex] || PREVIEW_BG_COLORS[0];
-    ctx.fillRect(0, 0, w, h);
     const cx = Math.round(w / 2);
     const cy = Math.round(h / 2);
     const s = settings.chsize;
@@ -697,6 +953,7 @@
     bindChColorControls();
     bindGlide(modal.querySelector("#aim-trainer-settings-chlines-glide"), "aimChlines", (value) => {
       settings.chlines = value === "true";
+      syncChLinesDependentRanges();
     });
     bindGlide(modal.querySelector("#aim-trainer-settings-chdot-glide"), "aimChdot", (value) => {
       settings.chdot = value === "true";
@@ -733,6 +990,10 @@
       modal.classList.add("is-open");
       openBtn?.setAttribute("aria-expanded", "true");
       closeBtn?.focus();
+      if (typeof resetFlyoutTitleMotion === "function") {
+        resetFlyoutTitleMotion(modal.querySelector("#aim-trainer-settings-title-row"));
+      }
+      syncAimSettingsTitle(settings.section);
       requestAnimationFrame(() => {
         syncAimTrainerTabGlider({ instant: true });
         if (typeof syncGlideSelector !== "function") return;
@@ -746,6 +1007,15 @@
       clearTimeout(settingsModalCloseTimer);
       settingsModalCloseTimer = null;
       setChColorPickerOpen(false);
+      aimSettingsTitleAnimToken += 1;
+      aimSettingsBodyAnimToken += 1;
+      syncChPreviewRail(false, { instant: true });
+      if (typeof resetFlyoutTitleMotion === "function") {
+        resetFlyoutTitleMotion(modal.querySelector("#aim-trainer-settings-title-row"));
+      }
+      if (typeof resetFlyoutSwapMotion === "function") {
+        resetFlyoutSwapMotion(modal.querySelector(".aim-trainer-settings-body"));
+      }
       modal.classList.remove("is-open");
       modal.setAttribute("aria-hidden", "true");
       document.body.classList.remove("settings-modal-open");
