@@ -125,7 +125,10 @@
       if (closed) return;
       const dtMs = now - intervalStart;
       const seconds = Math.max(dtMs / 1000, 0.001);
-      const bps = intervalBytes > 0 ? (intervalBytes * 8) / seconds : 0;
+      const intervalBps = intervalBytes > 0 ? (intervalBytes * 8) / seconds : 0;
+      const elapsedSec = Math.max((now - started) / 1000, 0.001);
+      const cumulativeBps = totalBytes > 0 ? (totalBytes * 8) / elapsedSec : 0;
+      const bps = Math.max(intervalBps, cumulativeBps);
       onLiveBps?.(bps);
       intervalBytes = 0;
       intervalStart = now;
@@ -191,6 +194,53 @@
     return phaseBps;
   }
 
+  function postUploadWithProgress(url, body, signal, onByteDelta) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.setRequestHeader("Content-Type", "application/octet-stream");
+      xhr.responseType = "arraybuffer";
+
+      let lastLoaded = 0;
+      const onUploadProgress = (event) => {
+        const loaded = event.loaded;
+        if (loaded <= lastLoaded) return;
+        const delta = loaded - lastLoaded;
+        lastLoaded = loaded;
+        onByteDelta?.(delta);
+      };
+      xhr.upload.addEventListener("progress", onUploadProgress);
+
+      const forwardAbort = () => {
+        xhr.abort();
+      };
+      signal?.addEventListener("abort", forwardAbort, { once: true });
+
+      const cleanup = () => {
+        signal?.removeEventListener("abort", forwardAbort);
+        xhr.upload.removeEventListener("progress", onUploadProgress);
+      };
+
+      xhr.onload = () => {
+        cleanup();
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+          return;
+        }
+        reject(new Error("Upload failed"));
+      };
+      xhr.onerror = () => {
+        cleanup();
+        reject(new Error("Upload failed"));
+      };
+      xhr.onabort = () => {
+        cleanup();
+        reject(new DOMException("Aborted", "AbortError"));
+      };
+      xhr.send(body);
+    });
+  }
+
   async function measureUpload(signal, durationMs, onLiveBps) {
     const payload = new Uint8Array(UPLOAD_CHUNK_BYTES);
     const deadline = performance.now() + durationMs;
@@ -205,16 +255,12 @@
         if (remaining < 80) break;
         const linked = linkAbortWithTimeout(signal, remaining);
         try {
-          const res = await fetch(`${CLOUDFLARE_UPLOAD_ENDPOINT}?r=${Math.random()}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/octet-stream" },
-            body: payload,
-            cache: "no-store",
-            signal: linked.signal
-          });
-          if (!res.ok) throw new Error("Upload failed");
-          await res.arrayBuffer();
-          tracker.addBytes(payload.byteLength);
+          await postUploadWithProgress(
+            `${CLOUDFLARE_UPLOAD_ENDPOINT}?r=${Math.random()}`,
+            payload,
+            linked.signal,
+            (delta) => tracker.addBytes(delta)
+          );
         } catch (err) {
           if (signal.aborted) throw err;
           if (stillMeasuring() && err?.name !== "AbortError") throw err;
