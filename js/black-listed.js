@@ -251,6 +251,11 @@
     if (!memberId) return null;
     return getRoster().find((entry) => entry.id === memberId) || null;
   }
+  function memberHasStatsCcProfile(member) {
+    const cc = member?.statsCc;
+    if (!cc || typeof cc !== "object") return false;
+    return Boolean(String(cc.profileId || "").trim() || String(cc.vanity || "").trim());
+  }
   function liveStatsForMember(memberId) {
     const players = window.__cafeBlApi?.rosterStats?.players;
     if (!players || !memberId) return null;
@@ -553,6 +558,12 @@
   function memberForDisplay(member) {
     if (!member) return member;
     const merged = { ...member };
+    const statsCcLinked = memberHasStatsCcProfile(member);
+    if (statsCcLinked) {
+      merged.attackers = [];
+      merged.defenders = [];
+      delete merged.peakRank;
+    }
     const live = liveStatsForMember(member.id);
     if (live) {
       if (live.currentRank) merged.currentRank = live.currentRank;
@@ -561,6 +572,8 @@
           rank: live.peakRank,
           season: live.peakSeason || ""
         };
+      } else if (statsCcLinked) {
+        delete merged.peakRank;
       }
       if (live.displayName) merged.name = live.displayName;
       else if (live.username) merged.name = `${String(live.username).trim()}.BL`;
@@ -568,9 +581,13 @@
       if (live.avatarUrl) merged.avatarUrl = live.avatarUrl;
       if (Array.isArray(live.attackers) && live.attackers.length) {
         merged.attackers = live.attackers.slice(0, 2);
+      } else if (statsCcLinked) {
+        merged.attackers = [];
       }
       if (Array.isArray(live.defenders) && live.defenders.length) {
         merged.defenders = live.defenders.slice(0, 2);
+      } else if (statsCcLinked) {
+        merged.defenders = [];
       }
     }
     applyLiveTeamRankToMember(merged);

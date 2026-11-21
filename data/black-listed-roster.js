@@ -2,38 +2,35 @@ window.BLACK_LISTED_ROSTER = [
   {
     id: "fuziveer",
     name: "FuZiveer.BL",
-    role: "Fragger / Intel",
-    peakRank: "Diamond 1",
+    role: "Fragger / Flex",
     statsCc: {
       profileId: "be17aef1-c0e8-4a75-be5b-a644fb8c2a18",
       vanity: "FuZiveer.BL"
     },
-    attackers: ["Solid Snake", "Twitch"],
-    defenders: ["Solis", "Lesion"]
+    attackers: [],
+    defenders: []
   },
   {
-    id: "dis",
-    name: "Dis.BL",
-    role: "Support / Intel",
-    peakRank: "Platinum 1",
+    id: "zurg0s",
+    name: "ZurG0s.BL",
+    role: "Flex",
     statsCc: {
-      profileId: "1b1dbdd3-b859-4d81-a93a-cae152e7c482",
-      vanity: "Dis.BL"
+      profileId: "6f731da3-eeeb-434a-b68f-21d79a3fec48",
+      vanity: "ZurG0s.BL"
     },
-    attackers: ["Thatcher", "Lion"],
-    defenders: ["Thorn", "Lesion"]
+    attackers: [],
+    defenders: []
   },
   {
     id: "trustgod",
     name: "TrustGod.BL",
-    role: "Fragger / Flex",
-    peakRank: "Emerald 4",
+    role: "Flex",
     statsCc: {
       profileId: "710fb77e-9333-4722-8ca9-652c7aafb6cf",
       vanity: "TrustGod.BL"
     },
-    attackers: ["Ash", "Solid Snake"],
-    defenders: ["Vigil", "Solis"],
+    attackers: [],
+    defenders: [],
     igl: true,
     gridCenter: true
   },
@@ -42,46 +39,43 @@ window.BLACK_LISTED_ROSTER = [
     name: "KK.BL",
     role: "Support",
     coIgl: true,
-    peakRank: "Emerald 4",
     statsCc: {
       profileId: "f7f3de9c-a6a6-484b-a5be-963be38cea6b",
       vanity: "KK.BL"
     },
-    attackers: ["Thermite", "Nomad"],
-    defenders: ["Castle", "Azami"]
+    attackers: [],
+    defenders: []
   },
   {
     id: "zofia",
     name: "Zofia.BL",
     role: "Flex / Support",
-    peakRank: "Diamond 2",
     statsCc: {
       profileId: "7fe1ccb1-2396-44f7-88b4-d92175b6a5f4",
       vanity: "Zofia.BL"
     },
-    attackers: ["Blitz", "Zofia"],
-    defenders: ["Smoke", "Ela"]
+    attackers: [],
+    defenders: []
   },
   {
     id: "horde",
     name: "Horde.BL",
     role: "Support",
-    peakRank: "Emerald 5",
     statsCc: {
       profileId: "60eadc1d-8459-46dc-a937-cbb1cf5d9d09",
       vanity: "Horde.BL"
     },
-    attackers: ["Ace", "Thermite"],
-    defenders: ["Kapkan", "Frost"],
+    attackers: [],
+    defenders: [],
     substitute: true
   },
   {
-    id: "zurg0s",
-    name: "ZurG0s.BL",
-    role: "Flex / Intel",
+    id: "dis",
+    name: "Dis.BL",
+    role: "Support",
     statsCc: {
-      profileId: "6f731da3-eeeb-434a-b68f-21d79a3fec48",
-      vanity: "ZurG0s.BL"
+      profileId: "1b1dbdd3-b859-4d81-a93a-cae152e7c482",
+      vanity: "Dis.BL"
     },
     attackers: [],
     defenders: [],
@@ -90,7 +84,7 @@ window.BLACK_LISTED_ROSTER = [
   {
     id: "illilii01",
     name: "IllIlIIl01.BL",
-    role: "Fragger / Flex / Intel",
+    role: "Fragger / Flex",
     statsCc: {
       profileId: "b4662119-4fed-4ca0-977b-121b577c112a",
       vanity: "IllIlIIl01"
