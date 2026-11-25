@@ -81,7 +81,6 @@
         try {
           await reader.cancel();
         } catch {
-          /* ignore */
         }
         break;
       }

@@ -259,6 +259,7 @@
     blApiResumeBound = true;
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState !== "visible") return;
+      if (!document.getElementById("page-black-listed")) return;
       void window.refreshCafeBlApiState?.();
     });
     window.addEventListener("online", () => {
@@ -266,15 +267,27 @@
     });
   }
   bindBlApiResumeRefresh();
-  setInterval(() => {
-    if (!document.getElementById("page-black-listed")) return;
-    void window.refreshCafeBlApiState?.();
-  }, ROSTER_STATS_AUTO_REFRESH_MS);
+  function isBlackListedPageActive() {
+    const page = document.getElementById("page-black-listed");
+    return Boolean(page?.classList.contains("main-page-active"));
+  }
+  let rosterAutoRefreshTimer = null;
+  function stopCafeBlRosterAutoRefresh() {
+    if (rosterAutoRefreshTimer == null) return;
+    clearInterval(rosterAutoRefreshTimer);
+    rosterAutoRefreshTimer = null;
+  }
+  window.stopCafeBlRosterAutoRefresh = stopCafeBlRosterAutoRefresh;
+  window.startCafeBlRosterAutoRefresh = function startCafeBlRosterAutoRefresh() {
+    stopCafeBlRosterAutoRefresh();
+    rosterAutoRefreshTimer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      if (!isBlackListedPageActive()) return;
+      void window.refreshCafeBlApiState?.();
+    }, ROSTER_STATS_AUTO_REFRESH_MS);
+  };
   window.addEventListener("cafe-scrim-ws-status", syncTopBarServerWakeup);
   syncTopBarServerWakeup();
-  if (wsBase()) {
-    window.connectCafeScrimWebSocket();
-  }
   window.patchCafeScrimRecord = async function patchCafeScrimRecord(record) {
     const wins = Math.max(0, Math.round(Number(record?.wins) || 0));
     const losses = Math.max(0, Math.round(Number(record?.losses) || 0));

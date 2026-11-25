@@ -44,15 +44,29 @@
       });
     });
   }
+  function stopPeriodicEnforce() {
+    if (!enforceTimer) return;
+    window.clearInterval(enforceTimer);
+    enforceTimer = 0;
+  }
   function startPeriodicEnforce() {
     if (enforceTimer) return;
-    enforceTimer = window.setInterval(() => enforceRestrictedUi(), 2e3);
+    if (document.visibilityState !== "visible") return;
+    enforceTimer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      enforceRestrictedUi();
+    }, 15e3);
+  }
+  function syncPeriodicEnforceWithVisibility() {
+    if (document.visibilityState === "visible") startPeriodicEnforce();
+    else stopPeriodicEnforce();
   }
   window.enforceCafeRestrictedUi = enforceRestrictedUi;
   window.initCafeAuthUiGuard = function initCafeAuthUiGuard() {
     enforceRestrictedUi();
     startObserver();
-    startPeriodicEnforce();
+    syncPeriodicEnforceWithVisibility();
+    document.addEventListener("visibilitychange", syncPeriodicEnforceWithVisibility);
     window.addEventListener("cafe-discord-auth-change", () => {
       enforceRestrictedUi();
     });

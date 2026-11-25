@@ -1907,6 +1907,8 @@
     blScrimDisplayed = { wins: null, losses: null };
     blScrimSaveQueued = null;
     blScrimSaveRunning = false;
+    window.stopCafeBlRosterAutoRefresh?.();
+    window.disconnectCafeScrimWebSocket?.();
     window.syncTopBarServerWakeup?.();
   };
   window.initBlackListedPage = function initBlackListedPage() {
@@ -1919,6 +1921,7 @@
     renderBlackListedRoster();
     initBlScrimCounter();
     window.syncTopBarServerWakeup?.();
+    window.startCafeBlRosterAutoRefresh?.();
     window.connectCafeScrimWebSocket?.();
     void refreshBlScrimFromServer();
   };

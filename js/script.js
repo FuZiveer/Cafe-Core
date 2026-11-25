@@ -399,7 +399,7 @@ function initBottleneckHardwareDetect() {
       if (!field) return;
       layoutPanelRailTooltip(target, field);
     };
-    window.addEventListener("scroll", repositionBottleneckGpuTip, true);
+    window.addEventListener("scroll", repositionBottleneckGpuTip, { passive: true, capture: true });
     window.addEventListener("resize", repositionBottleneckGpuTip);
     document.getElementById("main-content")?.addEventListener("scroll", repositionBottleneckGpuTip, {
       passive: true
@@ -436,6 +436,31 @@ function resetMainPageMotion(pageEl) {
     if (!pageEl) return;
   pageEl.classList.remove("main-page-exit", "main-page-enter-prep");
 }
+function getMainContentSideRails() {
+  return document.querySelector(".main-content-side-rails");
+}
+function resetMainSideRailsMotion() {
+  getMainContentSideRails()?.classList.remove("main-side-rails-exit", "main-side-rails-enter-prep");
+}
+function syncMainSideRailsExit() {
+  const rails = getMainContentSideRails();
+  if (!rails) return;
+  resetMainSideRailsMotion();
+  rails.classList.add("main-side-rails-exit");
+}
+function revealMainSideRails(token) {
+  const rails = getMainContentSideRails();
+  if (!rails) return;
+  resetMainSideRailsMotion();
+  if (isReducedMotionEnabled()) return;
+  rails.classList.add("main-side-rails-enter-prep");
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (token !== mainPageAnimToken) return;
+      rails.classList.remove("main-side-rails-enter-prep");
+    });
+  });
+}
 function applyMainPageInstant(nextPage) {
     mainPageAnimToken += 1;
   if (mainPageTransitionHandler && nextPage) {
@@ -444,6 +469,7 @@ function applyMainPageInstant(nextPage) {
     mainPageTransitionHandler = null;
   resetMainContentScrollAfterSwap();
   resetMainPageMotion(nextPage);
+  resetMainSideRailsMotion();
   nextPage.classList.add("main-page-active");
 }
 function waitForMainPageExit(prevPage, token) {
@@ -471,6 +497,7 @@ function revealMainPage(nextPage, nextKey, token) {
     resetMainPageMotion(nextPage);
   resetMainContentScrollAfterSwap();
   nextPage.classList.add("main-page-active", "main-page-enter-prep");
+  revealMainSideRails(token);
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             if (token !== mainPageAnimToken) return;
@@ -502,14 +529,17 @@ async function animateDefaultPageInPlace() {
         mainPageTransitionHandler = null;
     }
     resetMainPageMotion(page);
+    resetMainSideRailsMotion();
     void page.offsetHeight;
   page.classList.add("main-page-exit");
+  syncMainSideRailsExit();
     await waitForMainPageExit(page, token);
     if (token !== mainPageAnimToken) return;
     syncDefaultPageView();
     resetMainPageMotion(page);
   page.classList.remove("main-page-exit");
   page.classList.add("main-page-enter-prep");
+  revealMainSideRails(token);
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             if (token !== mainPageAnimToken) return;
@@ -559,6 +589,7 @@ async function setMainPageInternal(pageKey, options = {}) {
   if (!animateExit) {
     if (prevPage) {
       resetMainPageMotion(prevPage);
+      resetMainSideRailsMotion();
       window.pageLoader.unmountMainPageElement(prevPage);
     }
     await waitForPagePrepareWarm(pageReady);
@@ -579,8 +610,10 @@ async function setMainPageInternal(pageKey, options = {}) {
         mainPageTransitionHandler = null;
     }
     resetMainPageMotion(prevPage);
+    resetMainSideRailsMotion();
     void prevPage.offsetHeight;
   prevPage.classList.add("main-page-exit");
+  syncMainSideRailsExit();
   await Promise.all([waitForMainPageExit(prevPage, token), waitForPagePrepareWarm(pageReady)]);
   if (token !== mainPageAnimToken) return;
   window.pageLoader.unmountMainPageElement(prevPage);
@@ -654,9 +687,9 @@ const IMAGE_PRELOAD_TIMEOUT_MS = 1200;
 function preloadImageUrl(src, timeoutMs = IMAGE_PRELOAD_TIMEOUT_MS) {
   return new Promise((resolve) => {
     const done = () => resolve();
-    const loader = new Image();
+        const loader = new Image();
     loader.onload = loader.onerror = done;
-    loader.src = src;
+        loader.src = src;
     setTimeout(done, timeoutMs);
   });
 }
@@ -1042,29 +1075,60 @@ const SIDEBAR_PREFETCH_PAGES = {
   videos: ["lineups"],
   more: ["branding", "fuziveer", "black-listed", "privacy", "terms"]
 };
+function runWhenIdle(fn, timeoutMs = 2500) {
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(fn, { timeout: timeoutMs });
+  } else {
+    setTimeout(fn, 80);
+  }
+}
 function warmPagesForSidebarTab(tabType) {
   let keys = SIDEBAR_PREFETCH_PAGES[tabType];
-  if (!keys) return;
+  if (!keys?.length) return;
   if (isAimTrainerMobileBlocked()) {
     keys = keys.filter((key) => key !== "aim-trainer");
   }
-  keys.forEach((key) => warmMainPageCache(key));
+  warmMainPageCache(keys[0]);
+  const rest = keys.slice(1);
+  if (!rest.length) return;
+  let index = 0;
+  const warmNext = () => {
+    if (index >= rest.length) return;
+    warmMainPageCache(rest[index]);
+    index += 1;
+    if (index < rest.length) runWhenIdle(warmNext, 2000);
+  };
+  runWhenIdle(warmNext, 2000);
+}
+const MAIN_SIDE_RAILS_WIDE_MQ = typeof window.matchMedia === "function"
+  ? window.matchMedia("(min-width: 1401px)")
+  : null;
+function syncMainContentDecorAnimationPause() {
+  const paused = document.visibilityState !== "visible"
+    || (MAIN_SIDE_RAILS_WIDE_MQ && !MAIN_SIDE_RAILS_WIDE_MQ.matches);
+  getMainContentSideRails()?.classList.toggle("main-side-rails-anim-paused", paused);
+}
+function bindMainContentDecorLifecycle() {
+  if (window.__cafeMainDecorLifecycleBound) return;
+  window.__cafeMainDecorLifecycleBound = true;
+  document.addEventListener("visibilitychange", syncMainContentDecorAnimationPause);
+  if (MAIN_SIDE_RAILS_WIDE_MQ) {
+    if (typeof MAIN_SIDE_RAILS_WIDE_MQ.addEventListener === "function") {
+      MAIN_SIDE_RAILS_WIDE_MQ.addEventListener("change", syncMainContentDecorAnimationPause);
+    } else if (typeof MAIN_SIDE_RAILS_WIDE_MQ.addListener === "function") {
+      MAIN_SIDE_RAILS_WIDE_MQ.addListener(syncMainContentDecorAnimationPause);
+    }
+  }
+  syncMainContentDecorAnimationPause();
 }
 function initMainPagePrefetch() {
   if (!window.pageLoader?.preparePageForMountWarm) return;
   const bootPrefetch = currentMainPageKey === "default" ? ["apps"] : ["default"];
-  const schedule = (fn) => {
-    if (typeof requestIdleCallback === "function") {
-      requestIdleCallback(fn, { timeout: 4e3 });
-    } else {
-      setTimeout(fn, 200);
-    }
-  };
-  schedule(() => {
+  runWhenIdle(() => {
     for (const key of bootPrefetch) {
       if (key !== currentMainPageKey) window.pageLoader.preparePageForMountWarm(key);
     }
-  });
+  }, 4000);
   document.getElementById("sidebar-primary-nav")?.addEventListener("pointerenter", (event2) => {
     const btn = event2.target.closest(".nav-btn");
     if (!btn || !btn.getAttribute("onclick")) return;
@@ -4299,7 +4363,7 @@ function bindReactionTimeChartTooltips() {
     if (!reactionTimeChartTooltipTarget) return;
     positionReactionTimeChartTooltip(reactionTimeChartTooltipTarget);
   };
-  window.addEventListener("scroll", onScroll, true);
+  window.addEventListener("scroll", onScroll, { passive: true, capture: true });
   window.addEventListener("resize", onScroll);
   svg._reactionChartTipOver = onPointerOver;
   svg._reactionChartTipOut = onPointerOut;
@@ -7276,7 +7340,7 @@ function bindNotificationDropdownPositionListeners() {
   if (notificationDropdownPositionBound) return;
   notificationDropdownPositionBound = true;
   window.addEventListener("resize", positionNotificationDropdown);
-  window.addEventListener("scroll", positionNotificationDropdown, true);
+  window.addEventListener("scroll", positionNotificationDropdown, { passive: true, capture: true });
   document.getElementById("main-content")?.addEventListener("scroll", positionNotificationDropdown, {
     passive: true
   });
@@ -7591,6 +7655,7 @@ window.addEventListener("DOMContentLoaded", () => {
     initNotifications();
   initModalCloseTooltips();
   initMainPagePrefetch();
+  bindMainContentDecorLifecycle();
 });
 window.CafeCore.mount("App", {
     mainPageIds,

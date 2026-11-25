@@ -140,18 +140,19 @@
   }
   async function preparePageForMount(pageKey) {
     if (!mainPagePaths[pageKey]) return;
+    await preparePageForMountWarm(pageKey);
     await preparePageDependencies(pageKey);
-    await fetchPageHtml(pageKey);
   }
   function preparePageForMountWarm(pageKey) {
     if (!mainPagePaths[pageKey]) return Promise.resolve();
     if (htmlCache.has(pageKey)) return Promise.resolve();
-    if (preparePromises.has(pageKey)) return preparePromises.get(pageKey);
-    const promise = preparePageForMount(pageKey).catch(() => {
+    const warmKey = `warm:${pageKey}`;
+    if (preparePromises.has(warmKey)) return preparePromises.get(warmKey);
+    const promise = fetchPageHtml(pageKey).catch(() => {
     }).finally(() => {
-      preparePromises.delete(pageKey);
+      preparePromises.delete(warmKey);
     });
-    preparePromises.set(pageKey, promise);
+    preparePromises.set(warmKey, promise);
     return promise;
   }
   async function ensureKeyboardCheckerScripts() {
@@ -215,8 +216,8 @@
     const promise = (async () => {
       await preparePageDependencies(pageKey);
       const html = await fetchPageHtml(pageKey);
-      const host = Dom.byId("main-content");
-      if (!host) throw new Error("#main-content missing");
+      const host = Dom.byId("main-content-inner") || Dom.byId("main-content");
+      if (!host) throw new Error("#main-content mount host missing");
       const htmlTemplate = document.createElement("template");
       htmlTemplate.innerHTML = html.trim();
       const pageElement = htmlTemplate.content.firstElementChild;

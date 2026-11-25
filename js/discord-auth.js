@@ -6,6 +6,27 @@
   let cachedAuthConfigured = false;
   const DISCORD_AUTH_POLL_MS = 20 * 1000;
   let discordAuthPollTimer = null;
+  let discordAuthVisibilityBound = false;
+  function scheduleBlApiRefreshIdle() {
+    if (typeof window.refreshCafeBlApiState !== "function") return;
+    const run = () => void window.refreshCafeBlApiState();
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(run, { timeout: 3000 });
+    } else {
+      setTimeout(run, 0);
+    }
+  }
+  function bindDiscordAuthVisibility() {
+    if (discordAuthVisibilityBound) return;
+    discordAuthVisibilityBound = true;
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") {
+        stopDiscordAuthPoll();
+        return;
+      }
+      if (currentDiscordUser && cachedAuthConfigured) startDiscordAuthPoll();
+    });
+  }
   function byId(id) {
     return document.getElementById(id);
   }
@@ -61,7 +82,7 @@
       if (menu?.classList.contains("dropdown-open")) layoutDiscordProfileMenu();
     };
     window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("scroll", reposition, { passive: true, capture: true });
     document.getElementById("main-content")?.addEventListener("scroll", reposition, { passive: true });
   }
   window.closeDiscordProfileMenu = function closeDiscordProfileMenu() {
@@ -344,9 +365,7 @@
       }
       setCurrentDiscordUser(user);
       patchSignedInDiscordUi(user);
-      if (typeof window.refreshCafeBlApiState === "function") {
-        void window.refreshCafeBlApiState();
-      }
+      scheduleBlApiRefreshIdle();
     } catch {
     }
   }
@@ -387,12 +406,11 @@
       renderSignedOut(host, loginUrl);
       bindDiscordSignInPending(byId("discord-sign-in-btn"));
     }
-    if (typeof window.refreshCafeBlApiState === "function") {
-      void window.refreshCafeBlApiState();
-    }
+    scheduleBlApiRefreshIdle();
   }
   window.initDiscordAuth = function initDiscordAuth() {
     clearAuthQueryFromUrl();
+    bindDiscordAuthVisibility();
     refreshDiscordAuthUi();
   };
   window.refreshDiscordAuthUi = refreshDiscordAuthUi;
