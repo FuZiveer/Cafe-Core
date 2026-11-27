@@ -150,7 +150,7 @@ server.listen(PORT, "0.0.0.0", () => {
     });
     console.log("Match voice bot: DISCORD_BOT_TOKEN + DISCORD_GUILD_ID loaded");
   } else {
-    console.log("Match voice bot: set DISCORD_BOT_TOKEN and DISCORD_GUILD_ID in .env (see .env.example)");
+    console.log("Match voice bot: set DISCORD_BOT_TOKEN and DISCORD_GUILD_ID (local .env or Render Environment)");
   }
   if (!usesUpstashRedis()) {
     console.warn(
