@@ -390,51 +390,36 @@
     el.appendChild(sub);
   }
 
-  function renderTeamRoster(teamEl, team, side = "left") {
-    teamEl.replaceChildren();
-    const header = document.createElement("p");
-    header.className = `scrims-match-team-name scrims-match-team-name--${side}`;
-    header.textContent = team.name || "Team";
-    teamEl.appendChild(header);
-    const list = document.createElement("ul");
-    list.className = "scrims-match-team-players";
-    list.style.setProperty("--scrims-match-player-cols", String(MATCH_TEAM_SLOTS));
-    list.setAttribute("aria-label", `${team.name || "Team"} slots (${MATCH_TEAM_SLOTS})`);
+  function matchPlayerToMember(p) {
+    if (!p?.id) return null;
+    const id = String(p.id);
+    return {
+      id,
+      displayName: p.displayName || p.username || "Player",
+      username: p.username ? String(p.username) : "",
+      avatarUrl: p.avatarUrl || "",
+      teamName: p.teamName ? String(p.teamName) : "",
+      you: Boolean(myDiscordId() && id === myDiscordId())
+    };
+  }
+
+  function renderMatchTeamSide(sideEl, team, side = "left") {
+    sideEl.replaceChildren();
+    sideEl.className = `scrims-match-side scrims-match-side--${side}`;
+
+    const grid = document.createElement("div");
+    grid.className = "scrims-roster-grid scrims-match-roster-grid";
+    grid.style.setProperty("--scrims-roster-cols", String(MATCH_TEAM_SLOTS));
+    grid.setAttribute("aria-label", `${team.name || "Team"} slots (${MATCH_TEAM_SLOTS})`);
+
     const players = Array.isArray(team.players) ? team.players : [];
     for (let i = 0; i < MATCH_TEAM_SLOTS; i++) {
-      const p = players[i] || null;
-      const li = document.createElement("li");
-      if (p?.id) {
-        li.className = "scrims-match-player scrims-match-player--filled";
-        const img = document.createElement("img");
-        img.className = "scrims-match-player-avatar";
-        img.src = p.avatarUrl || "https://cdn.discordapp.com/embed/avatars/0.png";
-        img.alt = "";
-        img.width = 40;
-        img.height = 40;
-        img.loading = "lazy";
-        const label = document.createElement("span");
-        label.className = "scrims-match-player-name";
-        const you = myDiscordId() && String(p.id) === myDiscordId();
-        label.textContent = you ? "You" : p.displayName || p.username || "Player";
-        li.appendChild(img);
-        li.appendChild(label);
-      } else {
-        li.className = "scrims-match-player scrims-match-player--empty";
-        li.setAttribute("aria-label", `Open slot ${i + 1}`);
-        const ph = document.createElement("span");
-        ph.className = "scrims-match-player-placeholder";
-        ph.setAttribute("aria-hidden", "true");
-        ph.innerHTML = '<i class="fa-solid fa-user"></i>';
-        const label = document.createElement("span");
-        label.className = "scrims-match-player-name scrims-match-player-name--empty";
-        label.textContent = "Open";
-        li.appendChild(ph);
-        li.appendChild(label);
-      }
-      list.appendChild(li);
+      const slot = document.createElement("article");
+      renderSlot(slot, i, matchPlayerToMember(players[i]), { kind: "player" });
+      grid.appendChild(slot);
     }
-    teamEl.appendChild(list);
+
+    sideEl.appendChild(grid);
   }
 
   function renderMatchesPanel() {
@@ -458,24 +443,42 @@
       card.className = "scrims-match-card";
       card.setAttribute("aria-label", `${left.name} versus ${right.name}`);
 
+      const namesRow = document.createElement("div");
+      namesRow.className = "scrims-match-team-names";
+
+      const leftName = document.createElement("p");
+      leftName.className = "scrims-match-team-name scrims-match-team-name--left";
+      leftName.textContent = left.name || "Team";
+
+      const namesVs = document.createElement("div");
+      namesVs.className = "scrims-match-team-names-gap";
+      namesVs.setAttribute("aria-hidden", "true");
+
+      const rightName = document.createElement("p");
+      rightName.className = "scrims-match-team-name scrims-match-team-name--right";
+      rightName.textContent = right.name || "Team";
+
+      namesRow.appendChild(leftName);
+      namesRow.appendChild(namesVs);
+      namesRow.appendChild(rightName);
+
       const versus = document.createElement("div");
       versus.className = "scrims-match-versus";
 
-      const leftEl = document.createElement("div");
-      leftEl.className = "scrims-match-side scrims-match-side--left";
+      const leftSide = document.createElement("div");
       const vs = document.createElement("div");
       vs.className = "scrims-match-vs";
       vs.setAttribute("aria-hidden", "true");
       vs.textContent = "VS";
-      const rightEl = document.createElement("div");
-      rightEl.className = "scrims-match-side scrims-match-side--right";
+      const rightSide = document.createElement("div");
 
-      renderTeamRoster(leftEl, left, "left");
-      renderTeamRoster(rightEl, right, "right");
-      versus.appendChild(leftEl);
+      renderMatchTeamSide(leftSide, left, "left");
+      renderMatchTeamSide(rightSide, right, "right");
+      versus.appendChild(leftSide);
       versus.appendChild(vs);
-      versus.appendChild(rightEl);
+      versus.appendChild(rightSide);
 
+      card.appendChild(namesRow);
       card.appendChild(versus);
       activeWrap.appendChild(card);
       return;

@@ -7320,16 +7320,42 @@ html.reduce-motion .keyboard-checker-key {
   align-items: center;
   gap: 1rem;
 }
+#page-scrims .scrims-match-team-names {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 1rem;
+  margin: 0 0 0.5rem;
+}
+#page-scrims .scrims-match-team-names-gap {
+  width: 2.25rem;
+}
 #page-scrims .scrims-match-side {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
-  padding: 1rem 1rem 1.05rem;
+  min-height: 6.75rem;
+  padding: 0.75rem 0.55rem;
   border-radius: 0.55rem;
   border: 1px solid rgb(71 85 105 / 0.55);
   background: rgb(15 17 20 / 0.45);
+}
+#page-scrims .scrims-match-roster-grid {
+  gap: 0.4rem;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 auto;
+  grid-template-columns: repeat(var(--scrims-roster-cols, 5), minmax(3.85rem, 4.35rem));
+  justify-content: center;
+  justify-items: center;
+}
+#page-scrims .scrims-match-roster-grid .scrims-roster-slot {
+  min-height: 5.35rem;
+  width: 100%;
+  max-width: 4.35rem;
+  padding: 0.45rem 0.2rem;
 }
 #page-scrims .scrims-match-side--left {
   border-color: rgb(59 130 246 / 0.45);
@@ -7341,76 +7367,21 @@ html.reduce-motion .keyboard-checker-key {
 }
 #page-scrims .scrims-match-team-name {
   margin: 0;
-  padding: 0 0 0.65rem;
+  padding: 0 0.15rem;
   font-size: 0.8125rem;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #fff;
   line-height: 1.2;
-  border-bottom: 1px solid rgb(71 85 105 / 0.45);
 }
 #page-scrims .scrims-match-team-name--left {
   text-align: left;
-  border-bottom-color: rgb(59 130 246 / 0.35);
   text-shadow: 0 0 18px rgb(59 130 246 / 0.25);
 }
 #page-scrims .scrims-match-team-name--right {
   text-align: right;
-  border-bottom-color: rgb(255 30 67 / 0.35);
   text-shadow: 0 0 18px rgb(255 30 67 / 0.22);
-}
-#page-scrims .scrims-match-team-players {
-  display: grid;
-  grid-template-columns: repeat(var(--scrims-match-player-cols, 5), minmax(0, 1fr));
-  gap: 0.55rem 0.4rem;
-  justify-items: start;
-  margin: 0;
-  padding: 0.15rem 0 0;
-  list-style: none;
-  width: 100%;
-}
-#page-scrims .scrims-match-player {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
-  min-width: 0;
-  width: 100%;
-}
-#page-scrims .scrims-match-player-avatar {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 999px;
-  object-fit: cover;
-  box-shadow: 0 0 0 2px rgb(51 65 85 / 0.8);
-}
-#page-scrims .scrims-match-player-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  color: rgb(100 116 139);
-  border: 1px dashed rgb(71 85 105 / 0.75);
-  background: rgb(15 17 20 / 0.65);
-}
-#page-scrims .scrims-match-player-name {
-  font-size: 0.625rem;
-  font-weight: 700;
-  color: #fff;
-  width: 100%;
-  max-width: 4.5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-}
-#page-scrims .scrims-match-player-name--empty {
-  color: var(--scrims-muted);
-  font-weight: 600;
 }
 #page-scrims .scrims-match-vs {
   display: flex;
@@ -7422,6 +7393,17 @@ html.reduce-motion .keyboard-checker-key {
   color: rgb(148 163 184);
 }
 @media (max-width: 640px) {
+  #page-scrims .scrims-match-team-names {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+  }
+  #page-scrims .scrims-match-team-names-gap {
+    display: none;
+  }
+  #page-scrims .scrims-match-team-name--right {
+    text-align: left;
+  }
   #page-scrims .scrims-match-versus {
     grid-template-columns: 1fr;
     gap: 0.55rem;
@@ -7429,13 +7411,13 @@ html.reduce-motion .keyboard-checker-key {
   #page-scrims .scrims-match-vs {
     padding: 0.15rem 0;
   }
-  #page-scrims .scrims-match-team-players {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  #page-scrims .scrims-match-roster-grid {
+    --scrims-roster-cols: 3 !important;
   }
 }
 @media (max-width: 420px) {
-  #page-scrims .scrims-match-team-players {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  #page-scrims .scrims-match-roster-grid {
+    --scrims-roster-cols: 2 !important;
   }
 }
 @media (max-width: 720px) {
