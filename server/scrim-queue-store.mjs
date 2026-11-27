@@ -33,7 +33,8 @@ function emptyQueue() {
     version: 0,
     slots: Array.from({ length: QUEUE_CAP }, () => null),
     matchVoicePending: false,
-    lastMatchVoice: null
+    lastMatchVoice: null,
+    matchVoiceError: null
   };
 }
 
@@ -62,7 +63,9 @@ export function normalizeScrimQueue(raw) {
     slots,
     matchVoicePending: Boolean(raw.matchVoicePending),
     lastMatchVoice:
-      raw.lastMatchVoice && typeof raw.lastMatchVoice === "object" ? raw.lastMatchVoice : null
+      raw.lastMatchVoice && typeof raw.lastMatchVoice === "object" ? raw.lastMatchVoice : null,
+    matchVoiceError:
+      raw.matchVoiceError && typeof raw.matchVoiceError === "object" ? raw.matchVoiceError : null
   };
 }
 
@@ -231,6 +234,7 @@ export function queuePayload(queue, viewerId) {
     youInQueue: youIdx !== -1,
     yourJoinedAt: youIdx !== -1 ? queue.slots[youIdx].joinedAt : null,
     lastMatchVoice: queue.lastMatchVoice,
+    matchVoiceError: queue.matchVoiceError,
     activeMatch: computeActiveMatch(queue),
     persistence: usesUpstashRedis() ? "redis" : "ephemeral"
   };
@@ -293,6 +297,7 @@ export async function leaveScrimQueue(userId) {
     if (queueCount(q) < QUEUE_CAP) {
       q.matchVoicePending = false;
       q.lastMatchVoice = null;
+      q.matchVoiceError = null;
     }
     return q;
   });

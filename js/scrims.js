@@ -14,6 +14,7 @@
   let queueJoinedAt = null;
   let lastMatchVoice = null;
   let activeMatch = null;
+  let matchVoiceError = null;
   let queueActionPending = false;
   let queuePendingAction = null;
   let queueToggleGeneration = 0;
@@ -170,6 +171,7 @@
       queueJoinedAt = null;
     }
     lastMatchVoice = payload.lastMatchVoice || null;
+    matchVoiceError = payload.matchVoiceError || null;
     activeMatch = payload.activeMatch || null;
     settleQueuePendingFromPayload(payload);
     renderQueue();
@@ -343,10 +345,20 @@
       const meta = document.createElement("p");
       meta.className = "scrims-match-meta";
       if (lastMatchVoice?.channels?.length) {
-        const names = lastMatchVoice.channels.map((c) => c.channelName).join(", ");
+        const names = lastMatchVoice.channels
+          .map((c) => c.teamName || c.channelName)
+          .join(" vs ");
         meta.textContent = `Discord voice: ${lastMatchVoice.categoryName || "MATCH CHANNELS"} — ${names}`;
+      } else if (matchVoiceError?.code) {
+        const hint =
+          matchVoiceError.code === "no_channels_created" || matchVoiceError.code === "no_team_roles"
+            ? "Add TEAM… roles in Discord (or join the server with the same account you use on the site)."
+            : matchVoiceError.code === "not_in_guild"
+              ? "Queue accounts must be in the Café Core Discord server."
+              : matchVoiceError.message || matchVoiceError.code;
+        meta.textContent = `Voice channels pending: ${hint}`;
       } else {
-        meta.textContent = `Match ${activeMatch.matchId || ""}. Confirm lineups in Discord.`.trim();
+        meta.textContent = `Match ${activeMatch.matchId || ""}. Provisioning Discord voice…`.trim();
       }
 
       card.appendChild(kicker);

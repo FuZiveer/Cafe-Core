@@ -28,41 +28,62 @@ async function readJsonBody(req) {
   }
 }
 
-async function maybeProvisionMatchVoice(queue) {
+async function maybeProvisionMatchVoice(queueSnap) {
   if (!isMatchBotConfigured()) {
     console.warn("[scrim-queue] Match voice skipped — bot env not configured");
-    return queue;
+    return queueSnap;
   }
+  const queue = await readScrimQueue();
   if (queue.matchVoicePending) return queue;
   if (queueCount(queue) < QUEUE_CAP) return queue;
   const ids = queueMemberIds(queue).filter((id) => /^\d{17,20}$/.test(id));
-  if (ids.length < 2) return queue;
+  if (ids.length < QUEUE_CAP) return queue;
 
   queue.matchVoicePending = true;
+  queue.matchVoiceError = null;
   await writeScrimQueue(queue);
   broadcastScrimQueue(queue);
+
+  const roster = queue.slots
+    .filter(Boolean)
+    .map((m) => ({
+      id: m.id,
+      displayName: m.displayName,
+      username: m.username
+    }));
 
   try {
     const bot = await startDiscordMatchBot();
     if (!bot?.isReady?.()) {
       console.error("[scrim-queue] Match voice skipped — bot not online (see [match-bot] logs)");
-      queue.matchVoicePending = false;
-      const saved = await writeScrimQueue(queue);
+      const fresh = await readScrimQueue();
+      fresh.matchVoicePending = false;
+      fresh.matchVoiceError = { code: "bot_not_ready", message: "Discord bot is not online" };
+      const saved = await writeScrimQueue(fresh);
       broadcastScrimQueue(saved);
       return saved;
     }
     const matchId = `scrim-${Date.now().toString(36)}`;
-    const result = await createMatchVoiceChannels({ discordUserIds: ids, matchId });
+    const result = await createMatchVoiceChannels({
+      discordUserIds: ids,
+      matchId,
+      roster
+    });
     const fresh = await readScrimQueue();
     fresh.lastMatchVoice = result;
     fresh.matchVoicePending = false;
+    fresh.matchVoiceError = null;
     const saved = await writeScrimQueue(fresh);
     broadcastScrimQueue(saved);
     return saved;
   } catch (err) {
-    console.error("[scrim-queue] match voice:", err?.message || err);
+    console.error("[scrim-queue] match voice:", err?.message || err, err?.skipped || "");
     const fresh = await readScrimQueue();
     fresh.matchVoicePending = false;
+    fresh.matchVoiceError = {
+      code: err?.message || "match_voice_failed",
+      skipped: err?.skipped || []
+    };
     const saved = await writeScrimQueue(fresh);
     broadcastScrimQueue(saved);
     return saved;

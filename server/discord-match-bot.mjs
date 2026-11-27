@@ -2,6 +2,7 @@ import {
   ChannelType,
   Client,
   GatewayIntentBits,
+  OverwriteType,
   PermissionFlagsBits
 } from "discord.js";
 import { getAuthConfig } from "./discord-auth.mjs";
@@ -84,14 +85,54 @@ function sanitizeVoiceChannelName(name) {
     .slice(0, 96);
 }
 
-function primaryTeamRole(member, prefix) {
-  const p = prefix.toUpperCase();
-  const roles = [...member.roles.cache.values()].filter((r) =>
-    r.name.toUpperCase().startsWith(p)
-  );
-  if (!roles.length) return null;
-  roles.sort((a, b) => b.position - a.position);
-  return roles[0];
+async function primaryTeamRole(guild, member, prefix) {
+  const p = String(prefix || "TEAM").toUpperCase();
+  const roleIds = [...member.roles.cache.keys()].filter((id) => id !== guild.id);
+  const teamRoles = [];
+  for (const roleId of roleIds) {
+    let role = member.roles.cache.get(roleId);
+    if (!role?.name) {
+      role = await guild.roles.fetch(roleId).catch(() => null);
+    }
+    if (!role?.name) continue;
+    if (role.name.toUpperCase().startsWith(p)) teamRoles.push(role);
+  }
+  if (!teamRoles.length) return null;
+  teamRoles.sort((a, b) => b.position - a.position);
+  return teamRoles[0];
+}
+
+function memberVoiceOverwrites(guild, roleId, memberIds) {
+  const overwrites = [
+    {
+      id: guild.roles.everyone.id,
+      type: OverwriteType.Role,
+      deny: [PermissionFlagsBits.Connect, PermissionFlagsBits.ViewChannel]
+    }
+  ];
+  if (roleId) {
+    overwrites.push({
+      id: roleId,
+      type: OverwriteType.Role,
+      allow: [
+        PermissionFlagsBits.Connect,
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.Speak
+      ]
+    });
+  }
+  for (const uid of memberIds) {
+    overwrites.push({
+      id: uid,
+      type: OverwriteType.Member,
+      allow: [
+        PermissionFlagsBits.Connect,
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.Speak
+      ]
+    });
+  }
+  return overwrites;
 }
 
 async function ensureMatchCategory(guild, cfg) {
@@ -204,7 +245,8 @@ export async function getMatchGuild() {
 
 export async function createMatchVoiceChannels({
   discordUserIds,
-  matchId
+  matchId,
+  roster = []
 } = {}) {
   const ids = [
     ...new Set(
@@ -215,21 +257,30 @@ export async function createMatchVoiceChannels({
   ];
   if (!ids.length) throw new Error("no_participants");
 
+  const rosterById = new Map();
+  for (const entry of Array.isArray(roster) ? roster : []) {
+    if (!entry?.id) continue;
+    rosterById.set(String(entry.id), entry);
+  }
+
   const { guild, cfg } = await getMatchGuild();
+  await guild.roles.fetch().catch(() => null);
   const category = await ensureMatchCategory(guild, cfg);
 
   const teams = new Map();
+  const membersById = new Map();
   const skipped = [];
 
   for (const userId of ids) {
     let member;
     try {
-      member = await guild.members.fetch(userId);
+      member = await guild.members.fetch({ user: userId, force: true });
     } catch {
       skipped.push({ userId, reason: "not_in_guild" });
       continue;
     }
-    const role = primaryTeamRole(member, cfg.teamRolePrefix);
+    membersById.set(userId, member);
+    const role = await primaryTeamRole(guild, member, cfg.teamRolePrefix);
     if (!role) {
       skipped.push({ userId, reason: "no_team_role" });
       continue;
@@ -240,47 +291,67 @@ export async function createMatchVoiceChannels({
     teams.get(role.id).userIds.push(userId);
   }
 
-  if (!teams.size) {
-    const err = new Error("no_team_roles");
+  const label = matchId ? String(matchId) : `match-${Date.now().toString(36)}`;
+  const channels = [];
+
+  const createVoice = async ({ channelName, teamName, roleId, memberIds }) => {
+    const unique = uniqueNameInCategory(guild, category.id, channelName);
+    const channel = await guild.channels.create({
+      name: unique,
+      type: ChannelType.GuildVoice,
+      parent: category.id,
+      permissionOverwrites: memberVoiceOverwrites(guild, roleId, memberIds),
+      reason: `Café Core match ${label} — ${teamName}`
+    });
+    channels.push({
+      teamRoleId: roleId || null,
+      teamName,
+      channelId: channel.id,
+      channelName: channel.name,
+      memberIds
+    });
+  };
+
+  if (teams.size) {
+    for (const { role, userIds } of teams.values()) {
+      await createVoice({
+        channelName: role.name,
+        teamName: role.name,
+        roleId: role.id,
+        memberIds: userIds
+      });
+    }
+  }
+
+  const slottedWithoutTeam = ids.filter((id) =>
+    skipped.some((s) => s.userId === id && s.reason === "no_team_role")
+  );
+
+  for (const userId of slottedWithoutTeam) {
+    const rosterEntry = rosterById.get(userId);
+    const member = membersById.get(userId);
+    const fallbackName =
+      rosterEntry?.displayName || rosterEntry?.username || member?.displayName || `Player ${userId.slice(-4)}`;
+    const channelLabel = `${cfg.teamRolePrefix} ${fallbackName}`.trim();
+    await createVoice({
+      channelName: channelLabel,
+      teamName: channelLabel,
+      roleId: null,
+      memberIds: [userId]
+    });
+    const skip = skipped.find((s) => s.userId === userId && s.reason === "no_team_role");
+    if (skip) skip.resolvedWithFallback = true;
+  }
+
+  if (!channels.length) {
+    const err = new Error("no_channels_created");
     err.skipped = skipped;
     throw err;
   }
 
-  const label = matchId ? String(matchId) : `match-${Date.now().toString(36)}`;
-  const channels = [];
-
-  for (const { role, userIds } of teams.values()) {
-    const channelName = uniqueNameInCategory(guild, category.id, role.name);
-    const overwrites = [
-      {
-        id: guild.roles.everyone.id,
-        deny: [PermissionFlagsBits.Connect, PermissionFlagsBits.ViewChannel]
-      },
-      {
-        id: role.id,
-        allow: [
-          PermissionFlagsBits.Connect,
-          PermissionFlagsBits.ViewChannel,
-          PermissionFlagsBits.Speak
-        ]
-      }
-    ];
-    const channel = await guild.channels.create({
-      name: channelName,
-      type: ChannelType.GuildVoice,
-      parent: category.id,
-      permissionOverwrites: overwrites,
-      reason: `Café Core match ${label} — ${role.name} (${userIds.length} players)`
-    });
-    channels.push({
-      teamRoleId: role.id,
-      teamName: role.name,
-      channelId: channel.id,
-      channelName: channel.name,
-      memberIds: userIds
-    });
+  if (skipped.length) {
+    console.warn("[match-bot] Match voice skipped members:", JSON.stringify(skipped));
   }
-
   console.log(
     `[match-bot] Created ${channels.length} voice channel(s) for match ${label}`
   );
