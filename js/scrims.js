@@ -3,6 +3,7 @@
 
   let queueCapacity = 2;
   let adminCapacity = 2;
+  const MATCH_TEAM_SLOTS = 5;
 
   let slots = Array.from({ length: queueCapacity }, () => null);
   let adminSlots = Array.from({ length: adminCapacity }, () => null);
@@ -389,30 +390,48 @@
     el.appendChild(sub);
   }
 
-  function renderTeamRoster(teamEl, team) {
+  function renderTeamRoster(teamEl, team, side = "left") {
     teamEl.replaceChildren();
     const header = document.createElement("p");
-    header.className = "scrims-match-team-name";
+    header.className = `scrims-match-team-name scrims-match-team-name--${side}`;
     header.textContent = team.name || "Team";
     teamEl.appendChild(header);
     const list = document.createElement("ul");
     list.className = "scrims-match-team-players";
-    for (const p of team.players || []) {
+    list.style.setProperty("--scrims-match-player-cols", String(MATCH_TEAM_SLOTS));
+    list.setAttribute("aria-label", `${team.name || "Team"} slots (${MATCH_TEAM_SLOTS})`);
+    const players = Array.isArray(team.players) ? team.players : [];
+    for (let i = 0; i < MATCH_TEAM_SLOTS; i++) {
+      const p = players[i] || null;
       const li = document.createElement("li");
-      li.className = "scrims-match-player";
-      const img = document.createElement("img");
-      img.className = "scrims-match-player-avatar";
-      img.src = p.avatarUrl || "https://cdn.discordapp.com/embed/avatars/0.png";
-      img.alt = "";
-      img.width = 40;
-      img.height = 40;
-      img.loading = "lazy";
-      const label = document.createElement("span");
-      label.className = "scrims-match-player-name";
-      const you = myDiscordId() && String(p.id) === myDiscordId();
-      label.textContent = you ? "You" : p.displayName || p.username || "Player";
-      li.appendChild(img);
-      li.appendChild(label);
+      if (p?.id) {
+        li.className = "scrims-match-player scrims-match-player--filled";
+        const img = document.createElement("img");
+        img.className = "scrims-match-player-avatar";
+        img.src = p.avatarUrl || "https://cdn.discordapp.com/embed/avatars/0.png";
+        img.alt = "";
+        img.width = 40;
+        img.height = 40;
+        img.loading = "lazy";
+        const label = document.createElement("span");
+        label.className = "scrims-match-player-name";
+        const you = myDiscordId() && String(p.id) === myDiscordId();
+        label.textContent = you ? "You" : p.displayName || p.username || "Player";
+        li.appendChild(img);
+        li.appendChild(label);
+      } else {
+        li.className = "scrims-match-player scrims-match-player--empty";
+        li.setAttribute("aria-label", `Open slot ${i + 1}`);
+        const ph = document.createElement("span");
+        ph.className = "scrims-match-player-placeholder";
+        ph.setAttribute("aria-hidden", "true");
+        ph.innerHTML = '<i class="fa-solid fa-user"></i>';
+        const label = document.createElement("span");
+        label.className = "scrims-match-player-name scrims-match-player-name--empty";
+        label.textContent = "Open";
+        li.appendChild(ph);
+        li.appendChild(label);
+      }
       list.appendChild(li);
     }
     teamEl.appendChild(list);
@@ -439,10 +458,6 @@
       card.className = "scrims-match-card";
       card.setAttribute("aria-label", `${left.name} versus ${right.name}`);
 
-      const kicker = document.createElement("p");
-      kicker.className = "scrims-match-kicker";
-      kicker.textContent = "Live scrim";
-
       const versus = document.createElement("div");
       versus.className = "scrims-match-versus";
 
@@ -455,13 +470,12 @@
       const rightEl = document.createElement("div");
       rightEl.className = "scrims-match-side scrims-match-side--right";
 
-      renderTeamRoster(leftEl, left);
-      renderTeamRoster(rightEl, right);
+      renderTeamRoster(leftEl, left, "left");
+      renderTeamRoster(rightEl, right, "right");
       versus.appendChild(leftEl);
       versus.appendChild(vs);
       versus.appendChild(rightEl);
 
-      card.appendChild(kicker);
       card.appendChild(versus);
       activeWrap.appendChild(card);
       return;
@@ -649,7 +663,10 @@
   }
 
   async function refreshScrimQueue({ force } = {}) {
-    if (!apiBase()) return;
+    if (!apiBase()) {
+      if (root) renderQueue();
+      return;
+    }
     const lobby = activeLobbyId || getLobbyCodeFromUrl();
     if (!lobby) {
       renderQueue();

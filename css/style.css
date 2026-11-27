@@ -7314,28 +7314,20 @@ html.reduce-motion .keyboard-checker-key {
   padding: 1.25rem 1.15rem 1.35rem;
   box-shadow: 0 0 28px rgb(255 30 67 / 0.08);
 }
-#page-scrims .scrims-match-kicker {
-  margin: 0 0 1rem;
-  font-size: 0.625rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  text-align: center;
-  color: var(--scrims-accent);
-}
 #page-scrims .scrims-match-versus {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  align-items: stretch;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 1rem;
 }
 #page-scrims .scrims-match-side {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.85rem 0.55rem;
-  border-radius: 0.5rem;
+  align-items: stretch;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1rem 1rem 1.05rem;
+  border-radius: 0.55rem;
   border: 1px solid rgb(71 85 105 / 0.55);
   background: rgb(15 17 20 / 0.45);
 }
@@ -7349,28 +7341,42 @@ html.reduce-motion .keyboard-checker-key {
 }
 #page-scrims .scrims-match-team-name {
   margin: 0;
-  font-size: 0.6875rem;
+  padding: 0 0 0.65rem;
+  font-size: 0.8125rem;
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #fff;
-  text-align: center;
+  line-height: 1.2;
+  border-bottom: 1px solid rgb(71 85 105 / 0.45);
+}
+#page-scrims .scrims-match-team-name--left {
+  text-align: left;
+  border-bottom-color: rgb(59 130 246 / 0.35);
+  text-shadow: 0 0 18px rgb(59 130 246 / 0.25);
+}
+#page-scrims .scrims-match-team-name--right {
+  text-align: right;
+  border-bottom-color: rgb(255 30 67 / 0.35);
+  text-shadow: 0 0 18px rgb(255 30 67 / 0.22);
 }
 #page-scrims .scrims-match-team-players {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(var(--scrims-match-player-cols, 5), minmax(0, 1fr));
+  gap: 0.55rem 0.4rem;
+  justify-items: start;
   margin: 0;
-  padding: 0;
+  padding: 0.15rem 0 0;
   list-style: none;
   width: 100%;
 }
 #page-scrims .scrims-match-player {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.35rem;
+  min-width: 0;
+  width: 100%;
 }
 #page-scrims .scrims-match-player-avatar {
   width: 2.5rem;
@@ -7379,15 +7385,32 @@ html.reduce-motion .keyboard-checker-key {
   object-fit: cover;
   box-shadow: 0 0 0 2px rgb(51 65 85 / 0.8);
 }
-#page-scrims .scrims-match-player-name {
+#page-scrims .scrims-match-player-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
   font-size: 0.75rem;
+  color: rgb(100 116 139);
+  border: 1px dashed rgb(71 85 105 / 0.75);
+  background: rgb(15 17 20 / 0.65);
+}
+#page-scrims .scrims-match-player-name {
+  font-size: 0.625rem;
   font-weight: 700;
   color: #fff;
-  text-align: center;
-  max-width: 100%;
+  width: 100%;
+  max-width: 4.5rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
+}
+#page-scrims .scrims-match-player-name--empty {
+  color: var(--scrims-muted);
+  font-weight: 600;
 }
 #page-scrims .scrims-match-vs {
   display: flex;
@@ -7405,6 +7428,14 @@ html.reduce-motion .keyboard-checker-key {
   }
   #page-scrims .scrims-match-vs {
     padding: 0.15rem 0;
+  }
+  #page-scrims .scrims-match-team-players {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 420px) {
+  #page-scrims .scrims-match-team-players {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 720px) {
