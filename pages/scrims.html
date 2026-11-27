@@ -10,7 +10,7 @@
                                 <p class="scrims-hero-kicker">Matchmaking lobby</p>
                                 <h2 id="scrims-queue-title" class="scrims-hero-title">Competitive scrims</h2>
                                 <p id="scrims-queue-desc" class="scrims-hero-desc">
-                                    Create a private lobby and share the invite link. When the lobby fills, scrims start automatically.
+                                    Create a private lobby and share the invite link. Guests choose player or admin (2). When player slots fill, scrims start automatically.
                                 </p>
                             </div>
                             <div class="scrims-hero-meta">
@@ -77,30 +77,56 @@
                         </div>
 
                         <div class="scrims-roster-block">
-                            <h3 class="scrims-roster-label">Lobby roster</h3>
-                            <div id="scrims-queue-slots" class="scrims-roster-grid" aria-label="Lobby slots (2)"></div>
+                            <h3 class="scrims-roster-label">Players</h3>
+                            <div id="scrims-queue-slots" class="scrims-roster-grid" aria-label="Player slots"></div>
+                        </div>
+
+                        <div class="scrims-roster-block scrims-roster-block--admins">
+                            <h3 class="scrims-roster-label">Admins <span id="scrims-admin-cap-label" class="scrims-roster-sublabel">(0 / 2)</span></h3>
+                            <div id="scrims-admin-slots" class="scrims-roster-grid scrims-roster-grid--admins" aria-label="Admin slots (2)"></div>
                         </div>
 
                         <div class="scrims-lobby-actions">
                             <button type="button" id="scrims-create-lobby" class="scrims-cta scrims-cta--join ui-interactive">
                                 Create lobby
                             </button>
+                        </div>
+                        </div>
+
+                        <div
+                            id="scrims-invite-join"
+                            class="scrims-invite-join hidden"
+                            hidden
+                            aria-labelledby="scrims-invite-join-title"
+                        >
+                            <p id="scrims-invite-join-title" class="scrims-invite-join-title">Join this lobby</p>
+                            <p class="scrims-invite-join-desc">Choose how you want to participate.</p>
+                            <div class="scrims-invite-join-actions">
+                                <button
+                                    type="button"
+                                    id="scrims-join-as-player"
+                                    class="scrims-cta scrims-cta--join ui-interactive"
+                                >
+                                    Join as player
+                                </button>
+                                <button
+                                    type="button"
+                                    id="scrims-join-as-admin"
+                                    class="scrims-cta scrims-cta--admin ui-interactive"
+                                >
+                                    Join as admin
+                                </button>
+                            </div>
                             <button
                                 type="button"
-                                id="scrims-join-lobby"
-                                class="scrims-cta scrims-cta--join ui-interactive hidden"
+                                id="scrims-leave-lobby"
+                                class="scrims-cta scrims-cta--leave scrims-invite-join-leave ui-interactive hidden"
+                                hidden
                             >
-                                Join lobby
+                                Leave lobby
                             </button>
                         </div>
-                        </div>
-                        <button
-                            type="button"
-                            id="scrims-leave-lobby"
-                            class="scrims-cta scrims-cta--leave ui-interactive hidden"
-                        >
-                            Leave lobby
-                        </button>
+
                         <button
                             type="button"
                             id="scrims-queue-sign-in"

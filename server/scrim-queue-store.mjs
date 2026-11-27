@@ -19,6 +19,7 @@ function resolveQueueCap() {
 }
 
 export const QUEUE_CAP = resolveQueueCap();
+export const ADMIN_CAP = 2;
 
 const REDIS_KEY = String(process.env.SCRIM_QUEUE_REDIS_KEY || "cafe:scrim-queue").trim();
 
@@ -62,6 +63,7 @@ function emptyQueue() {
   return {
     version: 0,
     slots: Array.from({ length: QUEUE_CAP }, () => null),
+    adminSlots: Array.from({ length: ADMIN_CAP }, () => null),
     matchVoicePending: false,
     lastMatchVoice: null,
     matchVoiceError: null,
@@ -102,9 +104,14 @@ export function normalizeScrimQueue(raw) {
     const m = raw.slots?.[i];
     return m ? normalizeMember(m) : null;
   });
+  const adminSlots = Array.from({ length: ADMIN_CAP }, (_, i) => {
+    const m = raw.adminSlots?.[i];
+    return m ? normalizeMember(m) : null;
+  });
   const core = {
     version: Math.max(0, Math.round(Number(raw.version) || 0)),
     slots,
+    adminSlots,
     matchVoicePending: Boolean(raw.matchVoicePending),
     lastMatchVoice:
       raw.lastMatchVoice && typeof raw.lastMatchVoice === "object" ? raw.lastMatchVoice : null,
@@ -174,6 +181,14 @@ export async function writeScrimQueue(queue) {
 
 export function queueCount(queue) {
   return queue.slots.filter(Boolean).length;
+}
+
+export function adminCount(queue) {
+  return (queue.adminSlots || []).filter(Boolean).length;
+}
+
+function lobbyOccupantCount(queue) {
+  return queueCount(queue) + adminCount(queue);
 }
 
 export function queueMemberIds(queue) {
@@ -271,34 +286,57 @@ function viewerInActiveMatch(activeMatch, uid) {
   return false;
 }
 
+function mapPublicSlot(m) {
+  return m
+    ? {
+        id: m.id,
+        displayName: m.displayName,
+        username: m.username,
+        avatarUrl: m.avatarUrl,
+        joinedAt: m.joinedAt,
+        teamName: m.teamName || ""
+      }
+    : null;
+}
+
 export function queuePayload(queue, viewerId) {
   const uid = viewerId ? String(viewerId) : "";
   const youIdx = uid ? queue.slots.findIndex((s) => s?.id === uid) : -1;
+  const youAdminIdx =
+    uid && Array.isArray(queue.adminSlots)
+      ? queue.adminSlots.findIndex((s) => s?.id === uid)
+      : -1;
   const activeMatch = computeActiveMatch(queue);
   const matchLive = Boolean(activeMatch);
   const youInMatch = viewerInActiveMatch(activeMatch, uid);
-  const youInLobby = youIdx !== -1;
+  const youInLobby = youIdx !== -1 || youAdminIdx !== -1;
+  const youAsPlayer = youIdx !== -1;
+  const youAsAdmin = youAdminIdx !== -1;
+  const adminSource = Array.isArray(queue.adminSlots)
+    ? queue.adminSlots
+    : Array.from({ length: ADMIN_CAP }, () => null);
   return {
     version: queue.version,
     capacity: QUEUE_CAP,
+    adminCapacity: ADMIN_CAP,
     count: matchLive ? 0 : queueCount(queue),
+    adminCount: matchLive ? 0 : adminCount(queue),
     slots: (matchLive
       ? Array.from({ length: QUEUE_CAP }, () => null)
       : queue.slots
-    ).map((m) =>
-      m
-        ? {
-            id: m.id,
-            displayName: m.displayName,
-            username: m.username,
-            avatarUrl: m.avatarUrl,
-            joinedAt: m.joinedAt,
-            teamName: m.teamName || ""
-          }
-        : null
+    ).map(mapPublicSlot),
+    adminSlots: (matchLive ? Array.from({ length: ADMIN_CAP }, () => null) : adminSource).map(
+      mapPublicSlot
     ),
     youInQueue: matchLive ? youInMatch : youInLobby,
-    yourJoinedAt: youIdx !== -1 ? queue.slots[youIdx].joinedAt : null,
+    youAsPlayer: matchLive ? youInMatch : youAsPlayer,
+    youAsAdmin,
+    yourJoinedAt:
+      youIdx !== -1
+        ? queue.slots[youIdx].joinedAt
+        : youAdminIdx !== -1
+          ? queue.adminSlots[youAdminIdx].joinedAt
+          : null,
     lastMatchVoice: queue.lastMatchVoice,
     matchVoiceError: queue.matchVoiceError,
     activeMatch,
@@ -366,6 +404,9 @@ export async function mutateLobby(lobbyId, mutator) {
   if (result === null) {
     return { ok: false, error: "queue_full", queue: current };
   }
+  if (result && typeof result === "object" && result.error) {
+    return { ok: false, error: String(result.error), queue: current };
+  }
   if (!result || typeof result !== "object") {
     return { ok: false, error: "mutation_failed", queue: current };
   }
@@ -381,7 +422,7 @@ export async function createLobby(user) {
   for (let attempt = 0; attempt < 8; attempt++) {
     const code = generateLobbyCode();
     const existing = await readLobby(code);
-    if (existing && queueCount(existing) > 0) continue;
+    if (existing && lobbyOccupantCount(existing) > 0) continue;
     const lobby = emptyQueue();
     lobby.lobbyId = code;
     lobby.hostId = member.id;
@@ -394,7 +435,22 @@ export async function createLobby(user) {
   return { ok: false, error: "create_failed" };
 }
 
-export async function joinLobby(lobbyId, user) {
+function ensureLobbyRosterShape(q) {
+  if (!Array.isArray(q.adminSlots) || q.adminSlots.length !== ADMIN_CAP) {
+    q.adminSlots = Array.from({ length: ADMIN_CAP }, (_, i) =>
+      Array.isArray(q.adminSlots) ? q.adminSlots[i] || null : null
+    );
+  }
+}
+
+function refreshMemberInPlace(collection, idx, member) {
+  collection[idx] = {
+    ...member,
+    joinedAt: collection[idx].joinedAt || member.joinedAt
+  };
+}
+
+export async function joinLobby(lobbyId, user, role = "player") {
   const id = normalizeLobbyId(lobbyId);
   if (!id) return { ok: false, error: "invalid_lobby" };
   const member = memberFromSessionUser(user);
@@ -402,14 +458,28 @@ export async function joinLobby(lobbyId, user) {
   const exists = await readLobby(id);
   if (!exists) return { ok: false, error: "lobby_not_found" };
   const uid = member.id;
+  const joinRole = role === "admin" ? "admin" : "player";
   return mutateLobby(id, (q) => {
+    ensureLobbyRosterShape(q);
     if (!q.hostId) q.hostId = uid;
-    const existingIdx = q.slots.findIndex((s) => s?.id === uid);
-    if (existingIdx !== -1) {
-      q.slots[existingIdx] = {
-        ...member,
-        joinedAt: q.slots[existingIdx].joinedAt || member.joinedAt
-      };
+    const playerIdx = q.slots.findIndex((s) => s?.id === uid);
+    const adminIdx = q.adminSlots.findIndex((s) => s?.id === uid);
+
+    if (joinRole === "admin") {
+      if (playerIdx !== -1) return { error: "already_in_lobby" };
+      if (adminIdx !== -1) {
+        refreshMemberInPlace(q.adminSlots, adminIdx, member);
+        return q;
+      }
+      const emptyIdx = q.adminSlots.findIndex((s) => !s);
+      if (emptyIdx === -1) return { error: "admin_full" };
+      q.adminSlots[emptyIdx] = member;
+      return q;
+    }
+
+    if (adminIdx !== -1) return { error: "already_in_lobby" };
+    if (playerIdx !== -1) {
+      refreshMemberInPlace(q.slots, playerIdx, member);
       return q;
     }
     const emptyIdx = q.slots.findIndex((s) => !s);
@@ -425,24 +495,44 @@ export async function leaveLobby(lobbyId, userId) {
   const uid = String(userId || "").trim();
   if (!uid) return { ok: false, error: "invalid_user" };
   const outcome = await mutateLobby(id, (q) => {
-    const idx = q.slots.findIndex((s) => s?.id === uid);
-    if (idx === -1) return q;
-    q.slots[idx] = null;
-    if (String(q.hostId) === uid) {
-      const nextHost = q.slots.find((s) => s?.id);
-      q.hostId = nextHost?.id ? String(nextHost.id) : "";
+    ensureLobbyRosterShape(q);
+    let touched = false;
+    const playerIdx = q.slots.findIndex((s) => s?.id === uid);
+    if (playerIdx !== -1) {
+      q.slots[playerIdx] = null;
+      touched = true;
+      if (String(q.hostId) === uid) {
+        const nextHost = q.slots.find((s) => s?.id);
+        q.hostId = nextHost?.id ? String(nextHost.id) : "";
+      }
+      if (queueCount(q) < QUEUE_CAP) {
+        q.matchVoicePending = false;
+        q.lastMatchVoice = null;
+        q.matchVoiceError = null;
+      }
     }
-    if (queueCount(q) < QUEUE_CAP) {
-      q.matchVoicePending = false;
-      q.lastMatchVoice = null;
-      q.matchVoiceError = null;
+    const adminIdx = q.adminSlots.findIndex((s) => s?.id === uid);
+    if (adminIdx !== -1) {
+      q.adminSlots[adminIdx] = null;
+      touched = true;
     }
+    if (!touched) return q;
     return q;
   });
   const after = outcome.queue;
-  if (after && queueCount(after) === 0) {
+  if (after && lobbyOccupantCount(after) === 0) {
     await deleteLobby(id);
-    return { ...outcome, deleted: true, queue: { ...after, lobbyId: id, slots: after.slots.map(() => null), count: 0 } };
+    return {
+      ...outcome,
+      deleted: true,
+      queue: {
+        ...after,
+        lobbyId: id,
+        slots: after.slots.map(() => null),
+        adminSlots: (after.adminSlots || []).map(() => null),
+        count: 0
+      }
+    };
   }
   return outcome;
 }

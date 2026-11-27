@@ -1,5 +1,6 @@
 import { applyCors, getSessionUser, sendJson } from "./discord-auth.mjs";
 import {
+  ADMIN_CAP,
   QUEUE_CAP,
   createLobby,
   joinLobby,
@@ -153,15 +154,21 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
       sendJson(res, 401, { error: "sign_in_required" });
       return true;
     }
-    if (await readJsonBody(req) === null) {
+    const body = await readJsonBody(req);
+    if (body === null) {
       sendJson(res, 400, { error: "invalid_json" });
       return true;
     }
-    const outcome = await joinLobby(lobbyId, user);
+    const joinRole = body?.role === "admin" ? "admin" : "player";
+    const outcome = await joinLobby(lobbyId, user, joinRole);
     if (!outcome.ok) {
       const code = outcome.error || "join_failed";
       const status =
-        code === "queue_full" ? 409 : code === "lobby_not_found" ? 404 : 400;
+        code === "queue_full" || code === "admin_full"
+          ? 409
+          : code === "lobby_not_found"
+            ? 404
+            : 400;
       const fallback = outcome.queue || (await readLobby(lobbyId));
       sendJson(res, status, {
         error: code,
@@ -220,6 +227,7 @@ function normalizeEmptyLobby(lobbyId) {
   return {
     version: 0,
     slots: Array.from({ length: QUEUE_CAP }, () => null),
+    adminSlots: Array.from({ length: ADMIN_CAP }, () => null),
     lobbyId,
     hostId: "",
     matchVoicePending: false,
