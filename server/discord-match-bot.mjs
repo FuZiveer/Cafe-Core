@@ -144,7 +144,8 @@ export async function startDiscordMatchBot() {
 
   botStartPromise = (async () => {
     const c = new Client({
-      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
+      // Guilds only — member roles are loaded via REST (guild.members.fetch), no privileged intents.
+      intents: [GatewayIntentBits.Guilds]
     });
     client = c;
 
