@@ -19,7 +19,8 @@ const PAGE_FILES = {
   "cps-tester": "pages/cps-tester.html",
   "mpr-tester": "pages/mpr-tester.html",
   "keyboard-checker": "pages/keyboard-checker.html",
-  "wifi-speed": "pages/wifi-speed.html"
+  "wifi-speed": "pages/wifi-speed.html",
+  scrims: "pages/scrims.html"
 };
 function toJsString(value) {
   return JSON.stringify(value);

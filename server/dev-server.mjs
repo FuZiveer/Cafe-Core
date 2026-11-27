@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { getAuthConfig, handleDiscordAuthRequest } from "./discord-auth.mjs";
 import { handleBlApiRequest } from "./bl-api.mjs";
 import { handleScrimUpgrade } from "./bl-scrim-ws.mjs";
+import { handleMatchVoiceApiRequest } from "./match-voice-api.mjs";
+import { isMatchBotConfigured, startDiscordMatchBot } from "./discord-match-bot.mjs";
 import { usesUpstashRedis } from "./upstash-redis.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -103,6 +105,8 @@ const server = http.createServer(async (req, res) => {
     if (handledAuth) return;
     const handledBl = await handleBlApiRequest(req, res, url, cfg);
     if (handledBl) return;
+    const handledMatch = await handleMatchVoiceApiRequest(req, res, url, cfg);
+    if (handledMatch) return;
   } catch (err) {
     console.error("[auth]", err);
     res.writeHead(500);
@@ -140,6 +144,14 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`  Local:  http://127.0.0.1:${PORT}`);
   if (origin !== `http://127.0.0.1:${PORT}`) console.log(`  Public: ${origin}`);
   console.log("Discord sign-in: set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI in .env");
+  if (isMatchBotConfigured()) {
+    void startDiscordMatchBot().catch((err) => {
+      console.error("[match-bot] Failed to start:", err?.message || err);
+    });
+    console.log("Match voice bot: DISCORD_BOT_TOKEN + DISCORD_GUILD_ID loaded");
+  } else {
+    console.log("Match voice bot: set DISCORD_BOT_TOKEN and DISCORD_GUILD_ID in .env (see .env.example)");
+  }
   if (!usesUpstashRedis()) {
     console.warn(
       "[cafe] Scrim record is stored on the local filesystem only (data/bl-scrim-record.json). On Render this resets when the service sleeps or redeploys. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for durable storage."

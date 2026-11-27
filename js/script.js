@@ -21,7 +21,15 @@ const flyoutData = coreFreeze({
       { type: "divider" },
       { id: "tool-bottleneck", name: "Bottleneck Checker", icon: "fa-microchip" },
       { id: "tool-keyboard", name: "Keyboard Checker", icon: "fa-keyboard" },
-      { id: "tool-wifi-speed", name: "Wifi Speed Checker", icon: "fa-wifi" }
+      { id: "tool-wifi-speed", name: "Wifi Speed Checker", icon: "fa-wifi" },
+      { type: "divider" },
+      { id: "tool-apps", name: "Applications", icon: "fa-cubes" }
+        ]
+    },
+    matchmaking: {
+    title: "Matchmaking Menu",
+        items: [
+      { id: "mm-scrims", name: "Scrims", icon: "fa-trophy" }
         ]
     },
     more: {
@@ -40,9 +48,10 @@ function flyoutItemsForMenu(type) {
 }
 const topBarLabels = coreFreeze({
   home: "Home",
-  apps: "Apps",
+  apps: "Applications",
   tools: "Tools",
   videos: "Videos",
+  matchmaking: "Matchmaking",
   more: "More"
 });
 let activeFlyoutType = null;
@@ -124,7 +133,8 @@ const mainPageIds = coreFreeze({
   "cps-tester": "page-cps-tester",
   "mpr-tester": "page-mpr-tester",
   "keyboard-checker": "page-keyboard-checker",
-  "wifi-speed": "page-wifi-speed"
+  "wifi-speed": "page-wifi-speed",
+  scrims: "page-scrims"
 });
 window.mainPageIds = mainPageIds;
 const CAFE_MOBILE_MAX_WIDTH_PX = 767;
@@ -649,6 +659,9 @@ window.clearMainPageInitState = function clearMainPageInitState(pageKey) {
   if (pageKey === "wifi-speed" && typeof window.teardownWifiSpeedPage === "function") {
     window.teardownWifiSpeedPage();
   }
+  if (pageKey === "scrims" && typeof window.teardownScrimsPage === "function") {
+    window.teardownScrimsPage();
+  }
   if (pageKey === "lineups") {
     closeLineupsVideoModal();
     pauseLineupsVideos();
@@ -880,6 +893,9 @@ window.initMainPage = async function initMainPage(pageKey) {
     case "wifi-speed":
       if (typeof window.initWifiSpeedPage === "function") window.initWifiSpeedPage();
       break;
+    case "scrims":
+      if (typeof window.initScrimsPage === "function") window.initScrimsPage();
+      break;
     case "default":
             syncDefaultPageView();
             initHomeFeatureCardTilt();
@@ -908,6 +924,8 @@ function mainPageKeyForFlyoutItem(itemId) {
   if (itemId === "tool-mpr") return "mpr-tester";
   if (itemId === "tool-keyboard") return "keyboard-checker";
   if (itemId === "tool-wifi-speed") return "wifi-speed";
+  if (itemId === "tool-apps") return "apps";
+  if (itemId === "mm-scrims") return "scrims";
   if (itemId === "tool-videos" || itemId === "strat-tips" || itemId === "strat-lineups") {
     return TIPS_AND_TRICKS_PAGE_ENABLED ? "lineups" : "default";
   }
@@ -972,6 +990,7 @@ function applyEmptyPageNavDisabledState(root = document) {
     });
 }
 const mainPageKeyToFlyoutItemId = {
+  apps: "tool-apps",
   edpi: "tool-edpi",
   sensitivity: "tool-sens",
   bottleneck: "tool-bottleneck",
@@ -986,7 +1005,8 @@ const mainPageKeyToFlyoutItemId = {
   "black-listed": "more-black-listed",
   privacy: "more-privacy-policy",
   terms: "more-terms-of-service",
-  lineups: "strat-tips"
+  lineups: "strat-tips",
+  scrims: "mm-scrims"
 };
 const flyoutNavExtras = {
   "more-privacy-policy": {
@@ -1070,10 +1090,10 @@ function warmMainPageCache(pageKey) {
 }
 const SIDEBAR_PREFETCH_PAGES = {
   home: ["default"],
-  apps: ["apps"],
-  tools: ["sensitivity", "edpi", "aim-trainer", "reaction-time", "cps-tester", "mpr-tester", "bottleneck", "keyboard-checker", "wifi-speed"],
+  tools: ["sensitivity", "edpi", "aim-trainer", "reaction-time", "cps-tester", "mpr-tester", "bottleneck", "keyboard-checker", "wifi-speed", "apps"],
   videos: ["lineups"],
-  more: ["branding", "fuziveer", "black-listed", "privacy", "terms"]
+  more: ["branding", "fuziveer", "black-listed", "privacy", "terms"],
+  matchmaking: ["scrims"]
 };
 function runWhenIdle(fn, timeoutMs = 2500) {
   if (typeof requestIdleCallback === "function") {
@@ -1217,16 +1237,6 @@ function syncNavUiForMainPage(pageKey, { animate = false } = {}) {
         setTopBarTitle(topBarLabels.home, {
             animate,
       iconClasses: getTopBarIconClassesFromEl(homeBtn)
-        });
-        return;
-    }
-  if (pageKey === "apps") {
-        selectedFlyoutItem = null;
-    const appsBtn = findNavBtnForSidebarTab("apps");
-        setSidebarNavActive(appsBtn, { animate });
-        setTopBarTitle(topBarLabels.apps, {
-            animate,
-      iconClasses: getTopBarIconClassesFromEl(appsBtn)
         });
         return;
     }
@@ -5064,7 +5074,6 @@ async function initBottleneckChecker() {
     }
 }
 function mainPageKeyForSidebarTab(tabType) {
-  if (tabType === "apps") return "apps";
   if (tabType === "videos") return "lineups";
   return "default";
 }
@@ -6129,17 +6138,33 @@ function setFlyoutItemActiveVisual(itemEl, active) {
     icon.classList.add("text-slate-400", "group-hover:text-white");
     }
 }
+function resetFlyoutIndicatorLayout(indicator) {
+  if (!indicator) return;
+  indicator.style.width = "";
+  indicator.style.left = "";
+  indicator.style.right = "";
+  indicator.style.height = "";
+  indicator.style.transform = "";
+}
+function layoutFlyoutIndicatorForItem(indicator, element) {
+  if (!indicator || !element) return;
+  indicator.style.height = `${element.offsetHeight}px`;
+  indicator.style.width = `${element.offsetWidth}px`;
+  indicator.style.left = `${element.offsetLeft}px`;
+  indicator.style.right = "auto";
+  indicator.style.transform = `translate3d(0, ${getFlyoutIndicatorY(element)}px, 0)`;
+}
 function updateFlyoutIndicator(element) {
   const flyoutContent = document.getElementById("flyout-content");
   const flyoutIndicator = document.getElementById("flyout-indicator");
     if (!flyoutContent || !flyoutIndicator) return;
     if (!element) {
     flyoutContent.classList.remove("has-flyout-selection");
+    resetFlyoutIndicatorLayout(flyoutIndicator);
         return;
     }
   flyoutContent.classList.add("has-flyout-selection");
-    flyoutIndicator.style.height = `${element.offsetHeight}px`;
-    flyoutIndicator.style.transform = `translate3d(0, ${getFlyoutIndicatorY(element)}px, 0)`;
+  layoutFlyoutIndicatorForItem(flyoutIndicator, element);
 }
 function updateFlyoutFooterIndicator(element) {
   const flyoutFooter = document.getElementById("flyout-footer");
@@ -6147,11 +6172,11 @@ function updateFlyoutFooterIndicator(element) {
     if (!flyoutFooter || !flyoutFooterIndicator) return;
     if (!element) {
     flyoutFooter.classList.remove("has-flyout-selection");
+    resetFlyoutIndicatorLayout(flyoutFooterIndicator);
         return;
     }
   flyoutFooter.classList.add("has-flyout-selection");
-    flyoutFooterIndicator.style.height = `${element.offsetHeight}px`;
-    flyoutFooterIndicator.style.transform = `translate3d(0, ${getFlyoutIndicatorY(element)}px, 0)`;
+  layoutFlyoutIndicatorForItem(flyoutFooterIndicator, element);
 }
 function syncFlyoutFooterLegalSelection() {
   const flyoutFooter = document.getElementById("flyout-footer");
@@ -6228,7 +6253,7 @@ function applyFlyoutMenuContent(type) {
   const indicatorMarkup = flyoutIndicator ? flyoutIndicator.outerHTML : "";
   contentEl.innerHTML = indicatorMarkup + flyoutItemsForMenu(type).map((item) => {
     if (item.type === "divider") {
-      return `<div class="flyout-divider" role="separator" aria-hidden="true"></div>`;
+      return `<div class="flyout-rule flyout-rule--section" role="separator" aria-hidden="true"></div>`;
     }
         const navDisabled = !item.href && isFlyoutItemNavDisabled(item.id);
         const isSelected = !item.href && !navDisabled && selectedFlyoutItem === item.id;
@@ -7165,7 +7190,7 @@ function initModalEscapeClose() {
 function handleSidebarClick(clickedBtn, tabType) {
     closeSettingsModal();
     closeLineupsVideoModal();
-  if (tabType === "tools" || tabType === "more") {
+  if (tabType === "tools" || tabType === "more" || tabType === "matchmaking") {
     if (isMobileLayout() && !document.body.classList.contains("mobile-nav-open")) {
             setMobileNavOpen(true);
         }

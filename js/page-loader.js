@@ -17,7 +17,8 @@
     "cps-tester": "pages/cps-tester.html",
     "mpr-tester": "pages/mpr-tester.html",
     "keyboard-checker": "pages/keyboard-checker.html",
-    "wifi-speed": "pages/wifi-speed.html"
+    "wifi-speed": "pages/wifi-speed.html",
+    scrims: "pages/scrims.html"
   });
   const htmlCache = new Map();
   const mountPromises = new Map();
@@ -137,6 +138,9 @@
     if (pageKey === "wifi-speed") {
       await ensureWifiSpeedScripts();
     }
+    if (pageKey === "scrims") {
+      await ensureScrimsScripts();
+    }
   }
   async function preparePageForMount(pageKey) {
     if (!mainPagePaths[pageKey]) return;
@@ -163,6 +167,11 @@
   async function ensureWifiSpeedScripts() {
     if (typeof window.initWifiSpeedPage !== "function") {
       await loadScript("js/wifi-speed.js");
+    }
+  }
+  async function ensureScrimsScripts() {
+    if (typeof window.initScrimsPage !== "function") {
+      await loadScript("js/scrims.js");
     }
   }
   async function ensureMprTesterScripts() {
