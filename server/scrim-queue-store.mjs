@@ -1,7 +1,13 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { usesUpstashRedis, upstashRedisGetJson, upstashRedisSetJson } from "./upstash-redis.mjs";
+import {
+  usesUpstashRedis,
+  upstashRedisCommand,
+  upstashRedisGetJson,
+  upstashRedisSetJson
+} from "./upstash-redis.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -27,6 +33,30 @@ function resolveQueueDataPath() {
 export const QUEUE_DATA_PATH = resolveQueueDataPath();
 
 let memoryQueue = null;
+const memoryLobbies = new Map();
+
+const LOBBY_KEY_PREFIX = String(process.env.SCRIM_LOBBY_REDIS_PREFIX || "cafe:scrim-lobby:").trim();
+
+export function normalizeLobbyId(raw) {
+  return String(raw || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 12);
+}
+
+export function generateLobbyCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[crypto.randomInt(0, chars.length)];
+  }
+  return code;
+}
+
+function lobbyRedisKey(lobbyId) {
+  return `${LOBBY_KEY_PREFIX}${normalizeLobbyId(lobbyId)}`;
+}
 
 function emptyQueue() {
   return {
@@ -34,7 +64,19 @@ function emptyQueue() {
     slots: Array.from({ length: QUEUE_CAP }, () => null),
     matchVoicePending: false,
     lastMatchVoice: null,
-    matchVoiceError: null
+    matchVoiceError: null,
+    lobbyId: "",
+    hostId: "",
+    createdAt: 0
+  };
+}
+
+function normalizeLobbyMeta(raw, queue) {
+  return {
+    ...queue,
+    lobbyId: raw?.lobbyId ? normalizeLobbyId(raw.lobbyId) : "",
+    hostId: raw?.hostId ? String(raw.hostId) : "",
+    createdAt: Math.max(0, Number(raw?.createdAt) || 0)
   };
 }
 
@@ -60,7 +102,7 @@ export function normalizeScrimQueue(raw) {
     const m = raw.slots?.[i];
     return m ? normalizeMember(m) : null;
   });
-  return {
+  const core = {
     version: Math.max(0, Math.round(Number(raw.version) || 0)),
     slots,
     matchVoicePending: Boolean(raw.matchVoicePending),
@@ -69,6 +111,7 @@ export function normalizeScrimQueue(raw) {
     matchVoiceError:
       raw.matchVoiceError && typeof raw.matchVoiceError === "object" ? raw.matchVoiceError : null
   };
+  return normalizeLobbyMeta(raw, core);
 }
 
 function readQueueFromFileSync() {
@@ -218,14 +261,31 @@ export function computeActiveMatch(queue) {
   return null;
 }
 
+function viewerInActiveMatch(activeMatch, uid) {
+  if (!uid || !activeMatch?.teams?.length) return false;
+  for (const team of activeMatch.teams) {
+    for (const p of team.players || []) {
+      if (p?.id && String(p.id) === uid) return true;
+    }
+  }
+  return false;
+}
+
 export function queuePayload(queue, viewerId) {
   const uid = viewerId ? String(viewerId) : "";
   const youIdx = uid ? queue.slots.findIndex((s) => s?.id === uid) : -1;
+  const activeMatch = computeActiveMatch(queue);
+  const matchLive = Boolean(activeMatch);
+  const youInMatch = viewerInActiveMatch(activeMatch, uid);
+  const youInLobby = youIdx !== -1;
   return {
     version: queue.version,
     capacity: QUEUE_CAP,
-    count: queueCount(queue),
-    slots: queue.slots.map((m) =>
+    count: matchLive ? 0 : queueCount(queue),
+    slots: (matchLive
+      ? Array.from({ length: QUEUE_CAP }, () => null)
+      : queue.slots
+    ).map((m) =>
       m
         ? {
             id: m.id,
@@ -237,13 +297,154 @@ export function queuePayload(queue, viewerId) {
           }
         : null
     ),
-    youInQueue: youIdx !== -1,
+    youInQueue: matchLive ? youInMatch : youInLobby,
     yourJoinedAt: youIdx !== -1 ? queue.slots[youIdx].joinedAt : null,
     lastMatchVoice: queue.lastMatchVoice,
     matchVoiceError: queue.matchVoiceError,
-    activeMatch: computeActiveMatch(queue),
+    activeMatch,
+    matchLive,
+    lobbyId: queue.lobbyId || null,
+    hostId: queue.hostId || null,
+    youAreHost: Boolean(uid && queue.hostId && uid === String(queue.hostId)),
     persistence: usesUpstashRedis() ? "redis" : "ephemeral"
   };
+}
+
+export async function readLobby(lobbyId) {
+  const id = normalizeLobbyId(lobbyId);
+  if (!id) return null;
+  if (!usesUpstashRedis()) {
+    const fromMem = memoryLobbies.get(id);
+    return fromMem ? normalizeScrimQueue(fromMem) : null;
+  }
+  try {
+    const fromRedis = await upstashRedisGetJson(lobbyRedisKey(id));
+    if (fromRedis != null && typeof fromRedis === "object") {
+      return normalizeScrimQueue(fromRedis);
+    }
+    return memoryLobbies.get(id) ? normalizeScrimQueue(memoryLobbies.get(id)) : null;
+  } catch {
+    const fromMem = memoryLobbies.get(id);
+    return fromMem ? normalizeScrimQueue(fromMem) : null;
+  }
+}
+
+export async function writeLobby(lobbyId, queue) {
+  const id = normalizeLobbyId(lobbyId);
+  if (!id) throw new Error("invalid_lobby_id");
+  const normalized = normalizeScrimQueue({ ...queue, lobbyId: id });
+  memoryLobbies.set(id, normalized);
+  if (!usesUpstashRedis()) {
+    return normalized;
+  }
+  try {
+    await upstashRedisSetJson(lobbyRedisKey(id), normalized);
+    return normalized;
+  } catch {
+    return normalized;
+  }
+}
+
+export async function deleteLobby(lobbyId) {
+  const id = normalizeLobbyId(lobbyId);
+  if (!id) return;
+  memoryLobbies.delete(id);
+  if (!usesUpstashRedis()) return;
+  try {
+    await upstashRedisCommand(["DEL", lobbyRedisKey(id)]);
+  } catch {
+  }
+}
+
+export async function mutateLobby(lobbyId, mutator) {
+  const id = normalizeLobbyId(lobbyId);
+  if (!id) return { ok: false, error: "invalid_lobby" };
+  const current = (await readLobby(id)) || normalizeScrimQueue({ lobbyId: id });
+  const draft = normalizeScrimQueue(JSON.parse(JSON.stringify(current)));
+  draft.lobbyId = id;
+  const result = mutator(draft);
+  if (result === null) {
+    return { ok: false, error: "queue_full", queue: current };
+  }
+  if (!result || typeof result !== "object") {
+    return { ok: false, error: "mutation_failed", queue: current };
+  }
+  result.version = (current.version || 0) + 1;
+  result.lobbyId = id;
+  const saved = await writeLobby(id, result);
+  return { ok: true, queue: saved };
+}
+
+export async function createLobby(user) {
+  const member = memberFromSessionUser(user);
+  if (!member) return { ok: false, error: "invalid_user" };
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const code = generateLobbyCode();
+    const existing = await readLobby(code);
+    if (existing && queueCount(existing) > 0) continue;
+    const lobby = emptyQueue();
+    lobby.lobbyId = code;
+    lobby.hostId = member.id;
+    lobby.createdAt = Date.now();
+    lobby.slots[0] = member;
+    lobby.version = 1;
+    await writeLobby(code, lobby);
+    return { ok: true, lobbyId: code, queue: lobby };
+  }
+  return { ok: false, error: "create_failed" };
+}
+
+export async function joinLobby(lobbyId, user) {
+  const id = normalizeLobbyId(lobbyId);
+  if (!id) return { ok: false, error: "invalid_lobby" };
+  const member = memberFromSessionUser(user);
+  if (!member) return { ok: false, error: "invalid_user" };
+  const exists = await readLobby(id);
+  if (!exists) return { ok: false, error: "lobby_not_found" };
+  const uid = member.id;
+  return mutateLobby(id, (q) => {
+    if (!q.hostId) q.hostId = uid;
+    const existingIdx = q.slots.findIndex((s) => s?.id === uid);
+    if (existingIdx !== -1) {
+      q.slots[existingIdx] = {
+        ...member,
+        joinedAt: q.slots[existingIdx].joinedAt || member.joinedAt
+      };
+      return q;
+    }
+    const emptyIdx = q.slots.findIndex((s) => !s);
+    if (emptyIdx === -1) return null;
+    q.slots[emptyIdx] = member;
+    return q;
+  });
+}
+
+export async function leaveLobby(lobbyId, userId) {
+  const id = normalizeLobbyId(lobbyId);
+  if (!id) return { ok: false, error: "invalid_lobby" };
+  const uid = String(userId || "").trim();
+  if (!uid) return { ok: false, error: "invalid_user" };
+  const outcome = await mutateLobby(id, (q) => {
+    const idx = q.slots.findIndex((s) => s?.id === uid);
+    if (idx === -1) return q;
+    q.slots[idx] = null;
+    if (String(q.hostId) === uid) {
+      const nextHost = q.slots.find((s) => s?.id);
+      q.hostId = nextHost?.id ? String(nextHost.id) : "";
+    }
+    if (queueCount(q) < QUEUE_CAP) {
+      q.matchVoicePending = false;
+      q.lastMatchVoice = null;
+      q.matchVoiceError = null;
+    }
+    return q;
+  });
+  const after = outcome.queue;
+  if (after && queueCount(after) === 0) {
+    await deleteLobby(id);
+    return { ...outcome, deleted: true, queue: { ...after, lobbyId: id, slots: after.slots.map(() => null), count: 0 } };
+  }
+  return outcome;
 }
 
 export async function mutateScrimQueue(mutator) {

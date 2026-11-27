@@ -7,20 +7,54 @@
                     >
                         <header class="scrims-hero-head">
                             <div class="scrims-hero-copy">
-                                <p class="scrims-hero-kicker">Matchmaking queue</p>
+                                <p class="scrims-hero-kicker">Matchmaking lobby</p>
                                 <h2 id="scrims-queue-title" class="scrims-hero-title">Competitive scrims</h2>
                                 <p id="scrims-queue-desc" class="scrims-hero-desc">
-                                    Connect and coordinate with Caf&eacute; Core players. Lobbies automatically trigger scrims when the queue is full.
+                                    Create a private lobby and share the invite link. When the lobby fills, scrims start automatically.
                                 </p>
                             </div>
                             <div class="scrims-hero-meta">
-                                <div id="scrims-queue-state-badge" class="scrims-pill scrims-pill--idle">Queue idle</div>
+                                <div id="scrims-queue-state-badge" class="scrims-pill scrims-pill--idle">No lobby</div>
                                 <div id="scrims-queue-timer-wrap" class="scrims-timer hidden" aria-live="off">
                                     <i class="fa-regular fa-clock" aria-hidden="true"></i>
                                     <span id="scrims-queue-timer">00:00</span>
                                 </div>
                             </div>
                         </header>
+
+                        <div
+                            id="scrims-queue-live-notice"
+                            class="scrims-queue-live-notice hidden"
+                            hidden
+                            role="status"
+                        >
+                            <p class="scrims-queue-live-notice-title">Match in progress</p>
+                            <p class="scrims-queue-live-notice-desc">
+                                Team lineups and voice info are in <strong>Active matches</strong> below.
+                            </p>
+                        </div>
+
+                        <div id="scrims-queue-lobby-body" class="scrims-queue-lobby-body">
+                        <div
+                            id="scrims-lobby-invite"
+                            class="scrims-lobby-invite hidden"
+                            aria-live="polite"
+                        >
+                            <p class="scrims-lobby-invite-label">Lobby invite link</p>
+                            <div class="scrims-lobby-invite-row">
+                                <input
+                                    id="scrims-lobby-link"
+                                    class="scrims-lobby-link-input"
+                                    type="text"
+                                    readonly
+                                    aria-readonly="true"
+                                />
+                                <button type="button" id="scrims-copy-lobby-link" class="scrims-lobby-copy ui-interactive">
+                                    Copy link
+                                </button>
+                            </div>
+                            <p id="scrims-lobby-code" class="scrims-lobby-code"></p>
+                        </div>
 
                         <div
                             id="scrims-queue-progress"
@@ -38,17 +72,34 @@
                                     <span id="scrims-queue-count" class="scrims-count-num">0</span>
                                     <span id="scrims-queue-cap-label" class="scrims-count-cap">/ 2 players</span>
                                 </div>
-                                <p id="scrims-queue-standing" class="scrims-count-sub">0 players standing by in queue</p>
+                                <p id="scrims-queue-standing" class="scrims-count-sub">0 players in lobby</p>
                             </div>
                         </div>
 
                         <div class="scrims-roster-block">
-                            <h3 class="scrims-roster-label">Queue roster</h3>
-                            <div id="scrims-queue-slots" class="scrims-roster-grid" aria-label="Queue slots (2)"></div>
+                            <h3 class="scrims-roster-label">Lobby roster</h3>
+                            <div id="scrims-queue-slots" class="scrims-roster-grid" aria-label="Lobby slots (2)"></div>
                         </div>
 
-                        <button type="button" id="scrims-queue-toggle" class="scrims-cta ui-interactive">
-                            Join queue
+                        <div class="scrims-lobby-actions">
+                            <button type="button" id="scrims-create-lobby" class="scrims-cta scrims-cta--join ui-interactive">
+                                Create lobby
+                            </button>
+                            <button
+                                type="button"
+                                id="scrims-join-lobby"
+                                class="scrims-cta scrims-cta--join ui-interactive hidden"
+                            >
+                                Join lobby
+                            </button>
+                        </div>
+                        </div>
+                        <button
+                            type="button"
+                            id="scrims-leave-lobby"
+                            class="scrims-cta scrims-cta--leave ui-interactive hidden"
+                        >
+                            Leave lobby
                         </button>
                         <button
                             type="button"
@@ -56,7 +107,7 @@
                             class="scrims-cta scrims-cta--discord ui-interactive hidden"
                         >
                             <i class="fa-brands fa-discord" aria-hidden="true"></i>
-                            Sign in with Discord to join
+                            Sign in with Discord
                         </button>
                     </section>
 
@@ -80,7 +131,7 @@
                             </div>
                             <p class="scrims-matches-empty-title">Searching for matches&hellip;</p>
                             <p class="scrims-matches-empty-desc">
-                                No active matches. When the queue fills, team lineups will appear here.
+                                No active matches. When a lobby fills, team lineups appear here.
                             </p>
                         </div>
                         <div id="scrims-matches-active" class="scrims-matches-active hidden" hidden aria-live="polite"></div>

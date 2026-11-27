@@ -112,11 +112,27 @@ function resetBotClient() {
   }
 }
 
+function matchVoiceChannelPrefix() {
+  const fromEnv = process.env.DISCORD_MATCH_VC_PREFIX;
+  if (fromEnv != null && String(fromEnv).trim() !== "") {
+    return String(fromEnv);
+  }
+  return "⚔️┃";
+}
+
 function sanitizeVoiceChannelName(name) {
   return String(name || "Team")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 96);
+}
+
+function formatMatchVoiceChannelName(teamLabel) {
+  const prefix = matchVoiceChannelPrefix();
+  const label = String(teamLabel || "Team").trim();
+  const needsSpace =
+    prefix.length > 0 && !/\s$/.test(prefix) && label.length > 0;
+  return sanitizeVoiceChannelName(`${prefix}${needsSpace ? " " : ""}${label}`);
 }
 
 async function primaryTeamRole(guild, member, cfg) {
@@ -143,14 +159,15 @@ function teamVoiceOverwrites(guild, roleId) {
     {
       id: guild.roles.everyone.id,
       type: OverwriteType.Role,
-      deny: [PermissionFlagsBits.Connect, PermissionFlagsBits.ViewChannel]
+      allow: [PermissionFlagsBits.ViewChannel],
+      deny: [PermissionFlagsBits.Connect, PermissionFlagsBits.Speak]
     },
     {
       id: roleId,
       type: OverwriteType.Role,
       allow: [
-        PermissionFlagsBits.Connect,
         PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.Connect,
         PermissionFlagsBits.Speak
       ]
     }
@@ -354,7 +371,7 @@ export async function createMatchVoiceChannels({
     for (const { role, userIds } of teams.values()) {
       const label = teamDisplayName(role.name, cfg);
       await createVoice({
-        channelName: label,
+        channelName: formatMatchVoiceChannelName(label),
         teamName: label,
         roleId: role.id,
         memberIds: userIds

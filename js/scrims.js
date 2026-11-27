@@ -7,7 +7,10 @@
   let userQueued = false;
   let queueVersion = 0;
   let root = null;
-  let onToggleClick = null;
+  let onCreateLobbyClick = null;
+  let onJoinLobbyClick = null;
+  let onLeaveLobbyClick = null;
+  let onCopyLinkClick = null;
   let onSignInClick = null;
   let onAuthChange = null;
   let queueTimerId = null;
@@ -15,11 +18,15 @@
   let lastMatchVoice = null;
   let activeMatch = null;
   let matchVoiceError = null;
+  let activeLobbyId = "";
+  let youAreHost = false;
+  let lobbyAutoJoinDone = false;
   let queueActionPending = false;
   let queuePendingAction = null;
   let queueToggleGeneration = 0;
   let queuePendingSafetyTimer = null;
   let queueWs = null;
+  let queueWsLobbyId = "";
   let queueWsReconnectTimer = null;
   let queueWsManualClose = false;
   let queuePollTimer = null;
@@ -51,6 +58,36 @@
     const p = path.startsWith("/") ? path : `/${path}`;
     const base = apiBase();
     return base ? `${base}${p}` : p;
+  }
+
+  function normalizeLobbyCode(raw) {
+    return String(raw || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 12);
+  }
+
+  function getLobbyCodeFromUrl() {
+    return normalizeLobbyCode(new URLSearchParams(window.location.search).get("lobby"));
+  }
+
+  function setLobbyInUrl(code) {
+    const url = new URL(window.location.href);
+    const norm = normalizeLobbyCode(code);
+    if (norm) url.searchParams.set("lobby", norm);
+    else url.searchParams.delete("lobby");
+    if (!url.hash || url.hash === "#") url.hash = "#scrims";
+    history.replaceState(null, "", url.toString());
+  }
+
+  function buildLobbyInviteUrl(code) {
+    const norm = normalizeLobbyCode(code);
+    const path = window.location.pathname || "/";
+    const url = new URL(`${window.location.origin}${path}`);
+    url.searchParams.set("lobby", norm);
+    url.hash = "scrims";
+    return url.toString();
   }
 
   async function fetchQueueJson(path, options = {}, { timeoutMs = 15e3 } = {}) {
@@ -92,8 +129,24 @@
     }
   }
 
+  function amInActiveMatchFromPayload(payload) {
+    const uid = myDiscordId();
+    if (!uid || !payload?.activeMatch?.teams?.length) return false;
+    for (const team of payload.activeMatch.teams) {
+      for (const p of team.players || []) {
+        if (p?.id && String(p.id) === uid) return true;
+      }
+    }
+    return false;
+  }
+
+  function hasLiveMatch() {
+    return Boolean(activeMatch?.teams?.length >= 2);
+  }
+
   function amInQueueFromPayload(payload) {
     if (payload?.youInQueue === true) return true;
+    if (amInActiveMatchFromPayload(payload)) return true;
     const uid = myDiscordId();
     if (!uid || !Array.isArray(payload?.slots)) return false;
     return payload.slots.some((s) => s?.id && String(s.id) === uid);
@@ -162,10 +215,19 @@
     if (Number(payload.capacity) >= 2) {
       queueCapacity = Math.min(10, Math.round(Number(payload.capacity)));
     }
-    slots = Array.from({ length: queueCapacity }, (_, i) =>
-      mapSlotFromServer(payload.slots[i], i)
-    );
-    userQueued = payload.youInQueue === true || slots.some((m) => m?.you);
+    activeMatch = payload.activeMatch || null;
+    const matchLive = hasLiveMatch() || payload.matchLive === true;
+    if (matchLive) {
+      slots = Array.from({ length: queueCapacity }, () => null);
+    } else {
+      slots = Array.from({ length: queueCapacity }, (_, i) =>
+        mapSlotFromServer(payload.slots[i], i)
+      );
+    }
+    userQueued =
+      payload.youInQueue === true ||
+      slots.some((m) => m?.you) ||
+      amInActiveMatchFromPayload(payload);
     if (payload.yourJoinedAt) {
       queueJoinedAt = Number(payload.yourJoinedAt) || queueJoinedAt;
     } else if (!userQueued) {
@@ -173,7 +235,11 @@
     }
     lastMatchVoice = payload.lastMatchVoice || null;
     matchVoiceError = payload.matchVoiceError || null;
-    activeMatch = payload.activeMatch || null;
+    if (payload.lobbyId) {
+      activeLobbyId = normalizeLobbyCode(payload.lobbyId);
+      setLobbyInUrl(activeLobbyId);
+    }
+    youAreHost = payload.youAreHost === true;
     settleQueuePendingFromPayload(payload);
     renderQueue();
   }
@@ -183,9 +249,9 @@
   }
 
   function standingByCopy(count) {
-    if (count === 0) return "0 players standing by in queue";
-    if (count === 1) return "1 player currently in queue";
-    return `${count} players standing by in queue`;
+    if (count === 0) return "0 players in lobby";
+    if (count === 1) return "1 player in lobby";
+    return `${count} players in lobby`;
   }
 
   function formatQueueElapsed(ms) {
@@ -381,13 +447,22 @@
 
   function renderQueue() {
     if (!root) return;
-    const count = queueCount();
+    const matchLive = hasLiveMatch();
+    const count = matchLive ? 0 : queueCount();
     const discord = getDiscordUser();
+    const queueSection = root.querySelector("#scrims-queue");
+    const liveNotice = root.querySelector("#scrims-queue-live-notice");
+    const lobbyBody = root.querySelector("#scrims-queue-lobby-body");
     const countEl = root.querySelector("#scrims-queue-count");
     const capLabel = root.querySelector("#scrims-queue-cap-label");
     const standingEl = root.querySelector("#scrims-queue-standing");
     const badgeEl = root.querySelector("#scrims-queue-state-badge");
-    const btn = root.querySelector("#scrims-queue-toggle");
+    const createBtn = root.querySelector("#scrims-create-lobby");
+    const joinBtn = root.querySelector("#scrims-join-lobby");
+    const leaveBtn = root.querySelector("#scrims-leave-lobby");
+    const inviteWrap = root.querySelector("#scrims-lobby-invite");
+    const inviteInput = root.querySelector("#scrims-lobby-link");
+    const inviteCode = root.querySelector("#scrims-lobby-code");
     const signInBtn = root.querySelector("#scrims-queue-sign-in");
     const slotsEl = root.querySelector("#scrims-queue-slots");
     const progress = root.querySelector("#scrims-queue-progress");
@@ -398,66 +473,116 @@
     if (progress) {
       progress.setAttribute("aria-valuemax", String(queueCapacity));
       progress.setAttribute("aria-valuenow", String(count));
-      progress.setAttribute("aria-label", `${count} of ${queueCapacity} players in queue`);
+      progress.setAttribute("aria-label", `${count} of ${queueCapacity} players in lobby`);
+    }
+    if (queueSection) {
+      queueSection.classList.toggle("scrims-glass--queue-live", matchLive);
+    }
+    if (liveNotice) {
+      liveNotice.classList.toggle("hidden", !matchLive);
+      liveNotice.hidden = !matchLive;
+    }
+    if (lobbyBody) {
+      lobbyBody.classList.toggle("hidden", matchLive);
+      lobbyBody.hidden = matchLive;
     }
     if (badgeEl) {
-      const active = userQueued || count > 0;
-      badgeEl.textContent = active ? "Queue active" : "Queue idle";
-      badgeEl.classList.toggle("scrims-pill--active", active);
-      badgeEl.classList.toggle("scrims-pill--idle", !active);
+      if (matchLive) {
+        badgeEl.textContent = "Match live";
+        badgeEl.classList.add("scrims-pill--active");
+        badgeEl.classList.remove("scrims-pill--idle");
+      } else {
+        const inLobby = Boolean(activeLobbyId);
+        const active = userQueued || count > 0;
+        badgeEl.textContent = inLobby ? (active ? "Lobby active" : "Lobby open") : "No lobby";
+        badgeEl.classList.toggle("scrims-pill--active", inLobby && active);
+        badgeEl.classList.toggle("scrims-pill--idle", !inLobby || !active);
+      }
     }
 
-    const full = count >= queueCapacity && !userQueued;
+    const full = !matchLive && count >= queueCapacity;
     const signedIn = Boolean(discord);
+    const urlLobby = getLobbyCodeFromUrl();
+    const canJoinFromLink = Boolean(urlLobby && !userQueued);
+
     if (signInBtn) {
       signInBtn.classList.toggle("hidden", signedIn);
       signInBtn.hidden = signedIn;
     }
-    if (btn) {
-      btn.classList.toggle("hidden", !signedIn);
-      btn.hidden = !signedIn;
-      if (discord) {
-        btn.disabled = queueActionPending || (full && !userQueued);
-        const label = queueActionPending
-          ? queuePendingAction === "leave"
-            ? "Leaving…"
-            : "Joining…"
-          : userQueued
-            ? "Leave queue"
-            : full
-              ? "Queue full"
-              : "Join queue";
-        btn.textContent = label;
-        btn.classList.toggle("scrims-cta--leave", userQueued);
-        btn.classList.toggle("scrims-cta--join", !userQueued);
-        btn.setAttribute("aria-pressed", userQueued ? "true" : "false");
+    if (inviteWrap && inviteInput && inviteCode) {
+      const showInvite = Boolean(!matchLive && activeLobbyId && (userQueued || youAreHost));
+      inviteWrap.classList.toggle("hidden", !showInvite);
+      inviteWrap.hidden = !showInvite;
+      if (showInvite) {
+        inviteInput.value = buildLobbyInviteUrl(activeLobbyId);
+        inviteCode.textContent = `Lobby code: ${activeLobbyId}`;
       }
     }
+    if (createBtn) {
+      createBtn.classList.toggle("hidden", matchLive || !signedIn || userQueued);
+      createBtn.hidden = matchLive || !signedIn || userQueued;
+      createBtn.disabled = queueActionPending;
+      createBtn.textContent = queueActionPending && queuePendingAction === "join" ? "Creating…" : "Create lobby";
+    }
+    if (joinBtn) {
+      joinBtn.classList.toggle("hidden", matchLive || !signedIn || userQueued || !canJoinFromLink);
+      joinBtn.hidden = matchLive || !signedIn || userQueued || !canJoinFromLink;
+      joinBtn.disabled = queueActionPending;
+      joinBtn.textContent =
+        queueActionPending && queuePendingAction === "join" ? "Joining…" : "Join lobby";
+    }
+    if (leaveBtn) {
+      leaveBtn.classList.toggle("hidden", !signedIn || !userQueued);
+      leaveBtn.hidden = !signedIn || !userQueued;
+      leaveBtn.disabled = queueActionPending;
+      leaveBtn.textContent =
+        queueActionPending && queuePendingAction === "leave" ? "Leaving…" : "Leave lobby";
+    }
 
-    if (slotsEl) {
+    if (slotsEl && !matchLive) {
       slotsEl.style.setProperty("--scrims-roster-cols", String(queueCapacity));
-      slotsEl.setAttribute("aria-label", `Queue slots (${queueCapacity})`);
+      slotsEl.setAttribute("aria-label", `Lobby slots (${queueCapacity})`);
       slotsEl.replaceChildren();
       for (let i = 0; i < queueCapacity; i++) {
         const slot = document.createElement("article");
         renderSlot(slot, i, slots[i]);
         slotsEl.appendChild(slot);
       }
+    } else if (slotsEl && matchLive) {
+      slotsEl.replaceChildren();
     }
 
-    syncQueueTimer();
+    if (matchLive) {
+      stopQueueTimer();
+      const timerWrap = root.querySelector("#scrims-queue-timer-wrap");
+      timerWrap?.classList.add("hidden");
+      if (timerWrap) timerWrap.hidden = true;
+    } else {
+      syncQueueTimer();
+    }
     renderMatchesPanel();
   }
 
   async function refreshScrimQueue({ force } = {}) {
     if (!apiBase()) return;
+    const lobby = activeLobbyId || getLobbyCodeFromUrl();
+    if (!lobby) {
+      renderQueue();
+      return;
+    }
     const now = Date.now();
     if (!force && now - lastQueueFetchAt < 800) return;
     lastQueueFetchAt = now;
     try {
-      const data = await fetchQueueJson("/api/scrims/queue");
+      const data = await fetchQueueJson(`/api/scrims/lobbies/${encodeURIComponent(lobby)}`);
       applyServerQueuePayload(data);
-    } catch {
+    } catch (err) {
+      if (err.status === 404) {
+        activeLobbyId = "";
+        slots = Array.from({ length: queueCapacity }, () => null);
+        userQueued = false;
+        renderQueue();
+      }
       if (!force) return;
     }
   }
@@ -487,23 +612,28 @@
 
   function connectScrimQueueWebSocket() {
     const base = wsBase();
-    if (!base || !root) return;
+    const lobby = activeLobbyId || getLobbyCodeFromUrl();
+    if (!base || !root || !lobby) return;
     if (
       queueWs &&
+      queueWsLobbyId === lobby &&
       (queueWs.readyState === WebSocket.OPEN || queueWs.readyState === WebSocket.CONNECTING)
     ) {
       return;
     }
+    if (queueWs) disconnectScrimQueueWebSocket();
+    queueWsManualClose = false;
     queueWsManualClose = false;
     let ws;
     try {
-      ws = new WebSocket(`${base}/ws/scrims/queue`);
+      ws = new WebSocket(`${base}/ws/scrims/lobby/${encodeURIComponent(lobby)}`);
     } catch {
       scheduleQueueWsReconnect();
       startQueuePollFallback();
       return;
     }
     queueWs = ws;
+    queueWsLobbyId = lobby;
     ws.onopen = () => {
       if (queueWs !== ws) return;
       stopQueuePoll();
@@ -538,6 +668,7 @@
     stopQueuePoll();
     const ws = queueWs;
     queueWs = null;
+    queueWsLobbyId = "";
     if (!ws) return;
     ws.onclose = null;
     ws.onerror = null;
@@ -547,14 +678,11 @@
     }
   }
 
-  async function handleToggle() {
+  async function lobbyRequest(path, action, timeoutMs = 15e3) {
     if (!getDiscordUser() || queueActionPending || !apiBase()) return;
     const gen = ++queueToggleGeneration;
-    const action = userQueued ? "leave" : "join";
     beginQueuePending(action);
     renderQueue();
-    const path = action === "leave" ? "/api/scrims/queue/leave" : "/api/scrims/queue/join";
-    const timeoutMs = action === "join" ? 45e3 : 12e3;
     try {
       const data = await fetchQueueJson(
         path,
@@ -563,38 +691,53 @@
           headers: { "Content-Type": "application/json" },
           body: "{}"
         },
-        { timeoutMs }
+        { timeoutMs: action === "join" ? 45e3 : timeoutMs }
       );
       if (gen !== queueToggleGeneration) return;
+      if (data.lobbyClosed) {
+        activeLobbyId = "";
+        userQueued = false;
+        youAreHost = false;
+        lobbyAutoJoinDone = false;
+        setLobbyInUrl("");
+        disconnectScrimQueueWebSocket();
+        applyServerQueuePayload(data);
+        return;
+      }
       applyServerQueuePayload(data);
-      if (action === "join" && data.activeMatch) {
+      if (queuePendingAction === "leave" && !userQueued) {
+        lobbyAutoJoinDone = false;
+      }
+      if (data.lobbyId) {
+        activeLobbyId = normalizeLobbyCode(data.lobbyId);
+        disconnectScrimQueueWebSocket();
+        connectScrimQueueWebSocket();
+      }
+      if (data.activeMatch) {
         const teams = data.activeMatch.teams || [];
         const body =
           data.lastMatchVoice?.channels?.length
             ? `Created ${data.lastMatchVoice.channels.length} team voice channel(s) in Discord.`
             : teams.length >= 2
               ? `${teams[0].name} vs ${teams[1].name} — check Active matches.`
-              : "Queue full — match is live.";
+              : "Lobby full — match is live.";
         window.pushCafeNotification?.({ title: "Match found", body });
       }
     } catch (err) {
       if (gen !== queueToggleGeneration) return;
       const body = err.body;
-      if (body && Array.isArray(body.slots)) {
-        applyServerQueuePayload(body);
-      } else {
-        void refreshScrimQueue({ force: true });
-      }
+      if (body && Array.isArray(body.slots)) applyServerQueuePayload(body);
+      else void refreshScrimQueue({ force: true });
       const code = body?.error;
       if (code === "queue_full") {
-        window.pushCafeNotification?.({ title: "Queue full", body: "All queue slots are taken." });
+        window.pushCafeNotification?.({ title: "Lobby full", body: "All slots are taken." });
+      } else if (code === "lobby_not_found") {
+        window.pushCafeNotification?.({ title: "Lobby not found", body: "This invite link is invalid or expired." });
+        setLobbyInUrl("");
       } else if (err.status === 401) {
-        window.pushCafeNotification?.({ title: "Sign in required", body: "Use Discord sign-in to join the queue." });
+        window.pushCafeNotification?.({ title: "Sign in required", body: "Sign in with Discord first." });
       } else if (err.code === "timeout") {
-        window.pushCafeNotification?.({
-          title: "Queue request timed out",
-          body: "Your queue state may still update — try again if the button looks stuck."
-        });
+        window.pushCafeNotification?.({ title: "Request timed out", body: "Try again if the button looks stuck." });
       }
     } finally {
       if (gen === queueToggleGeneration) {
@@ -602,6 +745,50 @@
         renderQueue();
       }
     }
+  }
+
+  function handleCreateLobby() {
+    void lobbyRequest("/api/scrims/lobbies", "join");
+  }
+
+  function handleJoinLobby() {
+    const code = getLobbyCodeFromUrl();
+    if (!code) return Promise.resolve();
+    return lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(code)}/join`, "join");
+  }
+
+  function handleLeaveLobby() {
+    if (!activeLobbyId) return;
+    void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(activeLobbyId)}/leave`, "leave");
+  }
+
+  function handleCopyLobbyLink() {
+    const input = root?.querySelector("#scrims-lobby-link");
+    const url = input?.value || (activeLobbyId ? buildLobbyInviteUrl(activeLobbyId) : "");
+    if (!url) return;
+    const done = () => {
+      window.pushCafeNotification?.({ title: "Link copied", body: "Share it so others can join your lobby." });
+    };
+    if (navigator.clipboard?.writeText) {
+      void navigator.clipboard.writeText(url).then(done).catch(() => {});
+      return;
+    }
+    if (input) {
+      input.select();
+      try {
+        document.execCommand("copy");
+        done();
+      } catch {
+      }
+    }
+  }
+
+  async function tryAutoJoinLobbyFromUrl() {
+    const code = getLobbyCodeFromUrl();
+    if (!code || lobbyAutoJoinDone || !getDiscordUser() || userQueued) return;
+    lobbyAutoJoinDone = true;
+    activeLobbyId = code;
+    await lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(code)}/join`, "join");
   }
 
   function handleSignInClick() {
@@ -617,9 +804,9 @@
 
   async function handleAuthChange() {
     const discord = getDiscordUser();
-    if (!discord && userQueued) {
+    if (!discord && userQueued && activeLobbyId) {
       try {
-        await fetchQueueJson("/api/scrims/queue/leave", {
+        await fetchQueueJson(`/api/scrims/lobbies/${encodeURIComponent(activeLobbyId)}/leave`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: "{}"
@@ -642,19 +829,32 @@
     if (root !== page) {
       teardownScrimsPage();
       root = page;
-      onToggleClick = () => {
-        void handleToggle();
+      onCreateLobbyClick = () => {
+        void handleCreateLobby();
       };
+      onJoinLobbyClick = () => {
+        void handleJoinLobby();
+      };
+      onLeaveLobbyClick = () => {
+        void handleLeaveLobby();
+      };
+      onCopyLinkClick = handleCopyLobbyLink;
       onSignInClick = handleSignInClick;
       onAuthChange = onDiscordAuthChange;
-      page.querySelector("#scrims-queue-toggle")?.addEventListener("click", onToggleClick);
+      page.querySelector("#scrims-create-lobby")?.addEventListener("click", onCreateLobbyClick);
+      page.querySelector("#scrims-join-lobby")?.addEventListener("click", onJoinLobbyClick);
+      page.querySelector("#scrims-leave-lobby")?.addEventListener("click", onLeaveLobbyClick);
+      page.querySelector("#scrims-copy-lobby-link")?.addEventListener("click", onCopyLinkClick);
       page.querySelector("#scrims-queue-sign-in")?.addEventListener("click", onSignInClick);
       window.addEventListener("cafe-discord-auth-change", onAuthChange);
     }
 
+    const fromUrl = getLobbyCodeFromUrl();
+    if (fromUrl) activeLobbyId = fromUrl;
     renderQueue();
     void refreshScrimQueue({ force: true });
     connectScrimQueueWebSocket();
+    void tryAutoJoinLobbyFromUrl();
     if (!getDiscordUser() && typeof window.refreshDiscordAuthUi === "function") {
       void window.refreshDiscordAuthUi();
     }
@@ -666,10 +866,16 @@
     clearQueuePendingState();
     disconnectScrimQueueWebSocket();
     if (!root) return;
-    root.querySelector("#scrims-queue-toggle")?.removeEventListener("click", onToggleClick);
+    root.querySelector("#scrims-create-lobby")?.removeEventListener("click", onCreateLobbyClick);
+    root.querySelector("#scrims-join-lobby")?.removeEventListener("click", onJoinLobbyClick);
+    root.querySelector("#scrims-leave-lobby")?.removeEventListener("click", onLeaveLobbyClick);
+    root.querySelector("#scrims-copy-lobby-link")?.removeEventListener("click", onCopyLinkClick);
     root.querySelector("#scrims-queue-sign-in")?.removeEventListener("click", onSignInClick);
     if (onAuthChange) window.removeEventListener("cafe-discord-auth-change", onAuthChange);
-    onToggleClick = null;
+    onCreateLobbyClick = null;
+    onJoinLobbyClick = null;
+    onLeaveLobbyClick = null;
+    onCopyLinkClick = null;
     onSignInClick = null;
     onAuthChange = null;
     root = null;
