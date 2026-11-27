@@ -2,36 +2,6 @@
   "use strict";
 
   const QUEUE_CAP = 10;
-  const MOCK_PLAYERS = [
-    {
-      id: "mock-rawenge",
-      displayName: "Rawenge",
-      username: "rawenge",
-      avatarUrl: "https://cdn.discordapp.com/embed/avatars/1.png",
-      mock: true
-    },
-    {
-      id: "mock-rj",
-      displayName: "RJWarrior",
-      username: "rjwarrior",
-      avatarUrl: "https://cdn.discordapp.com/embed/avatars/3.png",
-      mock: true
-    },
-    {
-      id: "mock-kkv",
-      displayName: "KKV",
-      username: "kkv060",
-      avatarUrl: "https://cdn.discordapp.com/embed/avatars/5.png",
-      mock: true
-    },
-    {
-      id: "mock-two4",
-      displayName: "Two4ne",
-      username: "two4ne",
-      avatarUrl: "https://cdn.discordapp.com/embed/avatars/2.png",
-      mock: true
-    }
-  ];
 
   let slots = Array.from({ length: QUEUE_CAP }, () => null);
   let userQueued = false;
@@ -105,15 +75,6 @@
     }
   }
 
-  function seedMockQueueIfEmpty() {
-    if (queueCount() > 0) return;
-    const take = 1;
-    const shuffled = [...MOCK_PLAYERS].sort(() => Math.random() - 0.5);
-    for (let i = 0; i < take && i < QUEUE_CAP; i++) {
-      slots[i] = { ...shuffled[i] };
-    }
-  }
-
   function findYouSlotIndex() {
     return slots.findIndex((m) => m?.you);
   }
@@ -143,45 +104,6 @@
     const filled = slots.filter(Boolean);
     while (filled.length < QUEUE_CAP) filled.push(null);
     slots = filled.slice(0, QUEUE_CAP);
-  }
-
-  function renderDiscordChip() {
-    const chip = root?.querySelector("#scrims-discord-chip");
-    if (!chip) return;
-    chip.replaceChildren();
-    const user = mapDiscordUser(getDiscordUser());
-    if (!user) {
-      chip.classList.add("hidden");
-      return;
-    }
-    chip.classList.remove("hidden");
-    const avatar = document.createElement("img");
-    avatar.className = "scrims-discord-chip-avatar";
-    avatar.src = user.avatarUrl || "https://cdn.discordapp.com/embed/avatars/0.png";
-    avatar.alt = "";
-    avatar.width = 36;
-    avatar.height = 36;
-    avatar.loading = "lazy";
-    avatar.decoding = "async";
-
-    const meta = document.createElement("div");
-    meta.className = "scrims-discord-chip-meta";
-    const name = document.createElement("span");
-    name.className = "scrims-discord-chip-name";
-    name.textContent = user.displayName;
-    const handle = document.createElement("span");
-    handle.className = "scrims-discord-chip-handle";
-    handle.textContent = user.username ? `@${user.username}` : "Discord linked";
-    meta.appendChild(name);
-    meta.appendChild(handle);
-
-    const status = document.createElement("span");
-    status.className = "scrims-discord-chip-status";
-    status.textContent = userQueued ? "In queue" : "Signed in";
-
-    chip.appendChild(avatar);
-    chip.appendChild(meta);
-    chip.appendChild(status);
   }
 
   function renderSlot(el, index, member) {
@@ -296,7 +218,6 @@
 
   function renderQueue() {
     if (!root) return;
-    seedMockQueueIfEmpty();
     const count = queueCount();
     const discord = getDiscordUser();
     const countEl = root.querySelector("#scrims-queue-count");
@@ -323,9 +244,14 @@
     }
 
     const full = count >= QUEUE_CAP && !userQueued;
-    if (signInBtn) signInBtn.classList.toggle("hidden", Boolean(discord));
+    const signedIn = Boolean(discord);
+    if (signInBtn) {
+      signInBtn.classList.toggle("hidden", signedIn);
+      signInBtn.hidden = signedIn;
+    }
     if (btn) {
-      btn.classList.toggle("hidden", !discord);
+      btn.classList.toggle("hidden", !signedIn);
+      btn.hidden = !signedIn;
       if (discord) {
         btn.disabled = full && !userQueued;
         const label = userQueued
@@ -350,7 +276,6 @@
     }
 
     syncQueueTimer();
-    renderDiscordChip();
     maybeProvisionMatchVoice(count);
     renderMatchVoiceUi();
   }
@@ -394,20 +319,21 @@
     renderQueue();
   }
 
+  function onDiscordAuthChange() {
+    if (!root) return;
+    handleAuthChange();
+  }
+
   window.initScrimsPage = function initScrimsPage() {
     const page = document.getElementById("page-scrims");
-    if (!page?.classList.contains("main-page-active")) return;
+    if (!page) return;
 
     if (root !== page) {
       teardownScrimsPage();
       root = page;
-      if (!page.dataset.scrimsSeeded) {
-        seedMockQueueIfEmpty();
-        page.dataset.scrimsSeeded = "1";
-      }
       onToggleClick = handleToggle;
       onSignInClick = handleSignInClick;
-      onAuthChange = handleAuthChange;
+      onAuthChange = onDiscordAuthChange;
       page.querySelector("#scrims-queue-toggle")?.addEventListener("click", onToggleClick);
       page.querySelector("#scrims-queue-sign-in")?.addEventListener("click", onSignInClick);
       window.addEventListener("cafe-discord-auth-change", onAuthChange);
@@ -415,6 +341,9 @@
 
     userQueued = findYouSlotIndex() !== -1;
     renderQueue();
+    if (!getDiscordUser() && typeof window.refreshDiscordAuthUi === "function") {
+      void window.refreshDiscordAuthUi();
+    }
   };
 
   window.teardownScrimsPage = function teardownScrimsPage() {

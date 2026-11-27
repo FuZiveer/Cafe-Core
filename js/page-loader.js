@@ -232,9 +232,6 @@
       const pageElement = htmlTemplate.content.firstElementChild;
       if (!pageElement) throw new Error("Empty page fragment: " + pageKey);
       host.appendChild(pageElement);
-      if (typeof window.initMainPage === "function") {
-        void window.initMainPage(pageKey);
-      }
       return pageElement;
     })();
     mountPromises.set(pageKey, promise);

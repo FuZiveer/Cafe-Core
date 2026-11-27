@@ -471,6 +471,17 @@ function revealMainSideRails(token) {
     });
   });
 }
+function mainPageKeyFromElement(pageEl) {
+  if (!pageEl?.id || !mainPageIds) return null;
+  for (const [key, id] of Object.entries(mainPageIds)) {
+    if (id === pageEl.id) return key;
+  }
+  return null;
+}
+function runMainPageInit(pageKey) {
+  if (!pageKey || typeof window.initMainPage !== "function") return;
+  void window.initMainPage(pageKey);
+}
 function applyMainPageInstant(nextPage) {
     mainPageAnimToken += 1;
   if (mainPageTransitionHandler && nextPage) {
@@ -481,6 +492,7 @@ function applyMainPageInstant(nextPage) {
   resetMainPageMotion(nextPage);
   resetMainSideRailsMotion();
   nextPage.classList.add("main-page-active");
+  runMainPageInit(mainPageKeyFromElement(nextPage));
 }
 function waitForMainPageExit(prevPage, token) {
     return new Promise((resolve) => {
@@ -519,6 +531,7 @@ function revealMainPage(nextPage, nextKey, token) {
     syncPlaceholderPageView(nextKey);
   if (nextKey === "default") initHomeFeatureCardTilt();
   if (typeof scanModalCloseTooltipButtons === "function") scanModalCloseTooltipButtons(nextPage);
+  runMainPageInit(nextKey);
 }
 async function animateDefaultPageInPlace() {
   const page = document.getElementById("page-default");
