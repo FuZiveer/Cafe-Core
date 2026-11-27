@@ -1,7 +1,9 @@
 import { applyCors, getSessionUser, sendJson } from "./discord-auth.mjs";
+import { matchVoiceApiSecret } from "./secret-env.mjs";
 import {
   createMatchVoiceChannels,
   deleteMatchVoiceChannels,
+  getMatchBotStatus,
   isMatchBotConfigured,
   startDiscordMatchBot
 } from "./discord-match-bot.mjs";
@@ -19,7 +21,7 @@ async function readJsonBody(req) {
 }
 
 function apiSecret() {
-  return process.env.MATCH_VOICE_API_SECRET?.trim() || "";
+  return matchVoiceApiSecret();
 }
 
 function authorized(req) {
@@ -36,10 +38,10 @@ export async function handleMatchVoiceApiRequest(req, res, url, cfg) {
 
   if (pathname === "/api/match/bot-status" && req.method === "GET") {
     applyCors(req, res, cfg);
-    sendJson(res, 200, {
-      configured: isMatchBotConfigured(),
-      ready: isMatchBotConfigured()
-    });
+    if (isMatchBotConfigured()) {
+      await startDiscordMatchBot();
+    }
+    sendJson(res, 200, getMatchBotStatus());
     return true;
   }
 

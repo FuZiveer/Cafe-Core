@@ -3,6 +3,7 @@ import {
   memberHasStatsLookup,
   statsLookupForMember
 } from "./bl-stats-lookup.mjs";
+import { statsCcApiKey } from "./secret-env.mjs";
 
 const STATS_CC_BASE = "https://api.stats.cc/siege";
 const CONFIG_TTL_MS = 24 * 60 * 60 * 1000;
@@ -27,7 +28,7 @@ function sleep(ms) {
 }
 
 function apiKey() {
-  return process.env.STATS_CC_API_KEY?.trim() || "";
+  return statsCcApiKey();
 }
 
 export function statsCcConfigured() {

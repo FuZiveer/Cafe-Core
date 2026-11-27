@@ -29,7 +29,10 @@ async function readJsonBody(req) {
 }
 
 async function maybeProvisionMatchVoice(queue) {
-  if (!isMatchBotConfigured()) return queue;
+  if (!isMatchBotConfigured()) {
+    console.warn("[scrim-queue] Match voice skipped — bot env not configured");
+    return queue;
+  }
   if (queue.matchVoicePending) return queue;
   if (queueCount(queue) < QUEUE_CAP) return queue;
   const ids = queueMemberIds(queue).filter((id) => /^\d{17,20}$/.test(id));
@@ -40,7 +43,14 @@ async function maybeProvisionMatchVoice(queue) {
   broadcastScrimQueue(queue);
 
   try {
-    await startDiscordMatchBot();
+    const bot = await startDiscordMatchBot();
+    if (!bot?.isReady?.()) {
+      console.error("[scrim-queue] Match voice skipped — bot not online (see [match-bot] logs)");
+      queue.matchVoicePending = false;
+      const saved = await writeScrimQueue(queue);
+      broadcastScrimQueue(saved);
+      return saved;
+    }
     const matchId = `scrim-${Date.now().toString(36)}`;
     const result = await createMatchVoiceChannels({ discordUserIds: ids, matchId });
     const fresh = await readScrimQueue();
@@ -89,9 +99,14 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
       return true;
     }
     broadcastScrimQueue(outcome.queue);
-    let queue = outcome.queue;
+    const queue = outcome.queue;
+    if (isMatchBotConfigured()) {
+      void startDiscordMatchBot().catch(() => {});
+    }
     if (queueCount(queue) >= QUEUE_CAP) {
-      queue = await maybeProvisionMatchVoice(queue);
+      void maybeProvisionMatchVoice(queue).catch((err) => {
+        console.error("[scrim-queue] background match voice:", err?.message || err);
+      });
     }
     sendJson(res, 200, { ok: true, ...queuePayload(queue, user.id) });
     return true;

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { discordClientSecret, sessionSecret as sessionSecretFromEnv } from "./secret-env.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DISCORD_AUTHORIZE = "https://discord.com/api/oauth2/authorize";
@@ -34,8 +35,8 @@ function loadEnvFile() {
 export function getAuthConfig() {
   loadEnvFile();
   const clientId = process.env.DISCORD_CLIENT_ID?.trim() || "";
-  const clientSecret = process.env.DISCORD_CLIENT_SECRET?.trim() || "";
-  const sessionSecret = process.env.SESSION_SECRET?.trim() || "";
+  const clientSecret = discordClientSecret();
+  const sessionSecret = sessionSecretFromEnv();
   const port = Number(process.env.PORT || 8787);
   const redirectUri = process.env.DISCORD_REDIRECT_URI?.trim() || `http://127.0.0.1:${port}/auth/discord/callback`;
   const publicOrigin = process.env.PUBLIC_ORIGIN?.trim().replace(/\/$/, "") || `http://127.0.0.1:${port}`;
@@ -385,7 +386,13 @@ export async function handleDiscordAuthRequest(req, res, url) {
   if (handleAuthOptions(req, res, cfg)) return true;
   if (pathname === "/api/health") {
     applyCors(req, res, cfg);
-    sendJson(res, 200, { ok: true, discord: cfg.configured, blApi: true });
+    const { getMatchBotStatus } = await import("./discord-match-bot.mjs");
+    sendJson(res, 200, {
+      ok: true,
+      discord: cfg.configured,
+      blApi: true,
+      matchBot: getMatchBotStatus()
+    });
     return true;
   }
   if (pathname === "/api/auth/discord/config") {

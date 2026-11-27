@@ -15,6 +15,9 @@
   let lastMatchVoice = null;
   let activeMatch = null;
   let queueActionPending = false;
+  let queuePendingAction = null;
+  let queueToggleGeneration = 0;
+  let queuePendingSafetyTimer = null;
   let queueWs = null;
   let queueWsReconnectTimer = null;
   let queueWsManualClose = false;
@@ -49,28 +52,81 @@
     return base ? `${base}${p}` : p;
   }
 
-  async function fetchQueueJson(path, options = {}) {
-    const res = await fetch(apiUrl(path), {
-      credentials: "include",
-      ...options,
-      headers: {
-        Accept: "application/json",
-        ...options.headers || {}
-      }
-    });
-    let data = null;
+  async function fetchQueueJson(path, options = {}, { timeoutMs = 15e3 } = {}) {
+    const ctrl = new AbortController();
+    const ms = Math.max(3e3, Number(timeoutMs) || 15e3);
+    const tid = setTimeout(() => ctrl.abort(), ms);
     try {
-      data = await res.json();
-    } catch {
-      data = null;
-    }
-    if (!res.ok) {
-      const err = new Error(`scrim_queue_${res.status}`);
-      err.status = res.status;
-      err.body = data;
+      const res = await fetch(apiUrl(path), {
+        credentials: "include",
+        ...options,
+        signal: ctrl.signal,
+        headers: {
+          Accept: "application/json",
+          ...options.headers || {}
+        }
+      });
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+      if (!res.ok) {
+        const err = new Error(`scrim_queue_${res.status}`);
+        err.status = res.status;
+        err.body = data;
+        throw err;
+      }
+      return data;
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        const timeoutErr = new Error("scrim_queue_timeout");
+        timeoutErr.code = "timeout";
+        throw timeoutErr;
+      }
       throw err;
+    } finally {
+      clearTimeout(tid);
     }
-    return data;
+  }
+
+  function amInQueueFromPayload(payload) {
+    if (payload?.youInQueue === true) return true;
+    const uid = myDiscordId();
+    if (!uid || !Array.isArray(payload?.slots)) return false;
+    return payload.slots.some((s) => s?.id && String(s.id) === uid);
+  }
+
+  function clearQueuePendingState() {
+    queueActionPending = false;
+    queuePendingAction = null;
+    if (queuePendingSafetyTimer != null) {
+      clearTimeout(queuePendingSafetyTimer);
+      queuePendingSafetyTimer = null;
+    }
+  }
+
+  function beginQueuePending(action) {
+    queueActionPending = true;
+    queuePendingAction = action === "leave" ? "leave" : "join";
+    if (queuePendingSafetyTimer != null) clearTimeout(queuePendingSafetyTimer);
+    queuePendingSafetyTimer = window.setTimeout(() => {
+      queuePendingSafetyTimer = null;
+      clearQueuePendingState();
+      void refreshScrimQueue({ force: true });
+      if (root) renderQueue();
+    }, 22e3);
+  }
+
+  function settleQueuePendingFromPayload(payload) {
+    if (!queueActionPending || !queuePendingAction) return;
+    const inQueue = amInQueueFromPayload(payload);
+    const matched =
+      (queuePendingAction === "leave" && !inQueue) ||
+      (queuePendingAction === "join" && inQueue);
+    if (!matched) return;
+    clearQueuePendingState();
   }
 
   function getDiscordUser() {
@@ -115,6 +171,7 @@
     }
     lastMatchVoice = payload.lastMatchVoice || null;
     activeMatch = payload.activeMatch || null;
+    settleQueuePendingFromPayload(payload);
     renderQueue();
   }
 
@@ -349,7 +406,7 @@
       if (discord) {
         btn.disabled = queueActionPending || (full && !userQueued);
         const label = queueActionPending
-          ? userQueued
+          ? queuePendingAction === "leave"
             ? "Leaving…"
             : "Joining…"
           : userQueued
@@ -479,49 +536,58 @@
 
   async function handleToggle() {
     if (!getDiscordUser() || queueActionPending || !apiBase()) return;
-    queueActionPending = true;
+    const gen = ++queueToggleGeneration;
+    const action = userQueued ? "leave" : "join";
+    beginQueuePending(action);
     renderQueue();
+    const path = action === "leave" ? "/api/scrims/queue/leave" : "/api/scrims/queue/join";
+    const timeoutMs = action === "join" ? 45e3 : 12e3;
     try {
-      if (userQueued) {
-        const data = await fetchQueueJson("/api/scrims/queue/leave", {
+      const data = await fetchQueueJson(
+        path,
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: "{}"
-        });
-        applyServerQueuePayload(data);
-      } else {
-        const data = await fetchQueueJson("/api/scrims/queue/join", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: "{}"
-        });
-        applyServerQueuePayload(data);
-        if (data.activeMatch) {
-          const teams = data.activeMatch.teams || [];
-          const body =
-            data.lastMatchVoice?.channels?.length
-              ? `Created ${data.lastMatchVoice.channels.length} team voice channel(s) in Discord.`
-              : teams.length >= 2
-                ? `${teams[0].name} vs ${teams[1].name} — check Active matches.`
-                : "Queue full — match is live.";
-          window.pushCafeNotification?.({ title: "Match found", body });
-        }
+        },
+        { timeoutMs }
+      );
+      if (gen !== queueToggleGeneration) return;
+      applyServerQueuePayload(data);
+      if (action === "join" && data.activeMatch) {
+        const teams = data.activeMatch.teams || [];
+        const body =
+          data.lastMatchVoice?.channels?.length
+            ? `Created ${data.lastMatchVoice.channels.length} team voice channel(s) in Discord.`
+            : teams.length >= 2
+              ? `${teams[0].name} vs ${teams[1].name} — check Active matches.`
+              : "Queue full — match is live.";
+        window.pushCafeNotification?.({ title: "Match found", body });
       }
     } catch (err) {
+      if (gen !== queueToggleGeneration) return;
       const body = err.body;
       if (body && Array.isArray(body.slots)) {
         applyServerQueuePayload(body);
+      } else {
+        void refreshScrimQueue({ force: true });
       }
       const code = body?.error;
       if (code === "queue_full") {
         window.pushCafeNotification?.({ title: "Queue full", body: "All queue slots are taken." });
       } else if (err.status === 401) {
         window.pushCafeNotification?.({ title: "Sign in required", body: "Use Discord sign-in to join the queue." });
+      } else if (err.code === "timeout") {
+        window.pushCafeNotification?.({
+          title: "Queue request timed out",
+          body: "Your queue state may still update — try again if the button looks stuck."
+        });
       }
-      void refreshScrimQueue({ force: true });
     } finally {
-      queueActionPending = false;
-      renderQueue();
+      if (gen === queueToggleGeneration) {
+        clearQueuePendingState();
+        renderQueue();
+      }
     }
   }
 
@@ -583,6 +649,8 @@
 
   window.teardownScrimsPage = function teardownScrimsPage() {
     stopQueueTimer();
+    queueToggleGeneration += 1;
+    clearQueuePendingState();
     disconnectScrimQueueWebSocket();
     if (!root) return;
     root.querySelector("#scrims-queue-toggle")?.removeEventListener("click", onToggleClick);

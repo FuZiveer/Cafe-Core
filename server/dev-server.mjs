@@ -99,6 +99,8 @@ function serveFile(req, res, url) {
     });
   });
 }
+console.log("[cafe] Node", process.version, "| boot", new Date().toISOString());
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
   try {
@@ -148,18 +150,30 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`Caf\xE9 Core server listening on port ${PORT}`);
   console.log(`  Local:  http://127.0.0.1:${PORT}`);
   if (origin !== `http://127.0.0.1:${PORT}`) console.log(`  Public: ${origin}`);
-  console.log("Discord sign-in: set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI in .env");
+  console.log("Discord sign-in: configure OAuth env on Render (client id, secret, redirect URI)");
   if (isMatchBotConfigured()) {
-    void startDiscordMatchBot().catch((err) => {
-      console.error("[match-bot] Failed to start:", err?.message || err);
-    });
-    console.log("Match voice bot: DISCORD_BOT_TOKEN + DISCORD_GUILD_ID loaded");
+    console.log("[match-bot] Env present — starting Discord gateway connection on boot");
+    void startDiscordMatchBot()
+      .then((c) => {
+        if (c?.isReady?.()) {
+          console.log("[match-bot] Boot startup finished (bot should show online in Discord)");
+        } else {
+          console.warn(
+            "[match-bot] Boot startup finished but bot is not ready — check Render logs for Login failed"
+          );
+        }
+      })
+      .catch((err) => {
+        console.error("[match-bot] Boot startup error:", err?.message || err);
+      });
   } else {
-    console.log("Match voice bot: set DISCORD_BOT_TOKEN and DISCORD_GUILD_ID (local .env or Render Environment)");
+    console.warn(
+      "[match-bot] NOT configured — add bot token and guild id in Render Environment, then redeploy"
+    );
   }
   if (!usesUpstashRedis()) {
     console.warn(
-      "[cafe] Scrim record is stored on the local filesystem only (data/bl-scrim-record.json). On Render this resets when the service sleeps or redeploys. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for durable storage."
+      "[cafe] Scrim record is stored on the local filesystem only (data/bl-scrim-record.json). On Render this resets when the service sleeps or redeploys. Set Upstash Redis env vars for durable storage."
     );
   } else {
     console.log("[cafe] Scrim record persistence: Upstash Redis");

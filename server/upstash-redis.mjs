@@ -1,16 +1,24 @@
-const UPSTASH_URL = String(process.env.UPSTASH_REDIS_REST_URL || "").trim();
-const UPSTASH_TOKEN = String(process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
+import { upstashRedisRestToken, upstashRedisRestUrl } from "./secret-env.mjs";
+
+function upstashUrl() {
+  return upstashRedisRestUrl();
+}
+
+function upstashToken() {
+  return upstashRedisRestToken();
+}
+
 export function usesUpstashRedis() {
-  return Boolean(UPSTASH_URL && UPSTASH_TOKEN);
+  return Boolean(upstashUrl() && upstashToken());
 }
 export async function upstashRedisCommand(cmd) {
   if (!usesUpstashRedis()) throw new Error("upstash_not_configured");
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), 12e3);
-  const res = await fetch(UPSTASH_URL, {
+  const res = await fetch(upstashUrl(), {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${UPSTASH_TOKEN}`,
+      Authorization: `Bearer ${upstashToken()}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(cmd),

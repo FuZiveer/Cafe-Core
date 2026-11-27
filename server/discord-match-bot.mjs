@@ -5,14 +5,20 @@ import {
   PermissionFlagsBits
 } from "discord.js";
 import { getAuthConfig } from "./discord-auth.mjs";
+import { discordBotToken } from "./secret-env.mjs";
 
 let client = null;
 let botReady = null;
+let botStartPromise = null;
+let botLoggedIn = false;
+let lastBotError = null;
+
+const READY_TIMEOUT_MS = 45e3;
 
 export function getMatchBotConfig() {
   getAuthConfig();
   return {
-    token: process.env.DISCORD_BOT_TOKEN?.trim() || "",
+    token: discordBotToken(),
     guildId: process.env.DISCORD_GUILD_ID?.trim() || "",
     categoryName:
       process.env.DISCORD_MATCH_CATEGORY_NAME?.trim() || "MATCH CHANNELS",
@@ -24,6 +30,51 @@ export function getMatchBotConfig() {
 export function isMatchBotConfigured() {
   const c = getMatchBotConfig();
   return Boolean(c.token && c.guildId);
+}
+
+export function isMatchBotReady() {
+  return Boolean(botLoggedIn && client?.isReady?.());
+}
+
+export function getMatchBotStatus() {
+  const cfg = getMatchBotConfig();
+  const configured = Boolean(cfg.token && cfg.guildId);
+  return {
+    configured,
+    ready: isMatchBotReady(),
+    starting: Boolean(botStartPromise) && !isMatchBotReady(),
+    lastError: lastBotError,
+    guildIdConfigured: Boolean(cfg.guildId),
+    tokenConfigured: Boolean(cfg.token),
+    botUsername: client?.user?.tag || null,
+    botId: client?.user?.id || null
+  };
+}
+
+function warnTokenFormat(token) {
+  if (!token) return;
+  if (/\s/.test(token)) {
+    console.warn("[match-bot] Bot token contains whitespace — paste as one line in Render env");
+  }
+  if (!token.includes(".")) {
+    console.warn(
+      "[match-bot] Bot token format looks invalid — use Bot token from Developer Portal (not Client Secret)"
+    );
+  }
+}
+
+function resetBotClient() {
+  botLoggedIn = false;
+  const prev = client;
+  client = null;
+  botReady = null;
+  botStartPromise = null;
+  if (prev) {
+    try {
+      prev.destroy();
+    } catch {
+    }
+  }
 }
 
 function sanitizeVoiceChannelName(name) {
@@ -78,33 +129,71 @@ function uniqueNameInCategory(guild, categoryId, base) {
 export async function startDiscordMatchBot() {
   const cfg = getMatchBotConfig();
   if (!cfg.token || !cfg.guildId) {
-    console.log(
-      "[match-bot] Skipped — set DISCORD_BOT_TOKEN and DISCORD_GUILD_ID in .env"
+    console.warn(
+      "[match-bot] Skipped — set bot token and guild id in Render Environment"
     );
     return null;
   }
-  if (client) return client;
 
-  client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
-  });
+  if (client?.isReady?.()) return client;
 
-  botReady = new Promise((resolve, reject) => {
-    client.once("ready", () => {
-      console.log(`[match-bot] Logged in as ${client.user?.tag || "bot"}`);
-      resolve(client);
+  if (botStartPromise) return botStartPromise;
+
+  warnTokenFormat(cfg.token);
+  console.log(`[match-bot] Connecting… guild=${cfg.guildId}`);
+
+  botStartPromise = (async () => {
+    const c = new Client({
+      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
     });
-    client.once("error", reject);
-  });
+    client = c;
 
-  await client.login(cfg.token);
-  await botReady;
-  return client;
+    const ready = new Promise((resolve, reject) => {
+      const tid = setTimeout(() => {
+        reject(new Error("gateway_ready_timeout"));
+      }, READY_TIMEOUT_MS);
+      const onReady = () => {
+        clearTimeout(tid);
+        botLoggedIn = true;
+        lastBotError = null;
+        console.log(
+          `[match-bot] Online as ${c.user?.tag || "bot"} (application id ${c.user?.id || "?"})`
+        );
+        resolve(c);
+      };
+      const onError = (err) => {
+        clearTimeout(tid);
+        reject(err);
+      };
+      c.once("ready", onReady);
+      c.once("error", onError);
+    });
+
+    try {
+      await c.login(cfg.token);
+      await ready;
+      botReady = Promise.resolve(c);
+      return c;
+    } catch (err) {
+      lastBotError = err?.message || String(err);
+      console.error("[match-bot] Login failed:", lastBotError);
+      resetBotClient();
+      throw err;
+    } finally {
+      botStartPromise = null;
+    }
+  })();
+
+  try {
+    return await botStartPromise;
+  } catch {
+    return null;
+  }
 }
 
 export async function getMatchGuild() {
-  if (!client) await startDiscordMatchBot();
-  if (!client) throw new Error("bot_not_configured");
+  const started = await startDiscordMatchBot();
+  if (!started || !client?.isReady?.()) throw new Error("bot_not_ready");
   await botReady;
   const cfg = getMatchBotConfig();
   const guild = await client.guilds.fetch(cfg.guildId);
@@ -191,6 +280,10 @@ export async function createMatchVoiceChannels({
     });
   }
 
+  console.log(
+    `[match-bot] Created ${channels.length} voice channel(s) for match ${label}`
+  );
+
   return {
     matchId: label,
     categoryId: category.id,
@@ -223,8 +316,6 @@ export async function deleteMatchVoiceChannels({ channelIds } = {}) {
 }
 
 export function shutdownDiscordMatchBot() {
-  if (!client) return;
-  void client.destroy();
-  client = null;
-  botReady = null;
+  resetBotClient();
+  lastBotError = null;
 }
