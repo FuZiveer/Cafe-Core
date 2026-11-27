@@ -218,6 +218,24 @@
     };
   }
 
+  function resetScrimsLobbyView() {
+    queueToggleGeneration += 1;
+    clearQueuePendingState();
+    disconnectScrimQueueWebSocket();
+    activeLobbyId = "";
+    userQueued = false;
+    youAreHost = false;
+    activeMatch = null;
+    lastMatchVoice = null;
+    matchVoiceError = null;
+    queueJoinedAt = null;
+    queueVersion = 0;
+    slots = Array.from({ length: queueCapacity }, () => null);
+    adminSlots = Array.from({ length: adminCapacity }, () => null);
+    setLobbyInUrl("");
+    if (root) renderQueue();
+  }
+
   function applyServerQueuePayload(payload) {
     if (!payload || !Array.isArray(payload.slots)) return;
     const nextVersion = Number(payload.version) || 0;
@@ -252,8 +270,13 @@
     }
     lastMatchVoice = payload.lastMatchVoice || null;
     matchVoiceError = payload.matchVoiceError || null;
-    if (payload.lobbyId) {
-      activeLobbyId = normalizeLobbyCode(payload.lobbyId);
+    const lobbyCode = payload.lobbyId ? normalizeLobbyCode(payload.lobbyId) : "";
+    const tiedToLobby =
+      payload.youInQueue === true ||
+      payload.youAreHost === true ||
+      amInQueueFromPayload(payload);
+    if (lobbyCode && tiedToLobby) {
+      activeLobbyId = lobbyCode;
       setLobbyInUrl(activeLobbyId);
     }
     youAreHost = payload.youAreHost === true;
@@ -438,28 +461,8 @@
       versus.appendChild(vs);
       versus.appendChild(rightEl);
 
-      const meta = document.createElement("p");
-      meta.className = "scrims-match-meta";
-      if (lastMatchVoice?.channels?.length) {
-        const names = lastMatchVoice.channels
-          .map((c) => c.teamName || c.channelName)
-          .join(" vs ");
-        meta.textContent = `Discord voice: ${lastMatchVoice.categoryName || "MATCH CHANNELS"} — ${names}`;
-      } else if (matchVoiceError?.code) {
-        const hint =
-          matchVoiceError.code === "no_channels_created" || matchVoiceError.code === "no_team_roles"
-            ? "Each player needs a Discord role starting with TEAM (e.g. TEAM BLACK-LISTED)."
-            : matchVoiceError.code === "not_in_guild"
-              ? "Queue accounts must be in the Café Core Discord server."
-              : matchVoiceError.message || matchVoiceError.code;
-        meta.textContent = `Voice channels pending: ${hint}`;
-      } else {
-        meta.textContent = `Match ${activeMatch.matchId || ""}. Provisioning Discord voice…`.trim();
-      }
-
       card.appendChild(kicker);
       card.appendChild(versus);
-      card.appendChild(meta);
       activeWrap.appendChild(card);
       return;
     }
@@ -541,7 +544,10 @@
     const signedIn = Boolean(discord);
     const urlLobby = getLobbyCodeFromUrl();
     const viewingInviteLobby = Boolean(urlLobby && !userQueued);
-    const showJoinChoices = Boolean(signedIn && urlLobby && !userQueued && !matchLive);
+    const lobbyContext = urlLobby || activeLobbyId;
+    const showJoinChoices = Boolean(
+      signedIn && lobbyContext && !userQueued && !matchLive
+    );
     const showLobbyPanel = Boolean(
       signedIn && (showJoinChoices || (userQueued && Boolean(activeLobbyId)))
     );
@@ -551,7 +557,9 @@
       signInBtn.hidden = signedIn;
     }
     if (inviteWrap && inviteInput && inviteCode) {
-      const showInvite = Boolean(!matchLive && activeLobbyId && (userQueued || youAreHost));
+      const showInvite = Boolean(
+        !matchLive && activeLobbyId && (userQueued || (youAreHost && activeLobbyId))
+      );
       inviteWrap.classList.toggle("hidden", !showInvite);
       inviteWrap.hidden = !showInvite;
       if (showInvite) {
@@ -588,14 +596,17 @@
       joinAdminBtn.textContent = joiningAdmin ? "Joining…" : "Join as admin";
     }
     if (createBtn) {
-      const hideCreate = matchLive || !signedIn || userQueued || viewingInviteLobby;
+      const hideCreate =
+      matchLive || !signedIn || userQueued || Boolean(lobbyContext);
       createBtn.classList.toggle("hidden", hideCreate);
       createBtn.hidden = hideCreate;
       createBtn.disabled = queueActionPending;
       createBtn.textContent = queueActionPending && queuePendingAction === "join" ? "Creating…" : "Create lobby";
     }
     if (leaveBtn) {
-      const showLeave = Boolean(showLobbyPanel && userQueued);
+      const showLeave = Boolean(
+      showLobbyPanel && (userQueued || (youAreHost && activeLobbyId))
+    );
       leaveBtn.classList.toggle("hidden", !showLeave);
       leaveBtn.hidden = !showLeave;
       leaveBtn.disabled = queueActionPending;
@@ -773,13 +784,12 @@
         { timeoutMs: action === "join" ? 45e3 : timeoutMs }
       );
       if (gen !== queueToggleGeneration) return;
+      if (action === "leave") {
+        resetScrimsLobbyView();
+        return;
+      }
       if (data.lobbyClosed) {
-        activeLobbyId = "";
-        userQueued = false;
-        youAreHost = false;
-        setLobbyInUrl("");
-        disconnectScrimQueueWebSocket();
-        applyServerQueuePayload(data);
+        resetScrimsLobbyView();
         return;
       }
       applyServerQueuePayload(data);
@@ -833,15 +843,19 @@
     void lobbyRequest("/api/scrims/lobbies", "join");
   }
 
+  function lobbyCodeForJoin() {
+    return activeLobbyId || getLobbyCodeFromUrl();
+  }
+
   function handleJoinAsPlayer() {
-    const code = getLobbyCodeFromUrl();
+    const code = lobbyCodeForJoin();
     if (!code) return;
     activeLobbyId = code;
     void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(code)}/join`, "join", { role: "player" });
   }
 
   function handleJoinAsAdmin() {
-    const code = getLobbyCodeFromUrl();
+    const code = lobbyCodeForJoin();
     if (!code) return;
     activeLobbyId = code;
     void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(code)}/join`, "join", { role: "admin" });

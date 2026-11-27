@@ -7398,13 +7398,6 @@ html.reduce-motion .keyboard-checker-key {
   letter-spacing: 0.12em;
   color: rgb(148 163 184);
 }
-#page-scrims .scrims-match-meta {
-  margin: 1rem 0 0;
-  text-align: center;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  color: var(--scrims-muted);
-}
 @media (max-width: 640px) {
   #page-scrims .scrims-match-versus {
     grid-template-columns: 1fr;

@@ -427,7 +427,6 @@ export async function createLobby(user) {
     lobby.lobbyId = code;
     lobby.hostId = member.id;
     lobby.createdAt = Date.now();
-    lobby.slots[0] = member;
     lobby.version = 1;
     await writeLobby(code, lobby);
     return { ok: true, lobbyId: code, queue: lobby };
@@ -489,11 +488,32 @@ export async function joinLobby(lobbyId, user, role = "player") {
   });
 }
 
+function userInLobbyRoster(q, uid) {
+  if (!q || !uid) return false;
+  ensureLobbyRosterShape(q);
+  if (q.slots.some((s) => s?.id === uid)) return true;
+  if (q.adminSlots.some((s) => s?.id === uid)) return true;
+  return false;
+}
+
 export async function leaveLobby(lobbyId, userId) {
   const id = normalizeLobbyId(lobbyId);
   if (!id) return { ok: false, error: "invalid_lobby" };
   const uid = String(userId || "").trim();
   if (!uid) return { ok: false, error: "invalid_user" };
+  const current = await readLobby(id);
+  if (
+    current &&
+    String(current.hostId) === uid &&
+    !userInLobbyRoster(current, uid)
+  ) {
+    await deleteLobby(id);
+    return {
+      ok: true,
+      deleted: true,
+      queue: normalizeScrimQueue({ ...current, lobbyId: id, hostId: "" })
+    };
+  }
   const outcome = await mutateLobby(id, (q) => {
     ensureLobbyRosterShape(q);
     let touched = false;
