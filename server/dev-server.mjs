@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { getAuthConfig, handleDiscordAuthRequest } from "./discord-auth.mjs";
 import { handleBlApiRequest } from "./bl-api.mjs";
 import { handleScrimUpgrade } from "./bl-scrim-ws.mjs";
+import { handleScrimQueueUpgrade } from "./scrim-queue-ws.mjs";
+import { handleScrimQueueApiRequest } from "./scrim-queue-api.mjs";
 import { handleMatchVoiceApiRequest } from "./match-voice-api.mjs";
 import { isMatchBotConfigured, startDiscordMatchBot } from "./discord-match-bot.mjs";
 import { usesUpstashRedis } from "./upstash-redis.mjs";
@@ -107,6 +109,8 @@ const server = http.createServer(async (req, res) => {
     if (handledBl) return;
     const handledMatch = await handleMatchVoiceApiRequest(req, res, url, cfg);
     if (handledMatch) return;
+    const handledScrimQueue = await handleScrimQueueApiRequest(req, res, url, cfg);
+    if (handledScrimQueue) return;
   } catch (err) {
     console.error("[auth]", err);
     res.writeHead(500);
@@ -124,6 +128,7 @@ server.on("upgrade", (request, socket, head) => {
     return;
   }
   if (handleScrimUpgrade(request, socket, head, pathname)) return;
+  if (handleScrimQueueUpgrade(request, socket, head, pathname)) return;
   socket.destroy();
 });
 server.on("error", (err) => {

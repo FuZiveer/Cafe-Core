@@ -10,7 +10,7 @@
                                 <p class="scrims-hero-kicker">Matchmaking queue</p>
                                 <h2 id="scrims-queue-title" class="scrims-hero-title">Competitive scrims</h2>
                                 <p id="scrims-queue-desc" class="scrims-hero-desc">
-                                    Connect and coordinate with Caf&eacute; Core players. Lobbies automatically trigger scrims at 10 players.
+                                    Connect and coordinate with Caf&eacute; Core players. Lobbies automatically trigger scrims when the queue is full.
                                 </p>
                             </div>
                             <div class="scrims-hero-meta">
@@ -27,7 +27,7 @@
                             class="scrims-count-bar"
                             role="progressbar"
                             aria-valuemin="0"
-                            aria-valuemax="10"
+                            aria-valuemax="2"
                             aria-valuenow="0"
                         >
                             <div class="scrims-count-bar-icon" aria-hidden="true">
@@ -36,29 +36,15 @@
                             <div class="scrims-count-bar-copy">
                                 <div class="scrims-count-metric" aria-live="polite" aria-atomic="true">
                                     <span id="scrims-queue-count" class="scrims-count-num">0</span>
-                                    <span class="scrims-count-cap">/ 10 players</span>
+                                    <span id="scrims-queue-cap-label" class="scrims-count-cap">/ 2 players</span>
                                 </div>
                                 <p id="scrims-queue-standing" class="scrims-count-sub">0 players standing by in queue</p>
                             </div>
                         </div>
-                        <div class="scrims-count-bar-track" aria-hidden="true">
-                            <div id="scrims-queue-fill" class="scrims-count-bar-track-fill"></div>
-                        </div>
 
                         <div class="scrims-roster-block">
                             <h3 class="scrims-roster-label">Queue roster</h3>
-                            <div id="scrims-queue-slots" class="scrims-roster-grid" aria-label="Queue slots (10)">
-                                <article class="scrims-roster-slot scrims-roster-slot--empty" aria-label="Slot 1 awaiting player"><div class="scrims-roster-slot-empty-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div><span class="scrims-roster-slot-empty-title">Awaiting…</span><span class="scrims-roster-slot-empty-sub">Slot #1</span></article>
-                                <article class="scrims-roster-slot scrims-roster-slot--empty" aria-label="Slot 2 awaiting player"><div class="scrims-roster-slot-empty-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div><span class="scrims-roster-slot-empty-title">Awaiting…</span><span class="scrims-roster-slot-empty-sub">Slot #2</span></article>
-                                <article class="scrims-roster-slot scrims-roster-slot--empty" aria-label="Slot 3 awaiting player"><div class="scrims-roster-slot-empty-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div><span class="scrims-roster-slot-empty-title">Awaiting…</span><span class="scrims-roster-slot-empty-sub">Slot #3</span></article>
-                                <article class="scrims-roster-slot scrims-roster-slot--empty" aria-label="Slot 4 awaiting player"><div class="scrims-roster-slot-empty-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div><span class="scrims-roster-slot-empty-title">Awaiting…</span><span class="scrims-roster-slot-empty-sub">Slot #4</span></article>
-                                <article class="scrims-roster-slot scrims-roster-slot--empty" aria-label="Slot 5 awaiting player"><div class="scrims-roster-slot-empty-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div><span class="scrims-roster-slot-empty-title">Awaiting…</span><span class="scrims-roster-slot-empty-sub">Slot #5</span></article>
-                                <article class="scrims-roster-slot scrims-roster-slot--empty" aria-label="Slot 6 awaiting player"><div class="scrims-roster-slot-empty-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div><span class="scrims-roster-slot-empty-title">Awaiting…</span><span class="scrims-roster-slot-empty-sub">Slot #6</span></article>
-                                <article class="scrims-roster-slot scrims-roster-slot--empty" aria-label="Slot 7 awaiting player"><div class="scrims-roster-slot-empty-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div><span class="scrims-roster-slot-empty-title">Awaiting…</span><span class="scrims-roster-slot-empty-sub">Slot #7</span></article>
-                                <article class="scrims-roster-slot scrims-roster-slot--empty" aria-label="Slot 8 awaiting player"><div class="scrims-roster-slot-empty-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div><span class="scrims-roster-slot-empty-title">Awaiting…</span><span class="scrims-roster-slot-empty-sub">Slot #8</span></article>
-                                <article class="scrims-roster-slot scrims-roster-slot--empty" aria-label="Slot 9 awaiting player"><div class="scrims-roster-slot-empty-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div><span class="scrims-roster-slot-empty-title">Awaiting…</span><span class="scrims-roster-slot-empty-sub">Slot #9</span></article>
-                                <article class="scrims-roster-slot scrims-roster-slot--empty" aria-label="Slot 10 awaiting player"><div class="scrims-roster-slot-empty-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div><span class="scrims-roster-slot-empty-title">Awaiting…</span><span class="scrims-roster-slot-empty-sub">Slot #10</span></article>
-                            </div>
+                            <div id="scrims-queue-slots" class="scrims-roster-grid" aria-label="Queue slots (2)"></div>
                         </div>
 
                         <button type="button" id="scrims-queue-toggle" class="scrims-cta ui-interactive">
@@ -88,15 +74,16 @@
                             </div>
                             <span id="scrims-matches-live" class="scrims-pill scrims-pill--live">0 live</span>
                         </header>
-                        <div class="scrims-matches-empty">
+                        <div id="scrims-matches-empty" class="scrims-matches-empty">
                             <div class="scrims-matches-empty-ring" aria-hidden="true">
                                 <i class="fa-solid fa-magnifying-glass"></i>
                             </div>
                             <p class="scrims-matches-empty-title">Searching for matches&hellip;</p>
                             <p class="scrims-matches-empty-desc">
-                                No active matches. When a queue reaches 10 players, match details will appear here.
+                                No active matches. When the queue fills, team lineups will appear here.
                             </p>
                         </div>
+                        <div id="scrims-matches-active" class="scrims-matches-active hidden" hidden aria-live="polite"></div>
                     </section>
                 </div>
             </div>

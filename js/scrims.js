@@ -1,33 +1,121 @@
 (function () {
   "use strict";
 
-  const QUEUE_CAP = 10;
+  let queueCapacity = 2;
 
-  let slots = Array.from({ length: QUEUE_CAP }, () => null);
+  let slots = Array.from({ length: queueCapacity }, () => null);
   let userQueued = false;
+  let queueVersion = 0;
   let root = null;
   let onToggleClick = null;
   let onSignInClick = null;
   let onAuthChange = null;
   let queueTimerId = null;
   let queueJoinedAt = null;
-  let matchVoiceRequested = false;
   let lastMatchVoice = null;
+  let activeMatch = null;
+  let queueActionPending = false;
+  let queueWs = null;
+  let queueWsReconnectTimer = null;
+  let queueWsManualClose = false;
+  let queuePollTimer = null;
+  let lastQueueFetchAt = 0;
+
+  function authOriginOverride() {
+    const o = window.__CAFE_AUTH_ORIGIN;
+    return typeof o === "string" && o.trim() ? o.trim().replace(/\/$/, "") : "";
+  }
+
+  function apiBase() {
+    const override = authOriginOverride();
+    if (override) return override;
+    if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+      return window.location.origin;
+    }
+    return "";
+  }
+
+  function wsBase() {
+    const base = apiBase();
+    if (!base) return "";
+    if (base.startsWith("https://")) return `wss://${base.slice(8)}`;
+    if (base.startsWith("http://")) return `ws://${base.slice(7)}`;
+    return "";
+  }
+
+  function apiUrl(path) {
+    const p = path.startsWith("/") ? path : `/${path}`;
+    const base = apiBase();
+    return base ? `${base}${p}` : p;
+  }
+
+  async function fetchQueueJson(path, options = {}) {
+    const res = await fetch(apiUrl(path), {
+      credentials: "include",
+      ...options,
+      headers: {
+        Accept: "application/json",
+        ...options.headers || {}
+      }
+    });
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    if (!res.ok) {
+      const err = new Error(`scrim_queue_${res.status}`);
+      err.status = res.status;
+      err.body = data;
+      throw err;
+    }
+    return data;
+  }
 
   function getDiscordUser() {
     return typeof window.getDiscordAuthUser === "function" ? window.getDiscordAuthUser() : null;
   }
 
-  function mapDiscordUser(user, { you = false } = {}) {
-    if (!user?.id) return null;
+  function myDiscordId() {
+    const id = getDiscordUser()?.id;
+    return id ? String(id) : "";
+  }
+
+  function mapSlotFromServer(entry, index) {
+    if (!entry?.id) return null;
+    const you = myDiscordId() && String(entry.id) === myDiscordId();
     return {
-      id: String(user.id),
-      displayName: user.displayName || user.username || "Discord",
-      username: user.username ? String(user.username) : "",
-      avatarUrl: user.avatarUrl || "",
+      id: String(entry.id),
+      displayName: entry.displayName || entry.username || "Discord",
+      username: entry.username ? String(entry.username) : "",
+      avatarUrl: entry.avatarUrl || "",
+      joinedAt: entry.joinedAt || null,
       you,
       mock: false
     };
+  }
+
+  function applyServerQueuePayload(payload) {
+    if (!payload || !Array.isArray(payload.slots)) return;
+    const nextVersion = Number(payload.version) || 0;
+    if (nextVersion < queueVersion) return;
+    queueVersion = nextVersion;
+    if (Number(payload.capacity) >= 2) {
+      queueCapacity = Math.min(10, Math.round(Number(payload.capacity)));
+    }
+    slots = Array.from({ length: queueCapacity }, (_, i) =>
+      mapSlotFromServer(payload.slots[i], i)
+    );
+    userQueued = payload.youInQueue === true || slots.some((m) => m?.you);
+    if (payload.yourJoinedAt) {
+      queueJoinedAt = Number(payload.yourJoinedAt) || queueJoinedAt;
+    } else if (!userQueued) {
+      queueJoinedAt = null;
+    }
+    lastMatchVoice = payload.lastMatchVoice || null;
+    activeMatch = payload.activeMatch || null;
+    renderQueue();
   }
 
   function queueCount() {
@@ -73,37 +161,6 @@
     if (queueTimerId == null) {
       queueTimerId = window.setInterval(tick, 1000);
     }
-  }
-
-  function findYouSlotIndex() {
-    return slots.findIndex((m) => m?.you);
-  }
-
-  function removeYouFromQueue() {
-    const idx = findYouSlotIndex();
-    if (idx !== -1) slots[idx] = null;
-    userQueued = false;
-  }
-
-  function addYouToQueue() {
-    const user = mapDiscordUser(getDiscordUser(), { you: true });
-    if (!user) return false;
-    if (queueCount() >= QUEUE_CAP) return false;
-    if (findYouSlotIndex() !== -1) {
-      userQueued = true;
-      return true;
-    }
-    const empty = slots.findIndex((s) => !s);
-    if (empty === -1) return false;
-    slots[empty] = user;
-    userQueued = true;
-    return true;
-  }
-
-  function compactSlotsOptional() {
-    const filled = slots.filter(Boolean);
-    while (filled.length < QUEUE_CAP) filled.push(null);
-    slots = filled.slice(0, QUEUE_CAP);
   }
 
   function renderSlot(el, index, member) {
@@ -154,66 +211,102 @@
     el.appendChild(sub);
   }
 
-  function renderMatchVoiceUi() {
-    const live = root?.querySelector("#scrims-matches-live");
-    const emptyTitle = root?.querySelector(".scrims-matches-empty-title");
-    const emptyDesc = root?.querySelector(".scrims-matches-empty-desc");
-    if (!live || !emptyTitle) return;
-    if (lastMatchVoice?.channels?.length) {
-      live.textContent = `${lastMatchVoice.channels.length} live`;
-      emptyTitle.textContent = "Match voice channels ready";
-      if (emptyDesc) {
-        const names = lastMatchVoice.channels.map((c) => c.channelName).join(", ");
-        emptyDesc.textContent = `Open Discord → ${lastMatchVoice.categoryName || "MATCH CHANNELS"}: ${names}`;
-      }
+  function renderTeamRoster(teamEl, team) {
+    teamEl.replaceChildren();
+    const header = document.createElement("p");
+    header.className = "scrims-match-team-name";
+    header.textContent = team.name || "Team";
+    teamEl.appendChild(header);
+    const list = document.createElement("ul");
+    list.className = "scrims-match-team-players";
+    for (const p of team.players || []) {
+      const li = document.createElement("li");
+      li.className = "scrims-match-player";
+      const img = document.createElement("img");
+      img.className = "scrims-match-player-avatar";
+      img.src = p.avatarUrl || "https://cdn.discordapp.com/embed/avatars/0.png";
+      img.alt = "";
+      img.width = 40;
+      img.height = 40;
+      img.loading = "lazy";
+      const label = document.createElement("span");
+      label.className = "scrims-match-player-name";
+      const you = myDiscordId() && String(p.id) === myDiscordId();
+      label.textContent = you ? "You" : p.displayName || p.username || "Player";
+      li.appendChild(img);
+      li.appendChild(label);
+      list.appendChild(li);
     }
+    teamEl.appendChild(list);
   }
 
-  function maybeProvisionMatchVoice(count) {
-    if (count < QUEUE_CAP) {
-      matchVoiceRequested = false;
+  function renderMatchesPanel() {
+    const live = root?.querySelector("#scrims-matches-live");
+    const emptyWrap = root?.querySelector("#scrims-matches-empty");
+    const activeWrap = root?.querySelector("#scrims-matches-active");
+    if (!live) return;
+
+    const hasMatch = Boolean(activeMatch?.teams?.length >= 2);
+    if (hasMatch) {
+      live.textContent = "1 live";
+      emptyWrap?.classList.add("hidden");
+      if (emptyWrap) emptyWrap.hidden = true;
+      activeWrap?.classList.remove("hidden");
+      if (activeWrap) activeWrap.hidden = false;
+      if (!activeWrap) return;
+
+      const [left, right] = activeMatch.teams;
+      activeWrap.replaceChildren();
+      const card = document.createElement("article");
+      card.className = "scrims-match-card";
+      card.setAttribute("aria-label", `${left.name} versus ${right.name}`);
+
+      const kicker = document.createElement("p");
+      kicker.className = "scrims-match-kicker";
+      kicker.textContent = "Live scrim";
+
+      const versus = document.createElement("div");
+      versus.className = "scrims-match-versus";
+
+      const leftEl = document.createElement("div");
+      leftEl.className = "scrims-match-side scrims-match-side--left";
+      const vs = document.createElement("div");
+      vs.className = "scrims-match-vs";
+      vs.setAttribute("aria-hidden", "true");
+      vs.textContent = "VS";
+      const rightEl = document.createElement("div");
+      rightEl.className = "scrims-match-side scrims-match-side--right";
+
+      renderTeamRoster(leftEl, left);
+      renderTeamRoster(rightEl, right);
+      versus.appendChild(leftEl);
+      versus.appendChild(vs);
+      versus.appendChild(rightEl);
+
+      const meta = document.createElement("p");
+      meta.className = "scrims-match-meta";
+      if (lastMatchVoice?.channels?.length) {
+        const names = lastMatchVoice.channels.map((c) => c.channelName).join(", ");
+        meta.textContent = `Discord voice: ${lastMatchVoice.categoryName || "MATCH CHANNELS"} — ${names}`;
+      } else {
+        meta.textContent = `Match ${activeMatch.matchId || ""}. Confirm lineups in Discord.`.trim();
+      }
+
+      card.appendChild(kicker);
+      card.appendChild(versus);
+      card.appendChild(meta);
+      activeWrap.appendChild(card);
       return;
     }
-    if (matchVoiceRequested) return;
-    const ids = [
-      ...new Set(
-        slots
-          .filter((m) => m && !m.mock && /^\d{17,20}$/.test(String(m.id)))
-          .map((m) => String(m.id))
-      )
-    ];
-    if (ids.length < 2) return;
-    matchVoiceRequested = true;
-    const matchId = `scrim-${Date.now().toString(36)}`;
-    void fetch("/api/match/voice-channels", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ discordUserIds: ids, matchId })
-    })
-      .then((res) => res.json().then((data) => ({ res, data })))
-      .then(({ res, data }) => {
-        if (!res.ok) {
-          matchVoiceRequested = false;
-          window.pushCafeNotification?.({
-            title: "Match voice unavailable",
-            body:
-              data?.error === "bot_not_configured"
-                ? "Discord match bot is not configured on the server."
-                : "Could not create team voice channels. Check TEAM roles in Discord."
-          });
-          return;
-        }
-        lastMatchVoice = data;
-        renderMatchVoiceUi();
-        window.pushCafeNotification?.({
-          title: "Match found",
-          body: `Created ${data.channels?.length || 0} team voice channel(s) in Discord.`
-        });
-      })
-      .catch(() => {
-        matchVoiceRequested = false;
-      });
+
+    live.textContent = "0 live";
+    activeWrap?.classList.add("hidden");
+    if (activeWrap) {
+      activeWrap.hidden = true;
+      activeWrap.replaceChildren();
+    }
+    emptyWrap?.classList.remove("hidden");
+    if (emptyWrap) emptyWrap.hidden = false;
   }
 
   function renderQueue() {
@@ -221,7 +314,7 @@
     const count = queueCount();
     const discord = getDiscordUser();
     const countEl = root.querySelector("#scrims-queue-count");
-    const fillEl = root.querySelector("#scrims-queue-fill");
+    const capLabel = root.querySelector("#scrims-queue-cap-label");
     const standingEl = root.querySelector("#scrims-queue-standing");
     const badgeEl = root.querySelector("#scrims-queue-state-badge");
     const btn = root.querySelector("#scrims-queue-toggle");
@@ -230,11 +323,12 @@
     const progress = root.querySelector("#scrims-queue-progress");
 
     if (countEl) countEl.textContent = String(count);
-    if (fillEl) fillEl.style.width = `${(count / QUEUE_CAP) * 100}%`;
+    if (capLabel) capLabel.textContent = `/ ${queueCapacity} players`;
     if (standingEl) standingEl.textContent = standingByCopy(count);
     if (progress) {
+      progress.setAttribute("aria-valuemax", String(queueCapacity));
       progress.setAttribute("aria-valuenow", String(count));
-      progress.setAttribute("aria-label", `${count} of ${QUEUE_CAP} players in queue`);
+      progress.setAttribute("aria-label", `${count} of ${queueCapacity} players in queue`);
     }
     if (badgeEl) {
       const active = userQueued || count > 0;
@@ -243,7 +337,7 @@
       badgeEl.classList.toggle("scrims-pill--idle", !active);
     }
 
-    const full = count >= QUEUE_CAP && !userQueued;
+    const full = count >= queueCapacity && !userQueued;
     const signedIn = Boolean(discord);
     if (signInBtn) {
       signInBtn.classList.toggle("hidden", signedIn);
@@ -253,12 +347,16 @@
       btn.classList.toggle("hidden", !signedIn);
       btn.hidden = !signedIn;
       if (discord) {
-        btn.disabled = full && !userQueued;
-        const label = userQueued
-          ? "Leave queue"
-          : full
-            ? "Queue full"
-            : "Join queue";
+        btn.disabled = queueActionPending || (full && !userQueued);
+        const label = queueActionPending
+          ? userQueued
+            ? "Leaving…"
+            : "Joining…"
+          : userQueued
+            ? "Leave queue"
+            : full
+              ? "Queue full"
+              : "Join queue";
         btn.textContent = label;
         btn.classList.toggle("scrims-cta--leave", userQueued);
         btn.classList.toggle("scrims-cta--join", !userQueued);
@@ -267,8 +365,10 @@
     }
 
     if (slotsEl) {
+      slotsEl.style.setProperty("--scrims-roster-cols", String(queueCapacity));
+      slotsEl.setAttribute("aria-label", `Queue slots (${queueCapacity})`);
       slotsEl.replaceChildren();
-      for (let i = 0; i < QUEUE_CAP; i++) {
+      for (let i = 0; i < queueCapacity; i++) {
         const slot = document.createElement("article");
         renderSlot(slot, i, slots[i]);
         slotsEl.appendChild(slot);
@@ -276,19 +376,153 @@
     }
 
     syncQueueTimer();
-    maybeProvisionMatchVoice(count);
-    renderMatchVoiceUi();
+    renderMatchesPanel();
   }
 
-  function handleToggle() {
-    if (!getDiscordUser()) return;
-    if (userQueued) {
-      removeYouFromQueue();
-      compactSlotsOptional();
-    } else {
-      addYouToQueue();
+  async function refreshScrimQueue({ force } = {}) {
+    if (!apiBase()) return;
+    const now = Date.now();
+    if (!force && now - lastQueueFetchAt < 800) return;
+    lastQueueFetchAt = now;
+    try {
+      const data = await fetchQueueJson("/api/scrims/queue");
+      applyServerQueuePayload(data);
+    } catch {
+      if (!force) return;
     }
+  }
+
+  function scheduleQueueWsReconnect() {
+    if (queueWsManualClose) return;
+    clearTimeout(queueWsReconnectTimer);
+    queueWsReconnectTimer = setTimeout(() => {
+      queueWsReconnectTimer = null;
+      connectScrimQueueWebSocket();
+    }, 3e3);
+  }
+
+  function stopQueuePoll() {
+    if (queuePollTimer == null) return;
+    clearInterval(queuePollTimer);
+    queuePollTimer = null;
+  }
+
+  function startQueuePollFallback() {
+    if (queuePollTimer != null) return;
+    queuePollTimer = window.setInterval(() => {
+      if (!root) return;
+      void refreshScrimQueue();
+    }, 4e3);
+  }
+
+  function connectScrimQueueWebSocket() {
+    const base = wsBase();
+    if (!base || !root) return;
+    if (
+      queueWs &&
+      (queueWs.readyState === WebSocket.OPEN || queueWs.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+    queueWsManualClose = false;
+    let ws;
+    try {
+      ws = new WebSocket(`${base}/ws/scrims/queue`);
+    } catch {
+      scheduleQueueWsReconnect();
+      startQueuePollFallback();
+      return;
+    }
+    queueWs = ws;
+    ws.onopen = () => {
+      if (queueWs !== ws) return;
+      stopQueuePoll();
+    };
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(String(event.data || ""));
+        if (msg?.type !== "scrim_queue") return;
+        applyServerQueuePayload(msg);
+      } catch {
+      }
+    };
+    ws.onclose = () => {
+      if (queueWs === ws) queueWs = null;
+      if (!queueWsManualClose && root) {
+        scheduleQueueWsReconnect();
+        startQueuePollFallback();
+      }
+    };
+    ws.onerror = () => {
+      try {
+        ws.close();
+      } catch {
+      }
+    };
+  }
+
+  function disconnectScrimQueueWebSocket() {
+    queueWsManualClose = true;
+    clearTimeout(queueWsReconnectTimer);
+    queueWsReconnectTimer = null;
+    stopQueuePoll();
+    const ws = queueWs;
+    queueWs = null;
+    if (!ws) return;
+    ws.onclose = null;
+    ws.onerror = null;
+    try {
+      ws.close();
+    } catch {
+    }
+  }
+
+  async function handleToggle() {
+    if (!getDiscordUser() || queueActionPending || !apiBase()) return;
+    queueActionPending = true;
     renderQueue();
+    try {
+      if (userQueued) {
+        const data = await fetchQueueJson("/api/scrims/queue/leave", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}"
+        });
+        applyServerQueuePayload(data);
+      } else {
+        const data = await fetchQueueJson("/api/scrims/queue/join", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}"
+        });
+        applyServerQueuePayload(data);
+        if (data.activeMatch) {
+          const teams = data.activeMatch.teams || [];
+          const body =
+            data.lastMatchVoice?.channels?.length
+              ? `Created ${data.lastMatchVoice.channels.length} team voice channel(s) in Discord.`
+              : teams.length >= 2
+                ? `${teams[0].name} vs ${teams[1].name} — check Active matches.`
+                : "Queue full — match is live.";
+          window.pushCafeNotification?.({ title: "Match found", body });
+        }
+      }
+    } catch (err) {
+      const body = err.body;
+      if (body && Array.isArray(body.slots)) {
+        applyServerQueuePayload(body);
+      }
+      const code = body?.error;
+      if (code === "queue_full") {
+        window.pushCafeNotification?.({ title: "Queue full", body: "All queue slots are taken." });
+      } else if (err.status === 401) {
+        window.pushCafeNotification?.({ title: "Sign in required", body: "Use Discord sign-in to join the queue." });
+      }
+      void refreshScrimQueue({ force: true });
+    } finally {
+      queueActionPending = false;
+      renderQueue();
+    }
   }
 
   function handleSignInClick() {
@@ -302,26 +536,24 @@
     if (link) link.click();
   }
 
-  function handleAuthChange() {
-    const wasQueued = userQueued;
-    const youIdx = findYouSlotIndex();
+  async function handleAuthChange() {
     const discord = getDiscordUser();
-    if (!discord) {
-      if (youIdx !== -1) slots[youIdx] = null;
-      userQueued = false;
-    } else if (wasQueued || youIdx !== -1) {
-      const next = mapDiscordUser(discord, { you: true });
-      if (youIdx !== -1 && next) slots[youIdx] = next;
-      else if (wasQueued) addYouToQueue();
-      userQueued = findYouSlotIndex() !== -1;
+    if (!discord && userQueued) {
+      try {
+        await fetchQueueJson("/api/scrims/queue/leave", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}"
+        });
+      } catch {
+      }
     }
-    compactSlotsOptional();
-    renderQueue();
+    void refreshScrimQueue({ force: true });
   }
 
   function onDiscordAuthChange() {
     if (!root) return;
-    handleAuthChange();
+    void handleAuthChange();
   }
 
   window.initScrimsPage = function initScrimsPage() {
@@ -331,7 +563,9 @@
     if (root !== page) {
       teardownScrimsPage();
       root = page;
-      onToggleClick = handleToggle;
+      onToggleClick = () => {
+        void handleToggle();
+      };
       onSignInClick = handleSignInClick;
       onAuthChange = onDiscordAuthChange;
       page.querySelector("#scrims-queue-toggle")?.addEventListener("click", onToggleClick);
@@ -339,8 +573,9 @@
       window.addEventListener("cafe-discord-auth-change", onAuthChange);
     }
 
-    userQueued = findYouSlotIndex() !== -1;
     renderQueue();
+    void refreshScrimQueue({ force: true });
+    connectScrimQueueWebSocket();
     if (!getDiscordUser() && typeof window.refreshDiscordAuthUi === "function") {
       void window.refreshDiscordAuthUi();
     }
@@ -348,6 +583,7 @@
 
   window.teardownScrimsPage = function teardownScrimsPage() {
     stopQueueTimer();
+    disconnectScrimQueueWebSocket();
     if (!root) return;
     root.querySelector("#scrims-queue-toggle")?.removeEventListener("click", onToggleClick);
     root.querySelector("#scrims-queue-sign-in")?.removeEventListener("click", onSignInClick);

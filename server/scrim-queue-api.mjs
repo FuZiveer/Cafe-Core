@@ -1,0 +1,122 @@
+import { applyCors, getSessionUser, sendJson } from "./discord-auth.mjs";
+import {
+  QUEUE_CAP,
+  joinScrimQueue,
+  leaveScrimQueue,
+  queueCount,
+  queueMemberIds,
+  queuePayload,
+  readScrimQueue,
+  writeScrimQueue
+} from "./scrim-queue-store.mjs";
+import { broadcastScrimQueue } from "./scrim-queue-ws.mjs";
+import {
+  createMatchVoiceChannels,
+  isMatchBotConfigured,
+  startDiscordMatchBot
+} from "./discord-match-bot.mjs";
+
+async function readJsonBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const text = Buffer.concat(chunks).toString("utf8");
+  if (!text.trim()) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+async function maybeProvisionMatchVoice(queue) {
+  if (!isMatchBotConfigured()) return queue;
+  if (queue.matchVoicePending) return queue;
+  if (queueCount(queue) < QUEUE_CAP) return queue;
+  const ids = queueMemberIds(queue).filter((id) => /^\d{17,20}$/.test(id));
+  if (ids.length < 2) return queue;
+
+  queue.matchVoicePending = true;
+  await writeScrimQueue(queue);
+  broadcastScrimQueue(queue);
+
+  try {
+    await startDiscordMatchBot();
+    const matchId = `scrim-${Date.now().toString(36)}`;
+    const result = await createMatchVoiceChannels({ discordUserIds: ids, matchId });
+    const fresh = await readScrimQueue();
+    fresh.lastMatchVoice = result;
+    fresh.matchVoicePending = false;
+    const saved = await writeScrimQueue(fresh);
+    broadcastScrimQueue(saved);
+    return saved;
+  } catch (err) {
+    console.error("[scrim-queue] match voice:", err?.message || err);
+    const fresh = await readScrimQueue();
+    fresh.matchVoicePending = false;
+    const saved = await writeScrimQueue(fresh);
+    broadcastScrimQueue(saved);
+    return saved;
+  }
+}
+
+export async function handleScrimQueueApiRequest(req, res, url, cfg) {
+  const pathname = url.pathname;
+
+  if (pathname === "/api/scrims/queue" && req.method === "GET") {
+    applyCors(req, res, cfg);
+    const user = getSessionUser(req);
+    const queue = await readScrimQueue();
+    sendJson(res, 200, queuePayload(queue, user?.id));
+    return true;
+  }
+
+  if (pathname === "/api/scrims/queue/join" && req.method === "POST") {
+    applyCors(req, res, cfg);
+    const user = getSessionUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "sign_in_required" });
+      return true;
+    }
+    if (await readJsonBody(req) === null) {
+      sendJson(res, 400, { error: "invalid_json" });
+      return true;
+    }
+    const outcome = await joinScrimQueue(user);
+    if (!outcome.ok) {
+      const code = outcome.error || "join_failed";
+      const status = code === "queue_full" ? 409 : 400;
+      sendJson(res, status, { error: code, ...queuePayload(outcome.queue || (await readScrimQueue()), user.id) });
+      return true;
+    }
+    broadcastScrimQueue(outcome.queue);
+    let queue = outcome.queue;
+    if (queueCount(queue) >= QUEUE_CAP) {
+      queue = await maybeProvisionMatchVoice(queue);
+    }
+    sendJson(res, 200, { ok: true, ...queuePayload(queue, user.id) });
+    return true;
+  }
+
+  if (pathname === "/api/scrims/queue/leave" && req.method === "POST") {
+    applyCors(req, res, cfg);
+    const user = getSessionUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "sign_in_required" });
+      return true;
+    }
+    if (await readJsonBody(req) === null) {
+      sendJson(res, 400, { error: "invalid_json" });
+      return true;
+    }
+    const outcome = await leaveScrimQueue(user.id);
+    if (!outcome.ok) {
+      sendJson(res, 400, { error: outcome.error || "leave_failed" });
+      return true;
+    }
+    broadcastScrimQueue(outcome.queue);
+    sendJson(res, 200, { ok: true, ...queuePayload(outcome.queue, user.id) });
+    return true;
+  }
+
+  return false;
+}
