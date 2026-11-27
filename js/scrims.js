@@ -557,9 +557,7 @@
       signInBtn.hidden = signedIn;
     }
     if (inviteWrap && inviteInput && inviteCode) {
-      const showInvite = Boolean(
-        !matchLive && activeLobbyId && (userQueued || (youAreHost && activeLobbyId))
-      );
+      const showInvite = Boolean(!matchLive && activeLobbyId && userQueued);
       inviteWrap.classList.toggle("hidden", !showInvite);
       inviteWrap.hidden = !showInvite;
       if (showInvite) {
@@ -604,9 +602,7 @@
       createBtn.textContent = queueActionPending && queuePendingAction === "join" ? "Creating…" : "Create lobby";
     }
     if (leaveBtn) {
-      const showLeave = Boolean(
-      showLobbyPanel && (userQueued || (youAreHost && activeLobbyId))
-    );
+      const showLeave = Boolean(showLobbyPanel && userQueued);
       leaveBtn.classList.toggle("hidden", !showLeave);
       leaveBtn.hidden = !showLeave;
       leaveBtn.disabled = queueActionPending;
