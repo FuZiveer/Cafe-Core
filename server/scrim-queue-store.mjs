@@ -47,6 +47,8 @@ function normalizeMember(raw) {
     displayName: String(raw.displayName || raw.username || "Discord"),
     username: String(raw.username || ""),
     avatarUrl: String(raw.avatarUrl || ""),
+    teamName: raw.teamName ? String(raw.teamName) : "",
+    teamRoleId: raw.teamRoleId ? String(raw.teamRoleId) : "",
     joinedAt: Math.max(0, Number(raw.joinedAt) || Date.now())
   };
 }
@@ -146,8 +148,13 @@ function publicPlayer(m) {
     id: m.id,
     displayName: m.displayName,
     username: m.username,
-    avatarUrl: m.avatarUrl
+    avatarUrl: m.avatarUrl,
+    teamName: m.teamName || ""
   };
+}
+
+function playerTeamLabel(p, queue) {
+  return p.teamName || teamNameForUser(queue, p.id) || p.displayName || "Unknown";
 }
 
 function teamNameForUser(queue, userId) {
@@ -167,7 +174,28 @@ export function computeActiveMatch(queue) {
   const matchId =
     queue.lastMatchVoice?.matchId || `scrim-v${queue.version}`;
 
-  if (QUEUE_CAP <= 2 && players.length >= 2) {
+  const grouped = new Map();
+  for (const p of players) {
+    const key = playerTeamLabel(p, queue);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(publicPlayer(p));
+  }
+
+  const teamEntries = [...grouped.entries()];
+
+  if (teamEntries.length >= 2) {
+    return {
+      matchId,
+      status: "live",
+      teams: teamEntries.slice(0, 2).map(([name, roster], index) => ({
+        side: index === 0 ? "left" : "right",
+        name,
+        players: roster
+      }))
+    };
+  }
+
+  if (players.length >= 2) {
     const [left, right] = players;
     return {
       matchId,
@@ -175,42 +203,19 @@ export function computeActiveMatch(queue) {
       teams: [
         {
           side: "left",
-          name: teamNameForUser(queue, left.id) || "Team A",
+          name: playerTeamLabel(left, queue),
           players: [publicPlayer(left)]
         },
         {
           side: "right",
-          name: teamNameForUser(queue, right.id) || "Team B",
+          name: playerTeamLabel(right, queue),
           players: [publicPlayer(right)]
         }
       ]
     };
   }
 
-  const mid = Math.ceil(players.length / 2);
-  const leftRoster = players.slice(0, mid);
-  const rightRoster = players.slice(mid);
-  const leftTeamName =
-    leftRoster.map((p) => teamNameForUser(queue, p.id)).find(Boolean) || "Team A";
-  const rightTeamName =
-    rightRoster.map((p) => teamNameForUser(queue, p.id)).find(Boolean) || "Team B";
-
-  return {
-    matchId,
-    status: "live",
-    teams: [
-      {
-        side: "left",
-        name: leftTeamName,
-        players: leftRoster.map(publicPlayer)
-      },
-      {
-        side: "right",
-        name: rightTeamName,
-        players: rightRoster.map(publicPlayer)
-      }
-    ]
-  };
+  return null;
 }
 
 export function queuePayload(queue, viewerId) {
@@ -227,7 +232,8 @@ export function queuePayload(queue, viewerId) {
             displayName: m.displayName,
             username: m.username,
             avatarUrl: m.avatarUrl,
-            joinedAt: m.joinedAt
+            joinedAt: m.joinedAt,
+            teamName: m.teamName || ""
           }
         : null
     ),

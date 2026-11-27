@@ -147,6 +147,7 @@
       displayName: entry.displayName || entry.username || "Discord",
       username: entry.username ? String(entry.username) : "",
       avatarUrl: entry.avatarUrl || "",
+      teamName: entry.teamName ? String(entry.teamName) : "",
       joinedAt: entry.joinedAt || null,
       you,
       mock: false
@@ -263,7 +264,7 @@
 
     const sub = document.createElement("span");
     sub.className = "scrims-roster-slot-sub";
-    sub.textContent = member.username ? `@${member.username}` : "Queued";
+    sub.textContent = member.teamName || (member.username ? `@${member.username}` : "Queued");
 
     el.appendChild(avatar);
     el.appendChild(name);
@@ -352,7 +353,7 @@
       } else if (matchVoiceError?.code) {
         const hint =
           matchVoiceError.code === "no_channels_created" || matchVoiceError.code === "no_team_roles"
-            ? "Add TEAM… roles in Discord (or join the server with the same account you use on the site)."
+            ? "Each player needs a Discord role starting with TEAM (e.g. TEAM BLACK-LISTED)."
             : matchVoiceError.code === "not_in_guild"
               ? "Queue accounts must be in the Café Core Discord server."
               : matchVoiceError.message || matchVoiceError.code;

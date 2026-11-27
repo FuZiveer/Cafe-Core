@@ -12,6 +12,7 @@ import {
 import { broadcastScrimQueue } from "./scrim-queue-ws.mjs";
 import {
   createMatchVoiceChannels,
+  enrichScrimQueueTeamNames,
   isMatchBotConfigured,
   startDiscordMatchBot
 } from "./discord-match-bot.mjs";
@@ -97,7 +98,9 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
     applyCors(req, res, cfg);
     const user = getSessionUser(req);
     const queue = await readScrimQueue();
-    sendJson(res, 200, queuePayload(queue, user?.id));
+    const enriched =
+      queueCount(queue) > 0 ? await enrichScrimQueueTeamNames(structuredClone(queue)) : queue;
+    sendJson(res, 200, queuePayload(enriched, user?.id));
     return true;
   }
 
@@ -119,8 +122,10 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
       sendJson(res, status, { error: code, ...queuePayload(outcome.queue || (await readScrimQueue()), user.id) });
       return true;
     }
-    broadcastScrimQueue(outcome.queue);
-    const queue = outcome.queue;
+    let queue = await readScrimQueue();
+    queue = await enrichScrimQueueTeamNames(queue);
+    await writeScrimQueue(queue);
+    broadcastScrimQueue(queue);
     if (isMatchBotConfigured()) {
       void startDiscordMatchBot().catch(() => {});
     }
