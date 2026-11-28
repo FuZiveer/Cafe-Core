@@ -7333,7 +7333,7 @@ html.reduce-motion .keyboard-checker-key {
 #page-scrims .scrims-match-side {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   min-width: 0;
   min-height: 6.75rem;
@@ -7344,17 +7344,14 @@ html.reduce-motion .keyboard-checker-key {
 }
 #page-scrims .scrims-match-roster-grid {
   gap: 0.4rem;
-  width: max-content;
-  max-width: 100%;
-  margin: 0 auto;
-  grid-template-columns: repeat(var(--scrims-roster-cols, 5), minmax(3.85rem, 4.35rem));
-  justify-content: center;
-  justify-items: center;
+  width: 100%;
+  grid-template-columns: repeat(var(--scrims-roster-cols, 5), minmax(0, 1fr));
+  justify-items: stretch;
 }
 #page-scrims .scrims-match-roster-grid .scrims-roster-slot {
   min-height: 5.35rem;
   width: 100%;
-  max-width: 4.35rem;
+  max-width: none;
   padding: 0.45rem 0.2rem;
 }
 #page-scrims .scrims-match-side--left {
@@ -7364,6 +7361,26 @@ html.reduce-motion .keyboard-checker-key {
 #page-scrims .scrims-match-side--right {
   border-color: rgb(255 30 67 / 0.45);
   box-shadow: inset 0 0 0 1px rgb(255 30 67 / 0.12);
+}
+#page-scrims .scrims-match-side--left .scrims-roster-slot--filled {
+  border-color: rgb(59 130 246 / 0.55);
+  background: linear-gradient(180deg, rgb(59 130 246 / 0.12) 0%, rgb(30 32 36 / 0.7) 100%);
+  box-shadow:
+    0 0 20px rgb(59 130 246 / 0.15),
+    inset 0 0 0 1px rgb(59 130 246 / 0.25);
+}
+#page-scrims .scrims-match-side--left .scrims-roster-slot--filled .scrims-roster-slot-avatar {
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 0.55);
+}
+#page-scrims .scrims-match-side--right .scrims-roster-slot--filled {
+  border-color: rgb(255 30 67 / 0.55);
+  background: linear-gradient(180deg, rgb(255 30 67 / 0.12) 0%, rgb(30 32 36 / 0.7) 100%);
+  box-shadow:
+    0 0 20px rgb(255 30 67 / 0.15),
+    inset 0 0 0 1px rgb(255 30 67 / 0.25);
+}
+#page-scrims .scrims-match-side--right .scrims-roster-slot--filled .scrims-roster-slot-avatar {
+  box-shadow: 0 0 0 2px rgb(255 30 67 / 0.55);
 }
 #page-scrims .scrims-match-team-name {
   margin: 0;
@@ -7380,7 +7397,7 @@ html.reduce-motion .keyboard-checker-key {
   text-shadow: 0 0 18px rgb(59 130 246 / 0.25);
 }
 #page-scrims .scrims-match-team-name--right {
-  text-align: right;
+  text-align: left;
   text-shadow: 0 0 18px rgb(255 30 67 / 0.22);
 }
 #page-scrims .scrims-match-vs {
