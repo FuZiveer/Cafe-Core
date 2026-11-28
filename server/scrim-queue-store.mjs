@@ -574,7 +574,7 @@ export async function startLobbyMatch(lobbyId, userId) {
   const isAdmin = (current.adminSlots || []).some((s) => s?.id === uid);
   const isHost = String(current.hostId) === uid;
   if (!isAdmin && !isHost) return { ok: false, error: "not_authorized" };
-  if (lobbyOccupantCount(current) <= 2) {
+  if (lobbyOccupantCount(current) < 2) {
     return { ok: false, error: "not_enough_lobby_members" };
   }
   if (queueCount(current) < 2) return { ok: false, error: "not_enough_players" };
@@ -583,7 +583,7 @@ export async function startLobbyMatch(lobbyId, userId) {
     const canAdmin = q.adminSlots.some((s) => s?.id === uid);
     const canHost = String(q.hostId) === uid;
     if (!canAdmin && !canHost) return { error: "not_authorized" };
-    if (lobbyOccupantCount(q) <= 2) return { error: "not_enough_lobby_members" };
+    if (lobbyOccupantCount(q) < 2) return { error: "not_enough_lobby_members" };
     if (queueCount(q) < 2) return { error: "not_enough_players" };
     q.forceMatchLive = true;
     if (!q.matchStartedAt) q.matchStartedAt = Date.now();
