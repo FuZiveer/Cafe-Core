@@ -32,27 +32,6 @@
                         </header>
 
                         <div id="scrims-queue-lobby-body" class="scrims-queue-lobby-body">
-                        <div
-                            id="scrims-lobby-invite"
-                            class="scrims-lobby-invite hidden"
-                            aria-live="polite"
-                        >
-                            <p class="scrims-lobby-invite-label">Lobby invite link</p>
-                            <div class="scrims-lobby-invite-row">
-                                <input
-                                    id="scrims-lobby-link"
-                                    class="scrims-lobby-link-input"
-                                    type="text"
-                                    readonly
-                                    aria-readonly="true"
-                                />
-                                <button type="button" id="scrims-copy-lobby-link" class="scrims-lobby-copy ui-interactive">
-                                    Copy link
-                                </button>
-                            </div>
-                            <p id="scrims-lobby-code" class="scrims-lobby-code"></p>
-                        </div>
-
                         <div class="scrims-roster-block">
                             <h3 class="scrims-roster-label">Players</h3>
                             <div id="scrims-queue-slots" class="scrims-roster-grid" aria-label="Player slots"></div>
@@ -94,6 +73,13 @@
                         </div>
 
                         <div id="scrims-invite-join-managed" class="scrims-lobby-managed hidden" hidden>
+                            <button
+                                type="button"
+                                id="scrims-copy-lobby-link"
+                                class="scrims-cta scrims-cta--copy ui-interactive"
+                            >
+                                Copy link
+                            </button>
                             <button
                                 type="button"
                                 id="scrims-leave-lobby"

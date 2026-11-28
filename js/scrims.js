@@ -1206,9 +1206,6 @@
     const endMatchBtn = root.querySelector("#scrims-end-match");
     const adminSlotsEl = root.querySelector("#scrims-admin-slots");
     const adminCapLabel = root.querySelector("#scrims-admin-cap-label");
-    const inviteWrap = root.querySelector("#scrims-lobby-invite");
-    const inviteInput = root.querySelector("#scrims-lobby-link");
-    const inviteCode = root.querySelector("#scrims-lobby-code");
     const signInBtn = root.querySelector("#scrims-queue-sign-in");
     const slotsEl = root.querySelector("#scrims-queue-slots");
     if (queueSection) {
@@ -1258,15 +1255,6 @@
       const showActions = showSignIn || showCreate || showJoinChoices;
       lobbyActions.classList.toggle("hidden", !showActions);
       lobbyActions.hidden = !showActions;
-    }
-    if (inviteWrap && inviteInput && inviteCode) {
-      const showInvite = Boolean(!matchLive && activeLobbyId && userQueued);
-      inviteWrap.classList.toggle("hidden", !showInvite);
-      inviteWrap.hidden = !showInvite;
-      if (showInvite) {
-        inviteInput.value = buildLobbyInviteUrl(activeLobbyId);
-        inviteCode.textContent = `Lobby code: ${activeLobbyId}`;
-      }
     }
     if (joinChoices) {
       joinChoices.classList.toggle("hidden", !showJoinChoices);
@@ -1710,24 +1698,11 @@
   }
 
   function handleCopyLobbyLink() {
-    const input = root?.querySelector("#scrims-lobby-link");
-    const url = input?.value || (activeLobbyId ? buildLobbyInviteUrl(activeLobbyId) : "");
-    if (!url) return;
-    const done = () => {
+    const url = activeLobbyId ? buildLobbyInviteUrl(activeLobbyId) : "";
+    if (!url || !navigator.clipboard?.writeText) return;
+    void navigator.clipboard.writeText(url).then(() => {
       scrimsToast("Link copied");
-    };
-    if (navigator.clipboard?.writeText) {
-      void navigator.clipboard.writeText(url).then(done).catch(() => {});
-      return;
-    }
-    if (input) {
-      input.select();
-      try {
-        document.execCommand("copy");
-        done();
-      } catch {
-      }
-    }
+    }).catch(() => {});
   }
 
   function applyScrimsLobbyFromUrl() {
