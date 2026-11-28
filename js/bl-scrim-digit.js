@@ -53,15 +53,17 @@
       prevDigitChar !== null && prevDigitChar !== undefined && prevDigitChar !== "";
     const fromD = hasPrev ? Math.max(0, Math.min(9, Number(prevDigitChar) || 0)) : d;
     const shouldAnimate =
-      animate && digitMotionEnabled() && (hasPrev ? fromD !== d : false);
+      animate &&
+      digitMotionEnabled() &&
+      !document.hidden &&
+      (hasPrev ? fromD !== d : false);
     if (!shouldAnimate) {
-      strip.style.transition = "none";
+      strip.style.setProperty("transition", "none", "important");
       strip.style.transitionDelay = "0ms";
       strip.style.transform = `translate3d(0, calc(${-d} * var(--bl-scrim-digit-step, 1em)), 0)`;
-      void strip.offsetHeight;
-      strip.style.transition = BL_SCRIM_DIGIT_TRANSITION;
       return;
     }
+    strip.style.removeProperty("transition");
     const rollFrom = hasPrev ? fromD : 0;
     const toTransform = `translate3d(0, calc(${-d} * var(--bl-scrim-digit-step, 1em)), 0)`;
     const fromTransform = `translate3d(0, calc(${-rollFrom} * var(--bl-scrim-digit-step, 1em)), 0)`;

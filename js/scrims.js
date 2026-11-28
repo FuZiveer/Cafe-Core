@@ -4,7 +4,7 @@
   let queueCapacity = 2;
   let adminCapacity = 2;
   const MATCH_TEAM_SLOTS = 5;
-  const MATCH_LIVE_TIMER_MS = 5000;
+  const MATCH_RECONCILE_MS = 5000;
 
   let slots = Array.from({ length: queueCapacity }, () => null);
   let adminSlots = Array.from({ length: adminCapacity }, () => null);
@@ -42,9 +42,17 @@
   let publicActiveMatches = [];
   let publicMatchesPollTimer = null;
   let lastPublicMatchesFetchAt = 0;
-  let matchLiveTimerAlignId = null;
   let matchLiveTimerTickId = null;
   let matchLiveTimerActive = false;
+  let matchReconcileTimer = null;
+  let onScrimsVisibilityChange = null;
+  let onVetoClick = null;
+  let vetoPaintKey = "";
+  let vetoMatchId = "";
+  let vetoFlipPlayed = false;
+  let vetoArrowTimer = null;
+  let vetoSubmitLock = false;
+  const VETO_COUNTDOWN_MS = 5000;
   let lastMatchPanelSignature = "";
   const matchTimerLastSecond = new WeakMap();
   let matchesActiveScrollAbort = null;
@@ -499,11 +507,12 @@
     const sec = Math.max(0, Math.floor(Number(elapsedSec) || 0));
     const prevSec = matchTimerLastSecond.get(timeEl);
     if (prevSec === sec) return;
+    const snap =
+      prevSec == null ||
+      document.hidden ||
+      Math.abs(sec - prevSec) !== 1;
     const { h, m, s } = elapsedHmsParts(sec * 1000);
-    const prevHms =
-      prevSec !== null && prevSec !== undefined
-        ? elapsedHmsParts(Math.max(0, prevSec) * 1000)
-        : null;
+    const prevHms = snap ? null : elapsedHmsParts(Math.max(0, prevSec) * 1000);
     const display = timeEl.querySelector(".scrims-match-timer-display");
     const segH = display?.querySelector('[data-timer-seg="h"]');
     const segM = display?.querySelector('[data-timer-seg="m"]');
@@ -532,33 +541,26 @@
 
   function stopMatchLiveTimer() {
     matchLiveTimerActive = false;
-    if (matchLiveTimerAlignId != null) {
-      clearTimeout(matchLiveTimerAlignId);
-      matchLiveTimerAlignId = null;
-    }
     if (matchLiveTimerTickId != null) {
       clearInterval(matchLiveTimerTickId);
       matchLiveTimerTickId = null;
     }
   }
 
-  function startMatchLiveTimer() {
-    if (matchLiveTimerActive) return;
+  function ensureMatchLiveTimer() {
     if (!root?.querySelector(".scrims-match-timer[data-match-started-at]")) return;
-    matchLiveTimerActive = true;
     syncMatchLiveTimers();
-    const alignMs = Math.max(1, MATCH_LIVE_TIMER_MS - (Date.now() % MATCH_LIVE_TIMER_MS));
-    matchLiveTimerAlignId = window.setTimeout(() => {
-      matchLiveTimerAlignId = null;
+    matchLiveTimerActive = true;
+    if (matchLiveTimerTickId != null) return;
+    matchLiveTimerTickId = window.setInterval(() => {
+      if (!matchLiveTimerActive) return;
+      if (!root?.querySelector(".scrims-match-timer[data-match-started-at]")) {
+        stopMatchLiveTimer();
+        return;
+      }
       syncMatchLiveTimers();
-      matchLiveTimerTickId = window.setInterval(() => {
-        if (!root?.querySelector(".scrims-match-timer[data-match-started-at]")) {
-          stopMatchLiveTimer();
-          return;
-        }
-        syncMatchLiveTimers();
-      }, MATCH_LIVE_TIMER_MS);
-    }, alignMs);
+      tickVetoClock();
+    }, 250);
   }
 
   function formatQueueElapsed(ms) {
@@ -675,7 +677,7 @@
     grid.style.setProperty("--scrims-roster-cols", String(MATCH_TEAM_SLOTS));
     grid.setAttribute("aria-label", `${team.name || "Team"} slots (${MATCH_TEAM_SLOTS})`);
 
-    const players = Array.isArray(team.players) ? team.players : [];
+    const players = rosterPlayersForSide(team, side);
     for (let i = 0; i < MATCH_TEAM_SLOTS; i++) {
       const slot = document.createElement("article");
       renderSlot(slot, i, matchPlayerToMember(players[i]), { kind: "player", showSub: false });
@@ -766,7 +768,8 @@
         const right = teams[1]?.name || "";
         const leftIds = (teams[0]?.players || []).map((p) => p?.id || "").join(",");
         const rightIds = (teams[1]?.players || []).map((p) => p?.id || "").join(",");
-        return `${started}|${left}|${right}|${leftIds}|${rightIds}`;
+        const parked = shouldParkCaptains(match) ? "1" : "0";
+        return `${started}|${left}|${right}|${leftIds}|${rightIds}|${parked}`;
       })
       .join(";;");
   }
@@ -796,13 +799,15 @@
         }
         activeWrap.scrollTop = 0;
       }
-      startMatchLiveTimer();
+      ensureMatchLiveTimer();
       stopPublicMatchesPoll();
+      scheduleMatchReconcile();
       return;
     }
 
     lastMatchPanelSignature = "";
     stopMatchLiveTimer();
+    stopMatchReconcile();
     live.textContent = "0 live";
     activeWrap?.classList.add("hidden");
     if (activeWrap) {
@@ -812,6 +817,307 @@
     emptyWrap?.classList.remove("hidden");
     if (emptyWrap) emptyWrap.hidden = false;
     syncPublicMatchesPoll();
+  }
+
+  function shouldParkCaptains(match) {
+    const veto = activeMatch?.veto;
+    if (!veto || veto.complete || veto.startingSide) return false;
+    return Boolean(match && activeMatch && match.matchId === activeMatch.matchId);
+  }
+
+  function rosterPlayersForSide(team, side) {
+    const players = Array.isArray(team?.players) ? team.players : [];
+    if (!shouldParkCaptains(activeMatch)) return players;
+    const veto = activeMatch.veto;
+    const captainId = side === "right" ? veto.rightCaptainId : veto.leftCaptainId;
+    if (!captainId) return players;
+    return players.filter((player) => String(player?.id || "") !== String(captainId));
+  }
+
+  function vetoCaptain(side) {
+    const veto = activeMatch?.veto;
+    const team = (activeMatch?.teams || []).find((entry) => entry.side === side);
+    const captainId = side === "right" ? veto?.rightCaptainId : veto?.leftCaptainId;
+    const player =
+      (team?.players || []).find((entry) => String(entry?.id || "") === String(captainId || "")) ||
+      (team?.players || [])[0] ||
+      null;
+    return {
+      id: player?.id || captainId || "",
+      name: player?.displayName || "Captain",
+      avatar: player?.avatarUrl || "https://cdn.discordapp.com/embed/avatars/0.png",
+      team: team?.name || (side === "left" ? "Left" : "Right")
+    };
+  }
+
+  function vetoPhase() {
+    const match = activeMatch;
+    const veto = match?.veto;
+    const started = Number(match?.startedAt) || 0;
+    const flipAt = started + VETO_COUNTDOWN_MS;
+    if (!veto) return { name: "pending", key: "pending" };
+    if (veto.complete || veto.startingSide) {
+      return { name: "done", key: `done:${veto.startingSide}:${(veto.actions || []).map((action) => action.mapId).join(",")}` };
+    }
+    if (started && Date.now() < flipAt) {
+      return { name: "countdown", key: "countdown", seconds: Math.max(1, Math.ceil((flipAt - Date.now()) / 1000)) };
+    }
+    const step = (veto.actions || []).length;
+    const playFlip = step === 0 && !vetoFlipPlayed && Date.now() - flipAt < 1600;
+    return {
+      name: step >= 8 ? "side" : "veto",
+      key: `step:${step}:${(veto.actions || []).map((action) => action.mapId).join(",")}:${vetoSubmitLock ? "1" : "0"}`,
+      step,
+      playFlip,
+      winner: veto.firstSide
+    };
+  }
+
+  function clearVetoArrowTimer() {
+    if (vetoArrowTimer == null) return;
+    clearTimeout(vetoArrowTimer);
+    vetoArrowTimer = null;
+  }
+
+  function appendCaptain(parent, side, turnSide) {
+    const captain = vetoCaptain(side);
+    const aside = document.createElement("aside");
+    aside.className = `scrims-veto-captain scrims-veto-captain--${side}${turnSide === side ? " is-turn" : ""}`;
+    const avatar = document.createElement("img");
+    avatar.className = "scrims-veto-captain-avatar";
+    avatar.src = captain.avatar;
+    avatar.alt = "";
+    avatar.width = 52;
+    avatar.height = 52;
+    const name = document.createElement("span");
+    name.className = "scrims-veto-captain-name";
+    name.textContent = captain.id && myDiscordId() && String(captain.id) === myDiscordId() ? "You" : captain.name;
+    const team = document.createElement("span");
+    team.className = "scrims-veto-captain-team";
+    team.textContent = captain.team;
+    const role = document.createElement("span");
+    role.className = "scrims-veto-captain-role";
+    role.textContent = "Captain";
+    aside.append(avatar, name, team, role);
+    parent.appendChild(aside);
+  }
+
+  function mapName(mapId) {
+    return (activeMatch?.veto?.maps || []).find((map) => map.id === mapId)?.name || mapId;
+  }
+
+  function buildVetoElement(phase) {
+    const veto = activeMatch?.veto;
+    const wrap = document.createElement("div");
+    wrap.className = `scrims-veto${phase.name === "done" ? " scrims-veto--done" : ""}`;
+    if (phase.name === "done") {
+      const picked = (veto.actions || []).find((action) => action.kind === "pick");
+      const selector = vetoCaptain(veto.sideSelector);
+      const otherSide = veto.sideSelector === "left" ? "right" : "left";
+      const other = vetoCaptain(otherSide);
+      const chosen = veto.startingSide === "defense" ? "Defense" : "Attack";
+      const opposite = chosen === "Attack" ? "Defense" : "Attack";
+      const result = document.createElement("p");
+      result.className = "scrims-veto-result";
+      result.textContent = picked
+        ? `${mapName(picked.mapId)} — ${selector.team} starts on ${chosen}. ${other.team} starts on ${opposite}.`
+        : "Map ban complete.";
+      wrap.appendChild(result);
+      return wrap;
+    }
+
+    const turnSide =
+      phase.name === "side"
+        ? veto.sideSelector
+        : phase.name === "veto"
+          ? veto.steps?.[phase.step]?.side || ""
+          : "";
+    appendCaptain(wrap, "left", turnSide);
+    const stage = document.createElement("div");
+    stage.className = "scrims-veto-stage";
+    const flip = document.createElement("div");
+    flip.className = "scrims-veto-flip";
+    const arrow = document.createElement("i");
+    arrow.className = "fa-solid fa-arrow-up scrims-veto-arrow";
+    arrow.dataset.vetoArrow = "1";
+    arrow.dataset.point = phase.name === "countdown" || phase.playFlip ? "up" : veto.firstSide;
+    if (phase.name !== "countdown" && !phase.playFlip) arrow.classList.add("is-aiming");
+    arrow.setAttribute("aria-hidden", "true");
+    const coin = document.createElement("div");
+    coin.className = `scrims-veto-coin${phase.playFlip ? " is-flipping" : ""}`;
+    const winner = vetoCaptain(veto.firstSide);
+    coin.textContent = phase.name === "countdown" || phase.playFlip ? "" : winner.team.slice(0, 3);
+    flip.append(arrow, coin);
+    stage.appendChild(flip);
+
+    if (phase.name === "countdown") {
+      const count = document.createElement("p");
+      count.className = "scrims-veto-count";
+      count.dataset.vetoCount = "1";
+      count.textContent = String(phase.seconds);
+      stage.appendChild(count);
+    }
+
+    const status = document.createElement("p");
+    status.className = "scrims-veto-status";
+    status.textContent = vetoStatusText(phase);
+    stage.appendChild(status);
+
+    if (phase.name === "veto" || phase.name === "side") {
+      const used = new Map((veto.actions || []).map((action) => [action.mapId, action.kind]));
+      const mine = myDiscordId();
+      const actorId = turnSide === "right" ? veto.rightCaptainId : veto.leftCaptainId;
+      const myTurn = Boolean(mine && actorId && String(mine) === String(actorId));
+      if (phase.name === "veto") {
+        const maps = document.createElement("div");
+        maps.className = "scrims-veto-maps";
+        for (const map of veto.maps || []) {
+          const kind = used.get(map.id);
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `scrims-veto-map ui-interactive${kind === "ban" ? " is-banned" : ""}${kind === "pick" ? " is-picked" : ""}`;
+          button.dataset.vetoMap = map.id;
+          button.textContent = map.name;
+          button.disabled = !myTurn || vetoSubmitLock || Boolean(kind);
+          maps.appendChild(button);
+        }
+        stage.appendChild(maps);
+      } else {
+        const sides = document.createElement("div");
+        sides.className = "scrims-veto-sides";
+        for (const sideName of ["attack", "defense"]) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "scrims-veto-side ui-interactive";
+          button.dataset.vetoSide = sideName;
+          button.textContent = sideName === "attack" ? "Attack" : "Defense";
+          button.disabled = !myTurn || vetoSubmitLock;
+          sides.appendChild(button);
+        }
+        stage.appendChild(sides);
+      }
+    }
+    wrap.appendChild(stage);
+    appendCaptain(wrap, "right", turnSide);
+    return wrap;
+  }
+
+  function vetoStatusText(phase) {
+    const veto = activeMatch?.veto;
+    if (!veto || phase.name === "pending") return "Preparing the map ban.";
+    if (phase.name === "countdown") return "Coin flip";
+    const actor = vetoCaptain(
+      phase.name === "side" ? veto.sideSelector : veto.steps?.[phase.step]?.side || veto.firstSide
+    );
+    const mine = myDiscordId() && String(actor.id) === myDiscordId();
+    if (phase.name === "side") {
+      return mine
+        ? "You didn't pick the map. Choose your starting side."
+        : `${actor.team} chooses the starting side.`;
+    }
+    const kind = veto.steps?.[phase.step]?.kind === "pick" ? "picks the map" : "bans a map";
+    return mine ? `Your turn — ${kind}.` : `${actor.team} ${kind}.`;
+  }
+
+  function armVetoArrow(winner) {
+    clearVetoArrowTimer();
+    vetoFlipPlayed = true;
+    const reduce = document.documentElement.classList.contains("reduce-motion");
+    const point = () => {
+      const arrow = root?.querySelector("[data-veto-arrow]");
+      if (!arrow) return;
+      arrow.classList.add("is-aiming");
+      arrow.dataset.point = winner === "right" ? "right" : "left";
+      const coin = root?.querySelector(".scrims-veto-coin");
+      if (coin) coin.textContent = vetoCaptain(winner).team.slice(0, 3);
+    };
+    if (reduce) {
+      point();
+      return;
+    }
+    vetoArrowTimer = window.setTimeout(() => {
+      vetoArrowTimer = null;
+      point();
+    }, 900);
+  }
+
+  function renderVetoBoard() {
+    const notice = root?.querySelector("#scrims-queue-live-notice");
+    if (!notice || !hasLiveMatch()) {
+      vetoPaintKey = "";
+      vetoMatchId = "";
+      return;
+    }
+    const matchId = activeMatch?.matchId || "";
+    if (matchId !== vetoMatchId) {
+      vetoMatchId = matchId;
+      vetoPaintKey = "";
+      vetoFlipPlayed = false;
+      clearVetoArrowTimer();
+    }
+    const phase = vetoPhase();
+    if (phase.key === vetoPaintKey && notice.childElementCount) return;
+    const playFlip = phase.playFlip;
+    vetoPaintKey = phase.key;
+    notice.replaceChildren(buildVetoElement(phase));
+    if (playFlip) armVetoArrow(phase.winner);
+  }
+
+  function tickVetoClock() {
+    if (!root || !hasLiveMatch()) return;
+    const phase = vetoPhase();
+    if (phase.name !== "countdown") {
+      if (vetoPaintKey === "countdown") renderVetoBoard();
+      return;
+    }
+    const countEl = root.querySelector("[data-veto-count]");
+    if (!countEl) return;
+    const next = String(phase.seconds);
+    if (countEl.textContent !== next) countEl.textContent = next;
+  }
+
+  async function submitVeto(body) {
+    if (vetoSubmitLock) return;
+    const lobby = activeLobbyId || getLobbyCodeFromUrl();
+    if (!lobby) return;
+    vetoSubmitLock = true;
+    vetoPaintKey = "";
+    renderVetoBoard();
+    try {
+      const data = await fetchQueueJson(`/api/scrims/lobbies/${encodeURIComponent(lobby)}/veto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      vetoPaintKey = "";
+      applyServerQueuePayload(data);
+    } catch (err) {
+      const code = err.body?.error;
+      if (code === "not_captain") scrimsToast("Only this team's captain can take this turn.");
+      else if (code === "map_unavailable") scrimsToast("That map is already banned or picked.");
+      else if (code === "veto_closed") scrimsToast("Map ban is already finished.");
+      else scrimsToast("Couldn't update the map ban.");
+      if (err.body?.activeMatch) {
+        vetoPaintKey = "";
+        applyServerQueuePayload(err.body);
+      }
+    } finally {
+      vetoSubmitLock = false;
+      vetoPaintKey = "";
+      renderVetoBoard();
+    }
+  }
+
+  function onVetoBoardClick(event) {
+    const mapBtn = event.target.closest("[data-veto-map]");
+    if (mapBtn && !mapBtn.disabled) {
+      void submitVeto({ mapId: mapBtn.dataset.vetoMap });
+      return;
+    }
+    const sideBtn = event.target.closest("[data-veto-side]");
+    if (sideBtn && !sideBtn.disabled) {
+      void submitVeto({ startingSide: sideBtn.dataset.vetoSide });
+    }
   }
 
   function renderQueue() {
@@ -846,6 +1152,7 @@
     if (liveNotice) {
       liveNotice.classList.toggle("hidden", !matchLive);
       liveNotice.hidden = !matchLive;
+      if (matchLive) renderVetoBoard();
     }
     if (lobbyBody) {
       lobbyBody.classList.toggle("hidden", matchLive);
@@ -994,9 +1301,9 @@
     return activeMatchesForPanel().length > 0;
   }
 
-  async function refreshPublicMatches({ force } = {}) {
+  async function refreshPublicMatches({ force, reconcile } = {}) {
     if (!apiBase() || !root) return;
-    if (activeMatchesPanelIsPopulated()) {
+    if (activeMatchesPanelIsPopulated() && !reconcile) {
       stopPublicMatchesPoll();
       return;
     }
@@ -1007,9 +1314,34 @@
       const data = await fetchQueueJson("/api/scrims/matches");
       publicActiveMatches = Array.isArray(data?.matches) ? data.matches : [];
     } catch {
-      if (force) publicActiveMatches = [];
+      if (force && !reconcile) publicActiveMatches = [];
     }
     renderMatchesPanel();
+  }
+
+  function stopMatchReconcile() {
+    if (matchReconcileTimer == null) return;
+    clearTimeout(matchReconcileTimer);
+    matchReconcileTimer = null;
+  }
+
+  function scheduleMatchReconcile() {
+    if (matchReconcileTimer != null || document.hidden || !root) return;
+    matchReconcileTimer = window.setTimeout(() => {
+      matchReconcileTimer = null;
+      if (!root || document.hidden || !activeMatchesPanelIsPopulated()) return;
+      void refreshPublicMatches({ force: true, reconcile: true });
+      scheduleMatchReconcile();
+    }, MATCH_RECONCILE_MS);
+  }
+
+  function onScrimsPageVisibility() {
+    if (!root || document.visibilityState !== "visible") return;
+    void refreshPublicMatches({ force: true, reconcile: true });
+    if (activeLobbyId || getLobbyCodeFromUrl()) {
+      void refreshScrimQueue({ force: true });
+    }
+    ensureMatchLiveTimer();
   }
 
   function stopPublicMatchesPoll() {
@@ -1384,6 +1716,10 @@
         applyScrimsLobbyFromUrl();
       };
       window.addEventListener("popstate", onLobbyPopState);
+      onScrimsVisibilityChange = onScrimsPageVisibility;
+      document.addEventListener("visibilitychange", onScrimsVisibilityChange);
+      onVetoClick = onVetoBoardClick;
+      page.querySelector("#scrims-queue-live-notice")?.addEventListener("click", onVetoClick);
       bindScrimsMatchesActiveScroll(page.querySelector("#scrims-matches-active"));
     }
 
@@ -1409,7 +1745,13 @@
     clearQueuePendingState();
     disconnectScrimQueueWebSocket();
     stopPublicMatchesPoll();
+    stopMatchReconcile();
     stopMatchLiveTimer();
+    clearVetoArrowTimer();
+    vetoPaintKey = "";
+    vetoMatchId = "";
+    vetoFlipPlayed = false;
+    vetoSubmitLock = false;
     publicActiveMatches = [];
     if (!root) return;
     root.querySelector("#scrims-create-lobby")?.removeEventListener("click", onCreateLobbyClick);
@@ -1421,6 +1763,14 @@
     root.querySelector("#scrims-queue-sign-in")?.removeEventListener("click", onSignInClick);
     if (onAuthChange) window.removeEventListener("cafe-discord-auth-change", onAuthChange);
     if (onLobbyPopState) window.removeEventListener("popstate", onLobbyPopState);
+    if (onScrimsVisibilityChange) {
+      document.removeEventListener("visibilitychange", onScrimsVisibilityChange);
+      onScrimsVisibilityChange = null;
+    }
+    if (onVetoClick) {
+      root.querySelector("#scrims-queue-live-notice")?.removeEventListener("click", onVetoClick);
+      onVetoClick = null;
+    }
     onCreateLobbyClick = null;
     onJoinAsPlayerClick = null;
     onJoinAsAdminClick = null;

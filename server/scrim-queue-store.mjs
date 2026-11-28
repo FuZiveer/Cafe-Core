@@ -59,6 +59,46 @@ function lobbyRedisKey(lobbyId) {
   return `${LOBBY_KEY_PREFIX}${normalizeLobbyId(lobbyId)}`;
 }
 
+const MAP_POOL = [
+  { id: "bank", name: "Bank" },
+  { id: "border", name: "Border" },
+  { id: "chalet", name: "Chalet" },
+  { id: "clubhouse", name: "Clubhouse" },
+  { id: "consulate", name: "Consulate" },
+  { id: "kafe", name: "Kafe Dostoyevsky" },
+  { id: "lair", name: "Lair" },
+  { id: "nighthaven", name: "Nighthaven Labs" },
+  { id: "fortress", name: "Fortress" }
+];
+const MAP_POOL_IDS = new Set(MAP_POOL.map((map) => map.id));
+
+function normalizeMapVeto(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const firstSide = raw.firstSide === "right" ? "right" : raw.firstSide === "left" ? "left" : "";
+  if (!firstSide) return null;
+  const actions = [];
+  if (Array.isArray(raw.actions)) {
+    for (const entry of raw.actions) {
+      if (actions.length >= 8) break;
+      const mapId = String(entry?.mapId || "").toLowerCase();
+      const kind = entry?.kind === "pick" ? "pick" : entry?.kind === "ban" ? "ban" : "";
+      const side = entry?.side === "right" ? "right" : entry?.side === "left" ? "left" : "";
+      if (!MAP_POOL_IDS.has(mapId) || !kind || !side) continue;
+      if (actions.some((action) => action.mapId === mapId)) continue;
+      actions.push({ mapId, kind, side });
+    }
+  }
+  const startingSide =
+    raw.startingSide === "attack" || raw.startingSide === "defense" ? raw.startingSide : "";
+  return {
+    firstSide,
+    leftCaptainId: String(raw.leftCaptainId || ""),
+    rightCaptainId: String(raw.rightCaptainId || ""),
+    actions,
+    startingSide
+  };
+}
+
 function emptyQueue() {
   return {
     version: 0,
@@ -69,6 +109,7 @@ function emptyQueue() {
     matchVoiceError: null,
     forceMatchLive: false,
     matchStartedAt: 0,
+    mapVeto: null,
     lobbyId: "",
     hostId: "",
     createdAt: 0
@@ -120,7 +161,8 @@ export function normalizeScrimQueue(raw) {
     matchVoiceError:
       raw.matchVoiceError && typeof raw.matchVoiceError === "object" ? raw.matchVoiceError : null,
     forceMatchLive: Boolean(raw.forceMatchLive),
-    matchStartedAt: Math.max(0, Number(raw.matchStartedAt) || 0)
+    matchStartedAt: Math.max(0, Number(raw.matchStartedAt) || 0),
+    mapVeto: normalizeMapVeto(raw.mapVeto)
   };
   return normalizeLobbyMeta(raw, core);
 }
@@ -283,6 +325,102 @@ export function computeActiveMatch(queue) {
   return null;
 }
 
+function captainIdForTeam(team) {
+  const player = (team?.players || []).find((entry) => entry?.id);
+  return player?.id ? String(player.id) : "";
+}
+
+export function buildMapVeto(queue) {
+  const match = computeActiveMatch(queue);
+  if (!match?.teams || match.teams.length < 2) return null;
+  const left = match.teams.find((team) => team.side === "left") || match.teams[0];
+  const right = match.teams.find((team) => team.side === "right") || match.teams[1];
+  return {
+    firstSide: crypto.randomInt(0, 2) === 0 ? "left" : "right",
+    leftCaptainId: captainIdForTeam(left),
+    rightCaptainId: captainIdForTeam(right),
+    actions: [],
+    startingSide: ""
+  };
+}
+
+function presentVeto(raw) {
+  const veto = normalizeMapVeto(raw);
+  if (!veto) return null;
+  const second = veto.firstSide === "left" ? "right" : "left";
+  const kinds = ["ban", "ban", "ban", "ban", "ban", "ban", "ban", "pick"];
+  const actors = [
+    veto.firstSide,
+    second,
+    veto.firstSide,
+    second,
+    veto.firstSide,
+    second,
+    veto.firstSide,
+    second
+  ];
+  return {
+    ...veto,
+    maps: MAP_POOL,
+    steps: kinds.map((kind, index) => ({ kind, side: actors[index] })),
+    sideSelector: veto.firstSide,
+    complete: Boolean(veto.startingSide)
+  };
+}
+
+export function activeMatchPayload(queue) {
+  const match = computeActiveMatch(queue);
+  if (!match) return null;
+  const veto = presentVeto(queue?.mapVeto);
+  return veto ? { ...match, veto } : match;
+}
+
+export async function ensureMapVeto(lobbyId) {
+  const id = normalizeLobbyId(lobbyId);
+  const current = await readLobby(id);
+  if (!current || !computeActiveMatch(current) || current.mapVeto?.firstSide) {
+    return { ok: true, queue: current, created: false };
+  }
+  const outcome = await mutateLobby(id, (queue) => {
+    if (!computeActiveMatch(queue) || queue.mapVeto?.firstSide) return queue;
+    const built = buildMapVeto(queue);
+    if (!built) return queue;
+    queue.mapVeto = built;
+    return queue;
+  });
+  return { ...outcome, created: Boolean(outcome.ok && outcome.queue?.mapVeto?.firstSide) };
+}
+
+export async function applyMapVeto(lobbyId, userId, body) {
+  const id = normalizeLobbyId(lobbyId);
+  const uid = String(userId || "");
+  if (!id || !uid) return { ok: false, error: "invalid_user" };
+  return mutateLobby(id, (queue) => {
+    const veto = normalizeMapVeto(queue.mapVeto);
+    if (!veto || veto.startingSide) return { error: "veto_closed" };
+    const presented = presentVeto(veto);
+    const captainFor = (side) => (side === "left" ? veto.leftCaptainId : veto.rightCaptainId);
+    if (veto.actions.length < 8) {
+      const step = presented.steps[veto.actions.length];
+      if (!step || captainFor(step.side) !== uid) return { error: "not_captain" };
+      const mapId = String(body?.mapId || "").toLowerCase();
+      if (!MAP_POOL_IDS.has(mapId) || veto.actions.some((action) => action.mapId === mapId)) {
+        return { error: "map_unavailable" };
+      }
+      veto.actions.push({ mapId, kind: step.kind, side: step.side });
+      queue.mapVeto = veto;
+      return queue;
+    }
+    if (captainFor(presented.sideSelector) !== uid) return { error: "not_captain" };
+    const startingSide =
+      body?.startingSide === "attack" || body?.startingSide === "defense" ? body.startingSide : "";
+    if (!startingSide) return { error: "invalid_side" };
+    veto.startingSide = startingSide;
+    queue.mapVeto = veto;
+    return queue;
+  });
+}
+
 function viewerInActiveMatch(activeMatch, uid) {
   if (!uid || !activeMatch?.teams?.length) return false;
   for (const team of activeMatch.teams) {
@@ -313,7 +451,7 @@ export function queuePayload(queue, viewerId) {
     uid && Array.isArray(queue.adminSlots)
       ? queue.adminSlots.findIndex((s) => s?.id === uid)
       : -1;
-  const activeMatch = computeActiveMatch(queue);
+  const activeMatch = activeMatchPayload(queue);
   const matchLive = Boolean(activeMatch);
   const youInMatch = viewerInActiveMatch(activeMatch, uid);
   const youInLobby = youIdx !== -1 || youAdminIdx !== -1;
@@ -414,7 +552,7 @@ export async function listLiveActiveMatches() {
   const queues = await listAllLobbies();
   const matches = [];
   for (const queue of queues) {
-    const activeMatch = computeActiveMatch(queue);
+    const activeMatch = activeMatchPayload(queue);
     if (!activeMatch) continue;
     matches.push({
       lobbyId: queue.lobbyId || "",
@@ -437,6 +575,7 @@ export async function purgeAllScrimsMatchStateOnBoot() {
       ensureLobbyRosterShape(q);
       q.forceMatchLive = false;
       q.matchStartedAt = 0;
+      q.mapVeto = null;
       q.slots = Array.from({ length: QUEUE_CAP }, () => null);
       q.matchVoicePending = false;
       q.lastMatchVoice = null;
@@ -630,6 +769,7 @@ export async function leaveLobby(lobbyId, userId) {
         q.matchVoiceError = null;
         q.forceMatchLive = false;
         q.matchStartedAt = 0;
+        q.mapVeto = null;
       }
     }
     const adminIdx = q.adminSlots.findIndex((s) => s?.id === uid);

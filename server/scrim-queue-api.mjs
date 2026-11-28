@@ -8,6 +8,10 @@ import {
   listLiveActiveMatches,
   purgeAllScrimsMatchStateOnBoot,
   startLobbyMatch,
+  ensureMapVeto,
+  applyMapVeto,
+  buildMapVeto,
+  computeActiveMatch,
   normalizeLobbyId,
   queueCount,
   queueMemberIds,
@@ -165,8 +169,13 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
       sendJson(res, 404, { error: "lobby_not_found" });
       return true;
     }
-    const enriched =
+    let enriched =
       queueCount(queue) > 0 ? await enrichScrimQueueTeamNames(structuredClone(queue)) : queue;
+    if (computeActiveMatch(enriched) && !enriched.mapVeto?.firstSide) {
+      const ensured = await ensureMapVeto(lobbyId);
+      if (ensured.queue) enriched = ensured.queue;
+      if (ensured.created && ensured.queue) broadcastScrimLobby(lobbyId, ensured.queue);
+    }
     sendJson(res, 200, queuePayload(enriched, user?.id));
     return true;
   }
@@ -240,12 +249,44 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
     }
     let queue = outcome.queue;
     queue = await enrichScrimQueueTeamNames(queue);
+    if (!queue.mapVeto?.firstSide) {
+      const built = buildMapVeto(queue);
+      if (built) queue.mapVeto = built;
+    }
     await writeLobby(lobbyId, queue);
     broadcastScrimLobby(lobbyId, queue);
     void maybeProvisionMatchVoice(lobbyId).catch((err) => {
       console.error("[scrim-queue] background match voice:", err?.message || err);
     });
     sendJson(res, 200, { ok: true, ...queuePayload(queue, user.id) });
+    return true;
+  }
+
+  if (lobbyId && pathname === `/api/scrims/lobbies/${lobbyId}/veto` && req.method === "POST") {
+    applyCors(req, res, cfg);
+    const user = getSessionUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "sign_in_required" });
+      return true;
+    }
+    const body = await readJsonBody(req);
+    if (body === null) {
+      sendJson(res, 400, { error: "invalid_json" });
+      return true;
+    }
+    const outcome = await applyMapVeto(lobbyId, user.id, body);
+    if (!outcome.ok) {
+      const code = outcome.error || "veto_failed";
+      const status = code === "not_captain" ? 403 : code === "veto_closed" ? 409 : 400;
+      const fallback = outcome.queue || (await readLobby(lobbyId));
+      sendJson(res, status, {
+        error: code,
+        ...(fallback ? queuePayload(fallback, user.id) : { lobbyId })
+      });
+      return true;
+    }
+    broadcastScrimLobby(lobbyId, outcome.queue);
+    sendJson(res, 200, { ok: true, ...queuePayload(outcome.queue, user.id) });
     return true;
   }
 
