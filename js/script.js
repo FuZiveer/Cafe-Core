@@ -952,7 +952,6 @@ function flyoutNavDisabledReason(itemId) {
   if (itemId === "mm-looking-for-team") return "soon";
   if (itemId === "tool-mouse-compare") return "soon";
   if (itemId === "tool-apps") return "soon";
-  if (itemId === "mm-scrims") return "soon";
   if (
     (itemId === "tool-videos" || itemId === "strat-tips" || itemId === "strat-lineups") &&
     !TIPS_AND_TRICKS_PAGE_ENABLED
@@ -967,7 +966,6 @@ function isFlyoutItemNavDisabled(itemId) {
 }
 function isMainPageNavDisabled(pageKey) {
   if (pageKey === "apps") return true;
-  if (pageKey === "scrims") return true;
   if (pageKey === "lineups" && !TIPS_AND_TRICKS_PAGE_ENABLED) return true;
   if (pageKey === "aim-trainer" && isAimTrainerMobileBlocked()) return true;
     return false;

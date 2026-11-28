@@ -51,6 +51,16 @@
     scrimWsConnected = next;
     dispatchScrimWsStatus();
     syncTopBarServerWakeup();
+    if (next) queueRosterStatsRefreshAfterServerWake();
+  }
+  function queueRosterStatsRefreshAfterServerWake() {
+    const stats = window.__cafeBlApi?.rosterStats;
+    const fresh =
+      rosterHasLiveStats(stats) &&
+      lastRosterStatsFetchedAt > 0 &&
+      Date.now() - lastRosterStatsFetchedAt < ROSTER_STATS_CLIENT_MIN_MS;
+    if (fresh) return;
+    void window.refreshCafeBlApiState?.({ serverAwake: true });
   }
   window.isCafeScrimWsConnected = function isCafeScrimWsConnected() {
     return scrimWsConnected;
@@ -186,10 +196,22 @@
   const ROSTER_STATS_CLIENT_MIN_MS = 20 * 60 * 1000;
   const ROSTER_STATS_AUTO_REFRESH_MS = 20 * 60 * 1000;
   let lastRosterStatsFetchedAt = 0;
+  let activeBlApiRefresh = null;
+  function rosterHasLiveStats(stats) {
+    const players = stats?.players;
+    if (!players || typeof players !== "object") return false;
+    return Object.values(players).some((row) => row && row.ok === true);
+  }
+  function isAbortError(err) {
+    return err?.name === "AbortError";
+  }
   function shouldFetchRosterStats(options) {
     if (options?.forceRosterMemberId) return true;
     if (options?.forceRoster === true) return true;
     if (!document.getElementById("page-black-listed")) return false;
+    if (options?.serverAwake && !rosterHasLiveStats(window.__cafeBlApi?.rosterStats)) {
+      return true;
+    }
     if (lastRosterStatsFetchedAt === 0) return true;
     if (Date.now() - lastRosterStatsFetchedAt < ROSTER_STATS_CLIENT_MIN_MS) {
       return false;
@@ -197,22 +219,47 @@
     return true;
   }
   window.refreshCafeBlApiState = async function refreshCafeBlApiState(options) {
+    const startedConnected = scrimWsConnected || options?.serverAwake === true;
+    const fetchRoster = shouldFetchRosterStats(options);
+    if (activeBlApiRefresh && !activeBlApiRefresh.startedConnected && startedConnected) {
+      activeBlApiRefresh.controller.abort();
+    } else if (
+      activeBlApiRefresh &&
+      !options?.forceRosterMemberId &&
+      options?.forceRoster !== true &&
+      (activeBlApiRefresh.fetchRoster || !fetchRoster)
+    ) {
+      return activeBlApiRefresh.promise;
+    }
+    const controller = new AbortController();
+    const run = refreshCafeBlApiStateNow(options, controller.signal);
+    activeBlApiRefresh = { controller, startedConnected, fetchRoster, promise: run };
+    try {
+      return await run;
+    } finally {
+      if (activeBlApiRefresh?.promise === run) activeBlApiRefresh = null;
+    }
+  };
+  async function refreshCafeBlApiStateNow(options, signal) {
     const state = window.__cafeBlApi;
     let scrimOk = false;
     let rosterStatsOk = false;
     const fetchRoster = shouldFetchRosterStats(options);
-    const scrimPromise = fetchJson("/api/bl/scrim-record");
+    const scrimPromise = fetchJson("/api/bl/scrim-record", { signal });
     let rosterPath = "/api/bl/roster-stats";
     if (options?.forceRosterMemberId) {
       rosterPath = `/api/bl/roster-stats?force=1&member=${encodeURIComponent(options.forceRosterMemberId)}`;
     } else if (options?.forceRoster) {
       rosterPath = "/api/bl/roster-stats?force=1";
     }
-    const rosterPromise = fetchRoster ? fetchJson(rosterPath) : null;
+    const rosterPromise = fetchRoster ? fetchJson(rosterPath, { signal }) : null;
     const [scrimSettled, rosterStatsSettled] = await Promise.allSettled([
       scrimPromise,
       rosterPromise || Promise.resolve(null)
     ]);
+    if (isAbortError(scrimSettled.reason) || isAbortError(rosterStatsSettled.reason)) {
+      return state;
+    }
     if (scrimSettled.status === "fulfilled") {
       const scrim = scrimSettled.value;
       scrimOk = true;
@@ -242,7 +289,7 @@
         }
         rosterStatsOk = state.rosterStats?.configured === true;
         lastRosterStatsFetchedAt = Date.now();
-      } else if (rosterStatsSettled.status === "rejected") {
+      } else if (rosterStatsSettled.status === "rejected" && !isAbortError(rosterStatsSettled.reason)) {
         state.rosterStats = null;
       }
     } else if (state.rosterStats?.configured) {
@@ -281,7 +328,6 @@
   window.startCafeBlRosterAutoRefresh = function startCafeBlRosterAutoRefresh() {
     stopCafeBlRosterAutoRefresh();
     rosterAutoRefreshTimer = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
       if (!isBlackListedPageActive()) return;
       void window.refreshCafeBlApiState?.();
     }, ROSTER_STATS_AUTO_REFRESH_MS);
