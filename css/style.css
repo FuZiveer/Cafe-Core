@@ -7568,6 +7568,10 @@ html.reduce-motion .keyboard-checker-key {
   opacity: 0.5;
   cursor: not-allowed;
 }
+#page-scrims .scrims-cta.is-pending {
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
 #page-scrims .scrims-cta.is-pending:disabled {
   opacity: 1;
   cursor: wait;

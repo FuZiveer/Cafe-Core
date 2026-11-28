@@ -1187,10 +1187,16 @@
     const showingLoader = button.classList.contains("is-pending");
     if (pending) {
       button.dataset.ctaLabel = idleLabel;
-      if (showingLoader) return;
+      if (!showingLoader) {
+        const width = button.offsetWidth;
+        const height = button.offsetHeight;
+        if (width) button.style.width = `${width}px`;
+        if (height) button.style.height = `${height}px`;
+      }
       button.classList.add("is-pending");
       button.setAttribute("aria-busy", "true");
       button.setAttribute("aria-label", idleLabel);
+      if (showingLoader) return;
       const spinner = document.createElement("span");
       spinner.className = "scrims-cta-loader";
       spinner.setAttribute("aria-hidden", "true");
@@ -1201,6 +1207,8 @@
     button.classList.remove("is-pending");
     button.removeAttribute("aria-busy");
     button.removeAttribute("aria-label");
+    button.style.width = "";
+    button.style.height = "";
     button.textContent = idleLabel;
   }
 
