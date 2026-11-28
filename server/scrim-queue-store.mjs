@@ -60,16 +60,24 @@ function lobbyRedisKey(lobbyId) {
 }
 
 const MAP_POOL = [
-  { id: "bank", name: "Bank" },
-  { id: "border", name: "Border" },
-  { id: "chalet", name: "Chalet" },
-  { id: "clubhouse", name: "Clubhouse" },
-  { id: "consulate", name: "Consulate" },
-  { id: "kafe", name: "Kafe Dostoyevsky" },
-  { id: "lair", name: "Lair" },
-  { id: "nighthaven", name: "Nighthaven Labs" },
-  { id: "fortress", name: "Fortress" }
+  { id: "bank", name: "Bank", slug: "bank" },
+  { id: "border", name: "Border", slug: "border" },
+  { id: "chalet", name: "Chalet", slug: "chalet" },
+  { id: "clubhouse", name: "Clubhouse", slug: "clubhouse" },
+  { id: "consulate", name: "Consulate", slug: "consulate" },
+  { id: "kafe", name: "Kafe Dostoyevsky", slug: "kafe-dostoyevsky" },
+  { id: "lair", name: "Lair", slug: "lair" },
+  { id: "nighthaven", name: "Nighthaven Labs", slug: "nighthaven-labs" },
+  { id: "fortress", name: "Fortress", slug: "fortress" }
 ];
+const MAP_THUMB_BASE = "https://static.stats.cc/siege/maps";
+
+function mapThumbUrl(map) {
+  if (!map) return "";
+  const slug = String(map.slug || map.id || "").trim().toLowerCase();
+  if (!slug) return "";
+  return `${MAP_THUMB_BASE}/${encodeURIComponent(slug)}_thumbnail.webp`;
+}
 const MAP_POOL_IDS = new Set(MAP_POOL.map((map) => map.id));
 
 function normalizeMapVeto(raw) {
@@ -110,6 +118,7 @@ function emptyQueue() {
     forceMatchLive: false,
     matchStartedAt: 0,
     mapVeto: null,
+    matchAdminIds: [],
     lobbyId: "",
     hostId: "",
     createdAt: 0
@@ -162,7 +171,10 @@ export function normalizeScrimQueue(raw) {
       raw.matchVoiceError && typeof raw.matchVoiceError === "object" ? raw.matchVoiceError : null,
     forceMatchLive: Boolean(raw.forceMatchLive),
     matchStartedAt: Math.max(0, Number(raw.matchStartedAt) || 0),
-    mapVeto: normalizeMapVeto(raw.mapVeto)
+    mapVeto: normalizeMapVeto(raw.mapVeto),
+    matchAdminIds: Array.isArray(raw.matchAdminIds)
+      ? raw.matchAdminIds.map((id) => String(id || "").trim()).filter(Boolean)
+      : []
   };
   return normalizeLobbyMeta(raw, core);
 }
@@ -361,7 +373,10 @@ function presentVeto(raw) {
   ];
   return {
     ...veto,
-    maps: MAP_POOL,
+    maps: MAP_POOL.map((map) => ({
+      ...map,
+      image: mapThumbUrl(map)
+    })),
     steps: kinds.map((kind, index) => ({ kind, side: actors[index] })),
     sideSelector: veto.firstSide,
     complete: Boolean(veto.startingSide)
@@ -444,6 +459,23 @@ function mapPublicSlot(m) {
     : null;
 }
 
+function matchAdminIdsForQueue(queue) {
+  const fromField = Array.isArray(queue.matchAdminIds)
+    ? queue.matchAdminIds.map((id) => String(id || "").trim()).filter(Boolean)
+    : [];
+  if (fromField.length) return fromField;
+  return (queue.adminSlots || [])
+    .filter((slot) => slot?.id)
+    .map((slot) => String(slot.id));
+}
+
+function viewerCanEndLiveMatch(queue, uid) {
+  if (!uid || !computeActiveMatch(queue)) return false;
+  const admins = matchAdminIdsForQueue(queue);
+  if (admins.length) return admins.includes(String(uid));
+  return Boolean(queue.hostId && String(queue.hostId) === String(uid));
+}
+
 export function queuePayload(queue, viewerId) {
   const uid = viewerId ? String(viewerId) : "";
   const youIdx = uid ? queue.slots.findIndex((s) => s?.id === uid) : -1;
@@ -489,6 +521,7 @@ export function queuePayload(queue, viewerId) {
     lobbyId: queue.lobbyId || null,
     hostId: queue.hostId || null,
     youAreHost: Boolean(uid && queue.hostId && uid === String(queue.hostId)),
+    youCanEndMatch: viewerCanEndLiveMatch(queue, uid),
     persistence: usesUpstashRedis() ? "redis" : "ephemeral"
   };
 }
@@ -576,6 +609,7 @@ export async function purgeAllScrimsMatchStateOnBoot() {
       q.forceMatchLive = false;
       q.matchStartedAt = 0;
       q.mapVeto = null;
+      q.matchAdminIds = [];
       q.slots = Array.from({ length: QUEUE_CAP }, () => null);
       q.matchVoicePending = false;
       q.lastMatchVoice = null;
@@ -726,12 +760,50 @@ export async function startLobbyMatch(lobbyId, userId) {
     if (queueCount(q) < 2) return { error: "not_enough_players" };
     q.forceMatchLive = true;
     if (!q.matchStartedAt) q.matchStartedAt = Date.now();
+    q.matchAdminIds = (q.adminSlots || [])
+      .filter((slot) => slot?.id)
+      .map((slot) => String(slot.id));
     return q;
   });
   if (!outcome.ok) {
     return { ok: false, error: outcome.error || "start_failed", queue: outcome.queue };
   }
   return { ok: true, queue: outcome.queue };
+}
+
+export async function endLobbyMatch(lobbyId, userId) {
+  const id = normalizeLobbyId(lobbyId);
+  if (!id) return { ok: false, error: "invalid_lobby" };
+  const uid = String(userId || "").trim();
+  if (!uid) return { ok: false, error: "invalid_user" };
+  const before = await readLobby(id);
+  if (!before || !computeActiveMatch(before)) {
+    return { ok: false, error: "no_live_match", queue: before };
+  }
+  if (!viewerCanEndLiveMatch(before, uid)) {
+    return { ok: false, error: "not_authorized", queue: before };
+  }
+  const voice = before.lastMatchVoice;
+  const channelIds = (voice?.channels || [])
+    .map((ch) => ch?.channelId)
+    .filter(Boolean)
+    .map((chId) => String(chId));
+  const outcome = await mutateLobby(id, (q) => {
+    if (!computeActiveMatch(q)) return { error: "no_live_match" };
+    if (!viewerCanEndLiveMatch(q, uid)) return { error: "not_authorized" };
+    q.forceMatchLive = false;
+    q.matchStartedAt = 0;
+    q.mapVeto = null;
+    q.matchAdminIds = [];
+    q.matchVoicePending = false;
+    q.matchVoiceError = null;
+    q.lastMatchVoice = null;
+    return q;
+  });
+  if (!outcome.ok) {
+    return { ok: false, error: outcome.error || "end_failed", queue: outcome.queue };
+  }
+  return { ok: true, queue: outcome.queue, voiceChannelIds: channelIds };
 }
 
 export async function leaveLobby(lobbyId, userId) {
@@ -770,6 +842,7 @@ export async function leaveLobby(lobbyId, userId) {
         q.forceMatchLive = false;
         q.matchStartedAt = 0;
         q.mapVeto = null;
+        q.matchAdminIds = [];
       }
     }
     const adminIdx = q.adminSlots.findIndex((s) => s?.id === uid);

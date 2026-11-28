@@ -8,6 +8,7 @@ import {
   listLiveActiveMatches,
   purgeAllScrimsMatchStateOnBoot,
   startLobbyMatch,
+  endLobbyMatch,
   ensureMapVeto,
   applyMapVeto,
   buildMapVeto,
@@ -22,6 +23,7 @@ import {
 import { broadcastScrimLobby } from "./scrim-queue-ws.mjs";
 import {
   createMatchVoiceChannels,
+  deleteMatchVoiceChannels,
   enrichScrimQueueTeamNames,
   isMatchBotConfigured,
   startDiscordMatchBot
@@ -259,6 +261,46 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
       console.error("[scrim-queue] background match voice:", err?.message || err);
     });
     sendJson(res, 200, { ok: true, ...queuePayload(queue, user.id) });
+    return true;
+  }
+
+  if (lobbyId && pathname === `/api/scrims/lobbies/${lobbyId}/end` && req.method === "POST") {
+    applyCors(req, res, cfg);
+    const user = getSessionUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "sign_in_required" });
+      return true;
+    }
+    if (await readJsonBody(req) === null) {
+      sendJson(res, 400, { error: "invalid_json" });
+      return true;
+    }
+    const outcome = await endLobbyMatch(lobbyId, user.id);
+    if (!outcome.ok) {
+      const code = outcome.error || "end_failed";
+      const status =
+        code === "not_authorized"
+          ? 403
+          : code === "no_live_match"
+            ? 409
+            : code === "lobby_not_found"
+              ? 404
+              : 400;
+      const fallback = outcome.queue || (await readLobby(lobbyId));
+      sendJson(res, status, {
+        error: code,
+        ...(fallback ? queuePayload(fallback, user.id) : { lobbyId })
+      });
+      return true;
+    }
+    const channelIds = outcome.voiceChannelIds || [];
+    if (channelIds.length && isMatchBotConfigured()) {
+      void deleteMatchVoiceChannels({ channelIds }).catch((err) => {
+        console.error("[scrim-queue] end match voice cleanup:", err?.message || err);
+      });
+    }
+    broadcastScrimLobby(lobbyId, outcome.queue);
+    sendJson(res, 200, { ok: true, ...queuePayload(outcome.queue, user.id) });
     return true;
   }
 

@@ -17,6 +17,7 @@
   let onJoinAsAdminClick = null;
   let onLeaveLobbyClick = null;
   let onStartMatchClick = null;
+  let onEndMatchClick = null;
   let onCopyLinkClick = null;
   let onSignInClick = null;
   let onAuthChange = null;
@@ -29,6 +30,7 @@
   let activeLobbyId = "";
   let youAreHost = false;
   let youAsAdmin = false;
+  let youCanEndMatch = false;
   let lobbyRequestInFlight = false;
   let queuePendingAction = null;
   let queueToggleGeneration = 0;
@@ -53,6 +55,8 @@
   let vetoArrowTimer = null;
   let vetoSubmitLock = false;
   const VETO_COUNTDOWN_MS = 5000;
+  const VETO_FLIP_ANIM_MS = 2200;
+  const SCRIM_MAP_THUMB_BASE = "https://static.stats.cc/siege/maps";
   let lastMatchPanelSignature = "";
   const matchTimerLastSecond = new WeakMap();
   let matchesActiveScrollAbort = null;
@@ -327,7 +331,13 @@
 
   function beginQueuePending(action, role = null) {
     queuePendingAction =
-      action === "leave" ? "leave" : action === "start" ? "start" : "join";
+      action === "leave"
+        ? "leave"
+        : action === "start"
+          ? "start"
+          : action === "end"
+            ? "end"
+            : "join";
     joinRolePending = role;
     if (queuePendingSafetyTimer != null) clearTimeout(queuePendingSafetyTimer);
     queuePendingSafetyTimer = window.setTimeout(() => {
@@ -370,6 +380,7 @@
     userQueued = false;
     youAreHost = false;
     youAsAdmin = false;
+    youCanEndMatch = false;
     activeMatch = null;
     lastMatchVoice = null;
     matchVoiceError = null;
@@ -442,6 +453,7 @@
       payload.youAreHost === true ||
       Boolean(myId && payload.hostId && String(payload.hostId) === myId);
     youAsAdmin = payload.youAsAdmin === true || adminSlots.some((m) => m?.you);
+    youCanEndMatch = payload.youCanEndMatch === true;
     const nowLive = hasLiveMatch() || payload.matchLive === true;
     if (nowLive && !wasLive && prevQueueVersion > 0) {
       announceMatchFound(activeMatch, payload.lastMatchVoice);
@@ -850,6 +862,30 @@
     };
   }
 
+  function isMapVetoInProgress() {
+    const veto = activeMatch?.veto;
+    if (!veto) return false;
+    if (veto.complete === true) return false;
+    const side = veto.startingSide;
+    return side !== "attack" && side !== "defense";
+  }
+
+  function getVetoPanelEl() {
+    return root?.querySelector("#scrims-veto-panel");
+  }
+
+  function syncVetoPanelVisibility() {
+    const panel = getVetoPanelEl();
+    if (!panel) return;
+    const show = hasLiveMatch() && isMapVetoInProgress();
+    panel.classList.toggle("hidden", !show);
+    panel.hidden = !show;
+    if (!show) {
+      panel.replaceChildren();
+      vetoPaintKey = "";
+    }
+  }
+
   function vetoPhase() {
     const match = activeMatch;
     const veto = match?.veto;
@@ -863,7 +899,8 @@
       return { name: "countdown", key: "countdown", seconds: Math.max(1, Math.ceil((flipAt - Date.now()) / 1000)) };
     }
     const step = (veto.actions || []).length;
-    const playFlip = step === 0 && !vetoFlipPlayed && Date.now() - flipAt < 1600;
+    const sinceFlip = Date.now() - flipAt;
+    const playFlip = step === 0 && !vetoFlipPlayed && sinceFlip >= 0 && sinceFlip < VETO_FLIP_ANIM_MS;
     return {
       name: step >= 8 ? "side" : "veto",
       key: `step:${step}:${(veto.actions || []).map((action) => action.mapId).join(",")}:${vetoSubmitLock ? "1" : "0"}`,
@@ -906,25 +943,23 @@
     return (activeMatch?.veto?.maps || []).find((map) => map.id === mapId)?.name || mapId;
   }
 
+  function mapImageUrl(map) {
+    if (!map) return "";
+    const fromServer = String(map.image || "").trim();
+    if (fromServer) return fromServer;
+    const slug = String(map.slug || map.id || "").trim().toLowerCase();
+    if (!slug) return "";
+    return `${SCRIM_MAP_THUMB_BASE}/${encodeURIComponent(slug)}_thumbnail.webp`;
+  }
+
+  function teamCoinTag(side) {
+    return vetoCaptain(side).team.slice(0, 3).toUpperCase();
+  }
+
   function buildVetoElement(phase) {
     const veto = activeMatch?.veto;
     const wrap = document.createElement("div");
-    wrap.className = `scrims-veto${phase.name === "done" ? " scrims-veto--done" : ""}`;
-    if (phase.name === "done") {
-      const picked = (veto.actions || []).find((action) => action.kind === "pick");
-      const selector = vetoCaptain(veto.sideSelector);
-      const otherSide = veto.sideSelector === "left" ? "right" : "left";
-      const other = vetoCaptain(otherSide);
-      const chosen = veto.startingSide === "defense" ? "Defense" : "Attack";
-      const opposite = chosen === "Attack" ? "Defense" : "Attack";
-      const result = document.createElement("p");
-      result.className = "scrims-veto-result";
-      result.textContent = picked
-        ? `${mapName(picked.mapId)} — ${selector.team} starts on ${chosen}. ${other.team} starts on ${opposite}.`
-        : "Map ban complete.";
-      wrap.appendChild(result);
-      return wrap;
-    }
+    wrap.className = "scrims-veto";
 
     const turnSide =
       phase.name === "side"
@@ -944,18 +979,35 @@
     if (phase.name !== "countdown" && !phase.playFlip) arrow.classList.add("is-aiming");
     arrow.setAttribute("aria-hidden", "true");
     const coin = document.createElement("div");
-    coin.className = `scrims-veto-coin${phase.playFlip ? " is-flipping" : ""}`;
-    const winner = vetoCaptain(veto.firstSide);
-    coin.textContent = phase.name === "countdown" || phase.playFlip ? "" : winner.team.slice(0, 3);
+    const winnerSide = veto.firstSide;
+    const leftTag = teamCoinTag("left");
+    const rightTag = teamCoinTag("right");
+    coin.className = `scrims-veto-coin${phase.playFlip ? " is-flipping" : ""}${
+      phase.name !== "countdown" && !phase.playFlip ? " is-revealed" : ""
+    }`;
+    coin.dataset.winner = winnerSide;
+    const faceA = document.createElement("span");
+    faceA.className = "scrims-veto-coin-face scrims-veto-coin-face--a";
+    faceA.textContent = leftTag;
+    const faceB = document.createElement("span");
+    faceB.className = "scrims-veto-coin-face scrims-veto-coin-face--b";
+    faceB.textContent = rightTag;
+    coin.append(faceA, faceB);
     flip.append(arrow, coin);
     stage.appendChild(flip);
 
     if (phase.name === "countdown") {
+      const countWrap = document.createElement("div");
+      countWrap.className = "scrims-veto-countdown";
       const count = document.createElement("p");
       count.className = "scrims-veto-count";
       count.dataset.vetoCount = "1";
       count.textContent = String(phase.seconds);
-      stage.appendChild(count);
+      const hint = document.createElement("p");
+      hint.className = "scrims-veto-countdown-hint";
+      hint.textContent = "Captain coin flip";
+      countWrap.append(count, hint);
+      stage.appendChild(countWrap);
     }
 
     const status = document.createElement("p");
@@ -971,13 +1023,28 @@
       if (phase.name === "veto") {
         const maps = document.createElement("div");
         maps.className = "scrims-veto-maps";
+        const stepKind = veto.steps?.[phase.step]?.kind || "ban";
         for (const map of veto.maps || []) {
           const kind = used.get(map.id);
           const button = document.createElement("button");
           button.type = "button";
-          button.className = `scrims-veto-map ui-interactive${kind === "ban" ? " is-banned" : ""}${kind === "pick" ? " is-picked" : ""}`;
+          button.className = `scrims-veto-map ui-interactive${kind === "ban" ? " is-banned" : ""}${kind === "pick" ? " is-picked" : ""}${
+            !kind && stepKind === "pick" ? " is-pick-phase" : ""
+          }`;
           button.dataset.vetoMap = map.id;
-          button.textContent = map.name;
+          button.setAttribute("aria-label", map.name);
+          const img = document.createElement("img");
+          img.className = "scrims-veto-map-img";
+          img.alt = "";
+          img.loading = "lazy";
+          img.decoding = "async";
+          const src = mapImageUrl(map);
+          if (src) img.src = src;
+          else img.hidden = true;
+          const label = document.createElement("span");
+          label.className = "scrims-veto-map-label";
+          label.textContent = map.name;
+          button.append(img, label);
           button.disabled = !myTurn || vetoSubmitLock || Boolean(kind);
           maps.appendChild(button);
         }
@@ -1005,7 +1072,12 @@
   function vetoStatusText(phase) {
     const veto = activeMatch?.veto;
     if (!veto || phase.name === "pending") return "Preparing the map ban.";
-    if (phase.name === "countdown") return "Coin flip";
+    if (phase.name === "countdown") {
+      return phase.seconds > 1
+        ? `Flipping in ${phase.seconds} seconds…`
+        : "Flipping now…";
+    }
+    if (phase.playFlip) return "Flipping for first ban…";
     const actor = vetoCaptain(
       phase.name === "side" ? veto.sideSelector : veto.steps?.[phase.step]?.side || veto.firstSide
     );
@@ -1029,7 +1101,11 @@
       arrow.classList.add("is-aiming");
       arrow.dataset.point = winner === "right" ? "right" : "left";
       const coin = root?.querySelector(".scrims-veto-coin");
-      if (coin) coin.textContent = vetoCaptain(winner).team.slice(0, 3);
+      if (coin) {
+        coin.classList.remove("is-flipping");
+        coin.classList.add("is-revealed");
+        coin.dataset.winner = winner;
+      }
     };
     if (reduce) {
       point();
@@ -1038,13 +1114,13 @@
     vetoArrowTimer = window.setTimeout(() => {
       vetoArrowTimer = null;
       point();
-    }, 900);
+    }, VETO_FLIP_ANIM_MS - 120);
   }
 
   function renderVetoBoard() {
-    const notice = root?.querySelector("#scrims-queue-live-notice");
-    if (!notice || !hasLiveMatch()) {
-      vetoPaintKey = "";
+    syncVetoPanelVisibility();
+    const panel = getVetoPanelEl();
+    if (!panel || panel.hidden || !hasLiveMatch() || !isMapVetoInProgress()) {
       vetoMatchId = "";
       return;
     }
@@ -1056,24 +1132,35 @@
       clearVetoArrowTimer();
     }
     const phase = vetoPhase();
-    if (phase.key === vetoPaintKey && notice.childElementCount) return;
+    if (phase.name === "done") {
+      syncVetoPanelVisibility();
+      vetoPaintKey = phase.key;
+      return;
+    }
+    if (phase.key === vetoPaintKey && panel.childElementCount) return;
     const playFlip = phase.playFlip;
     vetoPaintKey = phase.key;
-    notice.replaceChildren(buildVetoElement(phase));
+    panel.replaceChildren(buildVetoElement(phase));
     if (playFlip) armVetoArrow(phase.winner);
   }
 
   function tickVetoClock() {
     if (!root || !hasLiveMatch()) return;
     const phase = vetoPhase();
-    if (phase.name !== "countdown") {
-      if (vetoPaintKey === "countdown") renderVetoBoard();
+    if (phase.name !== "countdown" && !phase.playFlip) {
+      if (vetoPaintKey === "countdown" || vetoPaintKey.startsWith("step:0:")) renderVetoBoard();
       return;
     }
-    const countEl = root.querySelector("[data-veto-count]");
-    if (!countEl) return;
-    const next = String(phase.seconds);
-    if (countEl.textContent !== next) countEl.textContent = next;
+    if (phase.name === "countdown") {
+      const countEl = root.querySelector("[data-veto-count]");
+      if (!countEl) return;
+      const next = String(phase.seconds);
+      if (countEl.textContent !== next) countEl.textContent = next;
+      const statusEl = root.querySelector(".scrims-veto-status");
+      if (statusEl) statusEl.textContent = vetoStatusText(phase);
+      return;
+    }
+    if (phase.playFlip && !root.querySelector(".scrims-veto-coin.is-flipping")) renderVetoBoard();
   }
 
   async function submitVeto(body) {
@@ -1126,7 +1213,7 @@
     const count = matchLive ? 0 : queueCount();
     const discord = getDiscordUser();
     const queueSection = root.querySelector("#scrims-queue");
-    const liveNotice = root.querySelector("#scrims-queue-live-notice");
+    const vetoPanel = getVetoPanelEl();
     const lobbyBody = root.querySelector("#scrims-queue-lobby-body");
     const badgeEl = root.querySelector("#scrims-queue-state-badge");
     const createBtn = root.querySelector("#scrims-create-lobby");
@@ -1139,6 +1226,8 @@
     const inviteManaged = root.querySelector("#scrims-invite-join-managed");
     const leaveBtn = root.querySelector("#scrims-leave-lobby");
     const startMatchBtn = root.querySelector("#scrims-start-match");
+    const liveActions = root.querySelector("#scrims-live-actions");
+    const endMatchBtn = root.querySelector("#scrims-end-match");
     const adminSlotsEl = root.querySelector("#scrims-admin-slots");
     const adminCapLabel = root.querySelector("#scrims-admin-cap-label");
     const inviteWrap = root.querySelector("#scrims-lobby-invite");
@@ -1149,10 +1238,9 @@
     if (queueSection) {
       queueSection.classList.toggle("scrims-glass--queue-live", matchLive);
     }
-    if (liveNotice) {
-      liveNotice.classList.toggle("hidden", !matchLive);
-      liveNotice.hidden = !matchLive;
-      if (matchLive) renderVetoBoard();
+    syncVetoPanelVisibility();
+    if (matchLive && isMapVetoInProgress() && vetoPanel && !vetoPanel.hidden) {
+      renderVetoBoard();
     }
     if (lobbyBody) {
       lobbyBody.classList.toggle("hidden", matchLive);
@@ -1255,6 +1343,16 @@
       startMatchBtn.disabled = lobbyRequestInFlight || matchLive || lobbyOccupantCount() < 2;
       const starting = lobbyRequestInFlight && queuePendingAction === "start";
       startMatchBtn.textContent = starting ? "Starting…" : "Start match";
+    }
+    const showEndMatch = Boolean(matchLive && youCanEndMatch);
+    if (liveActions) {
+      liveActions.classList.toggle("hidden", !showEndMatch);
+      liveActions.hidden = !showEndMatch;
+    }
+    if (endMatchBtn) {
+      endMatchBtn.disabled = lobbyRequestInFlight;
+      const ending = lobbyRequestInFlight && queuePendingAction === "end";
+      endMatchBtn.textContent = ending ? "Ending…" : "End match";
     }
 
     if (slotsEl && !matchLive) {
@@ -1526,6 +1624,7 @@
         return;
       }
       applyServerQueuePayload(data);
+      if (action === "end") scrimsToast("Match ended — voice channels are being cleaned up.");
       if (data.lobbyId) {
         activeLobbyId = normalizeLobbyCode(data.lobbyId);
         disconnectScrimQueueWebSocket();
@@ -1548,7 +1647,15 @@
           body: "Leave your current role before choosing another."
         });
       } else if (code === "not_authorized") {
-        scrimsToast("Only lobby admins can start the match.");
+        if (action === "end") {
+          scrimsToast("Only match admins (or the lobby host if none) can end the match.");
+        } else {
+          scrimsToast("Only lobby admins can start the match.");
+        }
+      } else if (code === "no_live_match") {
+        scrimsToast("This match is no longer live.");
+      } else if (action === "end" && code === "end_failed") {
+        scrimsToast("Couldn't end the match.");
       } else if (code === "not_enough_players") {
         scrimsToast("Need at least 2 players in the lobby to start.");
       } else if (code === "not_enough_lobby_members") {
@@ -1608,6 +1715,11 @@
       return;
     }
     void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(activeLobbyId)}/start`, "start");
+  }
+
+  function handleEndMatch() {
+    if (!activeLobbyId || !youCanEndMatch) return;
+    void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(activeLobbyId)}/end`, "end");
   }
 
   function handleCopyLobbyLink() {
@@ -1701,6 +1813,9 @@
       onStartMatchClick = () => {
         void handleStartMatch();
       };
+      onEndMatchClick = () => {
+        void handleEndMatch();
+      };
       onCopyLinkClick = handleCopyLobbyLink;
       onSignInClick = handleSignInClick;
       onAuthChange = onDiscordAuthChange;
@@ -1709,6 +1824,7 @@
       page.querySelector("#scrims-join-as-admin")?.addEventListener("click", onJoinAsAdminClick);
       page.querySelector("#scrims-leave-lobby")?.addEventListener("click", onLeaveLobbyClick);
       page.querySelector("#scrims-start-match")?.addEventListener("click", onStartMatchClick);
+      page.querySelector("#scrims-end-match")?.addEventListener("click", onEndMatchClick);
       page.querySelector("#scrims-copy-lobby-link")?.addEventListener("click", onCopyLinkClick);
       page.querySelector("#scrims-queue-sign-in")?.addEventListener("click", onSignInClick);
       window.addEventListener("cafe-discord-auth-change", onAuthChange);
@@ -1719,7 +1835,7 @@
       onScrimsVisibilityChange = onScrimsPageVisibility;
       document.addEventListener("visibilitychange", onScrimsVisibilityChange);
       onVetoClick = onVetoBoardClick;
-      page.querySelector("#scrims-queue-live-notice")?.addEventListener("click", onVetoClick);
+      page.querySelector("#scrims-veto-panel")?.addEventListener("click", onVetoClick);
       bindScrimsMatchesActiveScroll(page.querySelector("#scrims-matches-active"));
     }
 
@@ -1759,6 +1875,7 @@
     root.querySelector("#scrims-join-as-admin")?.removeEventListener("click", onJoinAsAdminClick);
     root.querySelector("#scrims-leave-lobby")?.removeEventListener("click", onLeaveLobbyClick);
     root.querySelector("#scrims-start-match")?.removeEventListener("click", onStartMatchClick);
+    root.querySelector("#scrims-end-match")?.removeEventListener("click", onEndMatchClick);
     root.querySelector("#scrims-copy-lobby-link")?.removeEventListener("click", onCopyLinkClick);
     root.querySelector("#scrims-queue-sign-in")?.removeEventListener("click", onSignInClick);
     if (onAuthChange) window.removeEventListener("cafe-discord-auth-change", onAuthChange);
@@ -1768,7 +1885,7 @@
       onScrimsVisibilityChange = null;
     }
     if (onVetoClick) {
-      root.querySelector("#scrims-queue-live-notice")?.removeEventListener("click", onVetoClick);
+      root.querySelector("#scrims-veto-panel")?.removeEventListener("click", onVetoClick);
       onVetoClick = null;
     }
     onCreateLobbyClick = null;
@@ -1776,6 +1893,7 @@
     onJoinAsAdminClick = null;
     onLeaveLobbyClick = null;
     onStartMatchClick = null;
+    onEndMatchClick = null;
     onCopyLinkClick = null;
     onSignInClick = null;
     onAuthChange = null;

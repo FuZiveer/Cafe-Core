@@ -23,11 +23,21 @@
                         </header>
 
                         <div
-                            id="scrims-queue-live-notice"
-                            class="scrims-queue-live-notice hidden"
+                            id="scrims-veto-panel"
+                            class="scrims-veto-panel hidden"
                             hidden
-                            role="status"
+                            role="region"
+                            aria-label="Map ban"
                         ></div>
+                        <div id="scrims-live-actions" class="scrims-live-actions hidden" hidden>
+                            <button
+                                type="button"
+                                id="scrims-end-match"
+                                class="scrims-cta scrims-cta--end ui-interactive"
+                            >
+                                End match
+                            </button>
+                        </div>
 
                         <div id="scrims-queue-lobby-body" class="scrims-queue-lobby-body">
                         <div
