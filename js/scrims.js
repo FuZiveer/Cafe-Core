@@ -513,6 +513,7 @@
       for (const match of matches) {
         activeWrap.appendChild(createMatchCardElement(match));
       }
+      stopPublicMatchesPoll();
       return;
     }
 
@@ -524,6 +525,7 @@
     }
     emptyWrap?.classList.remove("hidden");
     if (emptyWrap) emptyWrap.hidden = false;
+    syncPublicMatchesPoll();
   }
 
   function renderQueue() {
@@ -709,10 +711,20 @@
     renderMatchesPanel();
   }
 
+  const PUBLIC_MATCHES_POLL_MS = 1e3;
+
+  function activeMatchesPanelIsPopulated() {
+    return activeMatchesForPanel().length > 0;
+  }
+
   async function refreshPublicMatches({ force } = {}) {
     if (!apiBase() || !root) return;
+    if (activeMatchesPanelIsPopulated()) {
+      stopPublicMatchesPoll();
+      return;
+    }
     const now = Date.now();
-    if (!force && now - lastPublicMatchesFetchAt < 1500) return;
+    if (!force && now - lastPublicMatchesFetchAt < PUBLIC_MATCHES_POLL_MS) return;
     lastPublicMatchesFetchAt = now;
     try {
       const data = await fetchQueueJson("/api/scrims/matches");
@@ -720,7 +732,7 @@
     } catch {
       if (force) publicActiveMatches = [];
     }
-    if (!hasLiveMatch()) renderMatchesPanel();
+    renderMatchesPanel();
   }
 
   function stopPublicMatchesPoll() {
@@ -729,13 +741,22 @@
     publicMatchesPollTimer = null;
   }
 
-  function startPublicMatchesPoll() {
+  function syncPublicMatchesPoll() {
+    if (!root || !apiBase()) return;
+    if (activeMatchesPanelIsPopulated()) {
+      stopPublicMatchesPoll();
+      return;
+    }
     if (publicMatchesPollTimer != null) return;
     void refreshPublicMatches({ force: true });
     publicMatchesPollTimer = window.setInterval(() => {
       if (!root) return;
+      if (activeMatchesPanelIsPopulated()) {
+        stopPublicMatchesPoll();
+        return;
+      }
       void refreshPublicMatches();
-    }, 4e3);
+    }, PUBLIC_MATCHES_POLL_MS);
   }
 
   async function refreshScrimQueue({ force } = {}) {
@@ -1075,7 +1096,7 @@
     const fromUrl = getLobbyCodeFromUrl();
     if (fromUrl) activeLobbyId = fromUrl;
     renderQueue();
-    startPublicMatchesPoll();
+    syncPublicMatchesPoll();
     void refreshScrimQueue({ force: true });
     connectScrimQueueWebSocket();
     if (!getDiscordUser() && typeof window.refreshDiscordAuthUi === "function") {
