@@ -949,7 +949,6 @@ function mainPageKeyForFlyoutItem(itemId) {
   return "default";
 }
 function flyoutNavDisabledReason(itemId) {
-  if (itemId === "mm-scrims") return "soon";
   if (itemId === "mm-looking-for-team") return "soon";
   if (itemId === "tool-mouse-compare") return "soon";
   if (itemId === "tool-apps") return "soon";

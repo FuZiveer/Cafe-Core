@@ -31,7 +31,7 @@ export function getMatchBotConfig() {
     token: discordBotToken(),
     guildId: process.env.DISCORD_GUILD_ID?.trim() || "",
     categoryName:
-      process.env.DISCORD_MATCH_CATEGORY_NAME?.trim() || "MATCH CHANNELS",
+      process.env.DISCORD_MATCH_CATEGORY_NAME?.trim() || "LIVE MATCHES",
     categoryId: process.env.DISCORD_MATCH_CATEGORY_ID?.trim() || "",
     teamRoleNames,
     teamRolePrefix
@@ -204,12 +204,25 @@ async function ensureMatchCategory(guild, cfg) {
     throw new Error("match_category_id_not_found");
   }
   const categoryName = cfg.categoryName;
+  const legacyCategoryNames = ["match channels"];
+  const categoryNameMatches = (name) => {
+    const lower = String(name || "").toLowerCase();
+    if (lower === categoryName.toLowerCase()) return true;
+    return legacyCategoryNames.includes(lower);
+  };
   const existing = guild.channels.cache.find(
-    (c) =>
-      c.type === ChannelType.GuildCategory &&
-      c.name.toLowerCase() === categoryName.toLowerCase()
+    (c) => c.type === ChannelType.GuildCategory && categoryNameMatches(c.name)
   );
-  if (existing) return existing;
+  if (existing) {
+    if (
+      existing.name.toLowerCase() === "match channels" &&
+      categoryName.toLowerCase() === "live matches" &&
+      existing.name !== categoryName
+    ) {
+      await existing.setName(categoryName).catch(() => null);
+    }
+    return existing;
+  }
   return guild.channels.create({
     name: categoryName,
     type: ChannelType.GuildCategory,
