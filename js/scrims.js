@@ -18,6 +18,7 @@
   let onCopyLinkClick = null;
   let onSignInClick = null;
   let onAuthChange = null;
+  let onLobbyPopState = null;
   let queueTimerId = null;
   let queueJoinedAt = null;
   let lastMatchVoice = null;
@@ -904,6 +905,22 @@
     }
   }
 
+  function applyScrimsLobbyFromUrl() {
+    if (!root) return;
+    const fromUrl = getLobbyCodeFromUrl();
+    if (!fromUrl) return;
+    const lobbyChanged = fromUrl !== activeLobbyId;
+    activeLobbyId = fromUrl;
+    renderQueue();
+    if (lobbyChanged) {
+      disconnectScrimQueueWebSocket();
+      connectScrimQueueWebSocket();
+    }
+    void refreshScrimQueue({ force: true });
+  }
+
+  window.applyScrimsLobbyFromUrl = applyScrimsLobbyFromUrl;
+
   function handleSignInClick() {
     const topbar = document.getElementById("discord-sign-in-btn");
     if (topbar) {
@@ -964,6 +981,10 @@
       page.querySelector("#scrims-copy-lobby-link")?.addEventListener("click", onCopyLinkClick);
       page.querySelector("#scrims-queue-sign-in")?.addEventListener("click", onSignInClick);
       window.addEventListener("cafe-discord-auth-change", onAuthChange);
+      onLobbyPopState = () => {
+        applyScrimsLobbyFromUrl();
+      };
+      window.addEventListener("popstate", onLobbyPopState);
     }
 
     const fromUrl = getLobbyCodeFromUrl();
@@ -989,6 +1010,7 @@
     root.querySelector("#scrims-copy-lobby-link")?.removeEventListener("click", onCopyLinkClick);
     root.querySelector("#scrims-queue-sign-in")?.removeEventListener("click", onSignInClick);
     if (onAuthChange) window.removeEventListener("cafe-discord-auth-change", onAuthChange);
+    if (onLobbyPopState) window.removeEventListener("popstate", onLobbyPopState);
     onCreateLobbyClick = null;
     onJoinAsPlayerClick = null;
     onJoinAsAdminClick = null;
@@ -996,6 +1018,8 @@
     onCopyLinkClick = null;
     onSignInClick = null;
     onAuthChange = null;
+    onLobbyPopState = null;
     root = null;
+    delete window.applyScrimsLobbyFromUrl;
   };
 })();
