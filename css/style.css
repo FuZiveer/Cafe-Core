@@ -1237,6 +1237,9 @@ body.bl-roster-player-modal-open {
   right: calc(100% + var(--modal-side-rail-gap));
     padding-top: 0;
 }
+.settings-tab-row .settings-tab-btn[hidden] {
+  display: none !important;
+}
 .settings-tab-row {
     --settings-tab-gap: 0.25rem;
     --settings-tab-padding: 0.25rem;

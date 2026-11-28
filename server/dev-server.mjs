@@ -9,6 +9,7 @@ import { handleBlApiRequest } from "./bl-api.mjs";
 import { handleScrimUpgrade } from "./bl-scrim-ws.mjs";
 import { handleScrimQueueUpgrade, startScrimLobbyRedisFanout } from "./scrim-queue-ws.mjs";
 import { handleScrimQueueApiRequest } from "./scrim-queue-api.mjs";
+import { handleNavFlagsApiRequest } from "./nav-flags.mjs";
 import { purgeAllScrimsMatchStateOnBoot } from "./scrim-queue-store.mjs";
 import { broadcastScrimLobby } from "./scrim-queue-ws.mjs";
 import { handleMatchVoiceApiRequest } from "./match-voice-api.mjs";
@@ -115,6 +116,8 @@ const server = http.createServer(async (req, res) => {
     if (handledMatch) return;
     const handledScrimQueue = await handleScrimQueueApiRequest(req, res, url, cfg);
     if (handledScrimQueue) return;
+    const handledNavFlags = await handleNavFlagsApiRequest(req, res, url, cfg);
+    if (handledNavFlags) return;
   } catch (err) {
     console.error("[auth]", err);
     res.writeHead(500);

@@ -58,6 +58,7 @@ const topBarLabels = coreFreeze({
   more: "More"
 });
 let activeFlyoutType = null;
+let navFlags = { scrims: false, mouseCompare: false };
 let activeFlyoutParentBtn = null;
 let flyoutTitleAnimToken = 0;
 let flyoutContentAnimToken = 0;
@@ -948,9 +949,18 @@ function mainPageKeyForFlyoutItem(itemId) {
   }
   return "default";
 }
+function isCafeNavAdmin() {
+  const user = typeof window.getDiscordAuthUser === "function" ? window.getDiscordAuthUser() : null;
+  return String(user?.username || "").trim().toLowerCase() === "fuziveer";
+}
+function navItemLockedForPublic(itemId) {
+  if (itemId === "mm-scrims") return navFlags.scrims !== true;
+  if (itemId === "tool-mouse-compare") return navFlags.mouseCompare !== true;
+  return false;
+}
 function flyoutNavDisabledReason(itemId) {
+  if (navItemLockedForPublic(itemId) && !isCafeNavAdmin()) return "soon";
   if (itemId === "mm-looking-for-team") return "soon";
-  if (itemId === "tool-mouse-compare") return "soon";
   if (itemId === "tool-apps") return "soon";
   if (
     (itemId === "tool-videos" || itemId === "strat-tips" || itemId === "strat-lineups") &&
@@ -965,6 +975,7 @@ function isFlyoutItemNavDisabled(itemId) {
   return flyoutNavDisabledReason(itemId) != null;
 }
 function isMainPageNavDisabled(pageKey) {
+  if (pageKey === "scrims" && navFlags.scrims !== true && !isCafeNavAdmin()) return true;
   if (pageKey === "apps") return true;
   if (pageKey === "lineups" && !TIPS_AND_TRICKS_PAGE_ENABLED) return true;
   if (pageKey === "aim-trainer" && isAimTrainerMobileBlocked()) return true;
@@ -6856,8 +6867,14 @@ let settingsModalTitleAnimToken = 0;
 let settingsModalBodyAnimToken = 0;
 const SETTINGS_TAB_TITLES = Object.freeze({
   system: "System",
-  sound: "Sound"
+  sound: "Sound",
+  admin: "Admin"
 });
+function normalizeSettingsTabId(tabId) {
+  const id = tabId === "sound" || tabId === "admin" ? tabId : "system";
+  if (id === "admin" && !isCafeNavAdmin()) return "system";
+  return id;
+}
 function readTabBtnPanelLabel(btn, fallback) {
   const label = btn?.querySelector(".settings-tab-btn-label")?.textContent?.trim();
   return label || fallback || "";
@@ -6871,7 +6888,7 @@ function readTabBtnPanelIcon(btn, fallback) {
   return fallback || "fa-solid fa-gear";
 }
 function settingsTabPanelMeta(tabId) {
-  const id = tabId === "sound" ? "sound" : "system";
+  const id = normalizeSettingsTabId(tabId);
   const btn = document.querySelector(`#settings-tab-row .settings-tab-btn[data-settings-tab="${id}"]`);
   return {
     title: readTabBtnPanelLabel(btn, SETTINGS_TAB_TITLES[id]),
@@ -6880,7 +6897,8 @@ function settingsTabPanelMeta(tabId) {
 }
 const SETTINGS_TAB_ICONS = Object.freeze({
   system: "fa-solid fa-desktop",
-  sound: "fa-solid fa-volume-high"
+  sound: "fa-solid fa-volume-high",
+  admin: "fa-solid fa-shield-halved"
 });
 function waitForSettingsModalSwapExit(el, token, liveToken) {
   return new Promise((resolve) => {
@@ -6970,13 +6988,13 @@ function syncSettingsModalTitle(tabId) {
   const iconEl = document.getElementById("settings-modal-title-icon");
   const row = document.getElementById("settings-modal-title-row");
   if (!titleEl) return;
-  const id = tabId === "sound" ? "sound" : "system";
+  const id = normalizeSettingsTabId(tabId);
   const { title, icon } = settingsTabPanelMeta(id);
   applyModalTitleContent(titleEl, iconEl, title, icon);
   resetFlyoutTitleMotion(row || titleEl);
 }
 function syncSettingsTabButtons(tabId, { instant = false, fromIndex } = {}) {
-  const id = tabId === "sound" ? "sound" : "system";
+  const id = normalizeSettingsTabId(tabId);
   document.querySelectorAll(".settings-tab-btn[data-settings-tab]").forEach((btn) => {
     const selected = btn.dataset.settingsTab === id;
     btn.classList.toggle("active", selected);
@@ -6985,7 +7003,7 @@ function syncSettingsTabButtons(tabId, { instant = false, fromIndex } = {}) {
   syncSettingsTabGlider({ instant, fromIndex });
 }
 function applySettingsTabContent(tabId) {
-  const id = tabId === "sound" ? "sound" : "system";
+  const id = normalizeSettingsTabId(tabId);
   settingsTabId = id;
   document.querySelectorAll(".settings-modal-section[data-settings-section]").forEach((section) => {
     const show = section.dataset.settingsSection === id;
@@ -7095,7 +7113,7 @@ function syncSettingsTabGlider({ instant = false, fromIndex } = {}) {
     );
 }
 function setSettingsTab(tabId, { instant = false, fromIndex } = {}) {
-  const id = tabId === "sound" ? "sound" : "system";
+  const id = normalizeSettingsTabId(tabId);
   const sameTab = settingsTabId === id;
   if (instant || isReducedMotionEnabled() || sameTab) {
     applySettingsTabContent(id);
@@ -7136,6 +7154,61 @@ function initAppModalPortals() {
   portalAppModalToBody(document.getElementById("lineups-video-modal"));
   portalAppModalToBody(document.getElementById("brand-logo-modal"));
 }
+function navFlagsApiUrl() {
+  const origin = typeof window.__CAFE_AUTH_ORIGIN === "string" ? window.__CAFE_AUTH_ORIGIN.trim().replace(/\/$/, "") : "";
+  return origin ? `${origin}/api/nav-flags` : "/api/nav-flags";
+}
+function applyNavFlags(next) {
+  navFlags = {
+    scrims: next?.scrims === true,
+    mouseCompare: next?.mouseCompare === true
+  };
+  syncAdminSettingsAccess();
+  applyEmptyPageNavDisabledState(document);
+  const flyout = document.getElementById("flyout-panel");
+  const flyoutOpen = flyout && !flyout.classList.contains("-translate-x-full") && flyout.getAttribute("aria-hidden") === "false";
+  if (flyoutOpen && activeFlyoutType) applyFlyoutMenuContent(activeFlyoutType);
+}
+async function refreshNavFlags() {
+  try {
+    const res = await fetch(navFlagsApiUrl(), { credentials: "include" });
+    if (!res.ok) return;
+    applyNavFlags(await res.json());
+  } catch {
+  }
+}
+async function saveNavFlags(next) {
+  const previous = { ...navFlags };
+  applyNavFlags(next);
+  try {
+    const res = await fetch(navFlagsApiUrl(), {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(navFlags)
+    });
+    if (!res.ok) throw new Error("nav_flags_save_failed");
+    applyNavFlags(await res.json());
+  } catch {
+    applyNavFlags(previous);
+    window.pushCafeNotification?.({
+      title: "Couldn't save",
+      body: "The admin switches were not updated."
+    });
+  }
+}
+function syncAdminSettingsAccess() {
+  const admin = isCafeNavAdmin();
+  const btn = document.querySelector('.settings-tab-btn[data-settings-tab="admin"]');
+  if (btn) {
+    btn.hidden = !admin;
+    btn.classList.toggle("hidden", !admin);
+  }
+  if (!admin && settingsTabId === "admin") setSettingsTab("system", { instant: true });
+  syncSettingsToggle(document.getElementById("settings-enable-scrims"), navFlags.scrims === true);
+  syncSettingsToggle(document.getElementById("settings-enable-mouse-compare"), navFlags.mouseCompare === true);
+  syncSettingsTabGlider({ instant: true });
+}
 function initSettingsModal() {
   const modal = document.getElementById("settings-modal");
   const backdrop = document.getElementById("settings-modal-backdrop");
@@ -7143,6 +7216,8 @@ function initSettingsModal() {
   const compactToggle = document.getElementById("settings-compact-sidebar");
   const soundsToggle = document.getElementById("settings-system-sounds");
   const motionToggle = document.getElementById("settings-reduced-motion");
+  const scrimsToggle = document.getElementById("settings-enable-scrims");
+  const mouseCompareToggle = document.getElementById("settings-enable-mouse-compare");
     if (!modal) return;
     initSettingsModalTabs();
   if (backdrop) backdrop.addEventListener("click", closeSettingsModal);
@@ -7171,6 +7246,18 @@ function initSettingsModal() {
             saveAppSettings();
             applyAppSettings();
         });
+    }
+    if (scrimsToggle) {
+      scrimsToggle.addEventListener("change", () => {
+        if (!isCafeNavAdmin()) return;
+        void saveNavFlags({ ...navFlags, scrims: scrimsToggle.checked });
+      });
+    }
+    if (mouseCompareToggle) {
+      mouseCompareToggle.addEventListener("change", () => {
+        if (!isCafeNavAdmin()) return;
+        void saveNavFlags({ ...navFlags, mouseCompare: mouseCompareToggle.checked });
+      });
     }
     initSettingsUiSoundGlide();
     initSettingsUiRefreshGlide();
@@ -7686,14 +7773,15 @@ window.addEventListener("DOMContentLoaded", () => {
   if (typeof window.initDiscordAuth === "function") window.initDiscordAuth();
   if (typeof window.initCafeAuthUiGuard === "function") window.initCafeAuthUiGuard();
   window.addEventListener("cafe-discord-auth-change", () => {
+    syncAdminSettingsAccess();
     applyEmptyPageNavDisabledState(document);
     const flyout = document.getElementById("flyout-panel");
     const flyoutOpen = flyout && !flyout.classList.contains("-translate-x-full") && flyout.getAttribute("aria-hidden") === "false";
-    if (activeFlyoutType === "more" && flyoutOpen && activeFlyoutParentBtn) {
-      openFlyout("more", activeFlyoutParentBtn);
-    }
+    if (flyoutOpen && activeFlyoutType) applyFlyoutMenuContent(activeFlyoutType);
   });
     initSettingsModal();
+    syncAdminSettingsAccess();
+    void refreshNavFlags();
     initLineupsVideoModal();
     initModalEscapeClose();
     initBrandLogoPreviewModal();

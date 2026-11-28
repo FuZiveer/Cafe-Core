@@ -326,6 +326,28 @@
                         </div>
                     </div>
                 </div>
+                <div id="settings-section-admin" class="settings-modal-section space-y-3 hidden" data-settings-section="admin" hidden>
+                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex items-center justify-between gap-4">
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold tracking-widest uppercase text-white">Enable Scrims button</p>
+                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Let everyone open Scrims. You can still open it when this is off.</p>
+                        </div>
+                        <label class="lazer-toggle ui-interactive shrink-0">
+                            <input type="checkbox" id="settings-enable-scrims" role="switch" aria-checked="false" aria-label="Enable Scrims button">
+                            <span class="lazer-slider" aria-hidden="true"></span>
+                        </label>
+                    </div>
+                    <div class="settings-row bg-matte-950 rounded-lg p-4 flex items-center justify-between gap-4">
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold tracking-widest uppercase text-white">Enable Mouse Compare</p>
+                            <p class="text-xs text-slate-500 mt-1 tracking-wide leading-snug">Let everyone open Mouse Compare. You can still open it when this is off.</p>
+                        </div>
+                        <label class="lazer-toggle ui-interactive shrink-0">
+                            <input type="checkbox" id="settings-enable-mouse-compare" role="switch" aria-checked="false" aria-label="Enable Mouse Compare">
+                            <span class="lazer-slider" aria-hidden="true"></span>
+                        </label>
+                    </div>
+                </div>
                 </div>
             </div>
             </div>
@@ -339,6 +361,10 @@
                     <button type="button" class="settings-tab-btn ui-interactive" data-settings-tab="sound" aria-selected="false">
                         <i class="fa-solid fa-volume-high settings-tab-btn-icon" aria-hidden="true"></i>
                         <span class="settings-tab-btn-label">Sound</span>
+                    </button>
+                    <button type="button" class="settings-tab-btn ui-interactive hidden" data-settings-tab="admin" aria-selected="false" hidden>
+                        <i class="fa-solid fa-shield-halved settings-tab-btn-icon" aria-hidden="true"></i>
+                        <span class="settings-tab-btn-label">Admin</span>
                     </button>
                 </div>
             </nav>
