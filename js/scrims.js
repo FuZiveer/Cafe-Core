@@ -28,7 +28,7 @@
   let activeLobbyId = "";
   let youAreHost = false;
   let youAsAdmin = false;
-  let queueActionPending = false;
+  let lobbyRequestInFlight = false;
   let queuePendingAction = null;
   let queueToggleGeneration = 0;
   let queuePendingSafetyTimer = null;
@@ -42,7 +42,9 @@
   let publicMatchesPollTimer = null;
   let lastPublicMatchesFetchAt = 0;
   let matchLiveTimerId = null;
+  let lastMatchPanelSignature = "";
   const matchTimerDisplayed = new WeakMap();
+  const matchTimerLastSecond = new WeakMap();
   const SCRIMS_DIGIT_TRANSITION = "transform 150ms ease-out";
 
   function scrimsToast(message) {
@@ -178,7 +180,7 @@
   }
 
   function clearQueuePendingState() {
-    queueActionPending = false;
+    lobbyRequestInFlight = false;
     queuePendingAction = null;
     joinRolePending = null;
     if (queuePendingSafetyTimer != null) {
@@ -188,7 +190,6 @@
   }
 
   function beginQueuePending(action, role = null) {
-    queueActionPending = true;
     queuePendingAction =
       action === "leave" ? "leave" : action === "start" ? "start" : "join";
     joinRolePending = role;
@@ -199,18 +200,6 @@
       void refreshScrimQueue({ force: true });
       if (root) renderQueue();
     }, 22e3);
-  }
-
-  function settleQueuePendingFromPayload(payload) {
-    if (!queueActionPending || !queuePendingAction) return;
-    const inQueue = amInQueueFromPayload(payload);
-    const matched =
-      (queuePendingAction === "leave" && !inQueue) ||
-      (queuePendingAction === "join" && inQueue) ||
-      (queuePendingAction === "start" &&
-        (payload.matchLive === true || Boolean(payload.activeMatch?.teams?.length >= 2)));
-    if (!matched) return;
-    clearQueuePendingState();
   }
 
   function getDiscordUser() {
@@ -258,15 +247,11 @@
 
   function announceMatchFound(match, lastMatchVoice) {
     const teams = match?.teams || [];
-    const body =
-      lastMatchVoice?.channels?.length
-        ? `Created ${lastMatchVoice.channels.length} team voice channel(s) in Discord.`
-        : teams.length >= 2
-          ? `${teams[0].name} vs ${teams[1].name} — check Active matches.`
-          : "Lobby full — match is live.";
-    window.pushCafeNotification?.({ title: "Match found", body });
-    const toastShort =
+    let toastShort =
       teams.length >= 2 ? `${teams[0].name} vs ${teams[1].name}` : "Match is live.";
+    if (lastMatchVoice?.channels?.length) {
+      toastShort += ` — ${lastMatchVoice.channels.length} team voice channel(s) in Discord`;
+    }
     scrimsToast(`Match found — ${toastShort}`);
   }
 
@@ -325,7 +310,6 @@
     if (nowLive && !wasLive && prevQueueVersion > 0) {
       announceMatchFound(activeMatch, payload.lastMatchVoice);
     }
-    settleQueuePendingFromPayload(payload);
     renderQueue();
   }
 
@@ -486,10 +470,12 @@
     timeEl.appendChild(display);
   }
 
-  function updateMatchTimerElement(timeEl, ms) {
+  function updateMatchTimerElement(timeEl, elapsedSec, { force = false } = {}) {
     ensureMatchTimerShell(timeEl);
-    const { h, m, s } = elapsedHmsParts(ms);
+    const sec = Math.max(0, Math.floor(Number(elapsedSec) || 0));
+    const { h, m, s } = elapsedHmsParts(sec * 1000);
     const displayKey = `${h}|${m}|${s}`;
+    if (!force && matchTimerDisplayed.get(timeEl) === displayKey) return;
     const prevKey = matchTimerDisplayed.get(timeEl);
     const prevParts = prevKey ? prevKey.split("|").map((n) => Number(n)) : null;
     const display = timeEl.querySelector(".scrims-match-timer-display");
@@ -499,30 +485,48 @@
     if (segH) paintScrimsAnimatedNumber(segH, h, prevParts ? prevParts[0] : null);
     if (segM) paintScrimsAnimatedNumber(segM, m, prevParts ? prevParts[1] : null);
     if (segS) paintScrimsAnimatedNumber(segS, s, prevParts ? prevParts[2] : null);
-    timeEl.setAttribute("aria-label", formatMatchElapsedHms(ms));
+    timeEl.setAttribute("aria-label", formatMatchElapsedHms(sec * 1000));
     matchTimerDisplayed.set(timeEl, displayKey);
+    matchTimerLastSecond.set(timeEl, sec);
   }
 
-  function syncMatchLiveTimers() {
+  function syncMatchLiveTimers({ force = false } = {}) {
     if (!root) return;
     const now = Date.now();
     root.querySelectorAll(".scrims-match-timer[data-match-started-at]").forEach((el) => {
       const started = Number(el.dataset.matchStartedAt) || 0;
-      const elapsed = started ? now - started : 0;
-      updateMatchTimerElement(el, elapsed);
+      if (!started) {
+        updateMatchTimerElement(el, 0, { force: true });
+        return;
+      }
+      const elapsedSec = Math.max(0, Math.floor((now - started) / 1000));
+      if (!force && matchTimerLastSecond.get(el) === elapsedSec) return;
+      updateMatchTimerElement(el, elapsedSec, { force });
     });
   }
 
   function stopMatchLiveTimer() {
     if (matchLiveTimerId == null) return;
-    clearInterval(matchLiveTimerId);
+    clearTimeout(matchLiveTimerId);
     matchLiveTimerId = null;
+  }
+
+  function scheduleMatchLiveTimerTick() {
+    const now = Date.now();
+    const msUntilNextSecond = 1000 - (now % 1000);
+    matchLiveTimerId = window.setTimeout(() => {
+      matchLiveTimerId = null;
+      syncMatchLiveTimers();
+      if (root?.querySelector(".scrims-match-timer[data-match-started-at]")) {
+        scheduleMatchLiveTimerTick();
+      }
+    }, msUntilNextSecond);
   }
 
   function startMatchLiveTimer() {
     if (matchLiveTimerId != null) return;
-    syncMatchLiveTimers();
-    matchLiveTimerId = window.setInterval(syncMatchLiveTimers, 1e3);
+    syncMatchLiveTimers({ force: true });
+    scheduleMatchLiveTimerTick();
   }
 
   function standingByCopy(count) {
@@ -692,7 +696,10 @@
     matchTimer.dataset.matchStartedAt = String(startedAt);
     matchTimer.setAttribute("datetime", startedAt ? new Date(startedAt).toISOString() : "");
     matchTimer.setAttribute("title", "Match duration");
-    updateMatchTimerElement(matchTimer, startedAt ? Date.now() - startedAt : 0);
+    const initialSec = startedAt
+      ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+      : 0;
+    updateMatchTimerElement(matchTimer, initialSec, { force: true });
 
     rightCol.appendChild(rightName);
     rightCol.appendChild(matchTimer);
@@ -722,6 +729,20 @@
     return card;
   }
 
+  function matchPanelSignature(matches) {
+    return matches
+      .map((match) => {
+        const started = Math.max(0, Number(match?.startedAt) || 0);
+        const teams = match?.teams || [];
+        const left = teams[0]?.name || "";
+        const right = teams[1]?.name || "";
+        const leftIds = (teams[0]?.players || []).map((p) => p?.id || "").join(",");
+        const rightIds = (teams[1]?.players || []).map((p) => p?.id || "").join(",");
+        return `${started}|${left}|${right}|${leftIds}|${rightIds}`;
+      })
+      .join(";;");
+  }
+
   function renderMatchesPanel() {
     const live = root?.querySelector("#scrims-matches-live");
     const emptyWrap = root?.querySelector("#scrims-matches-empty");
@@ -738,15 +759,22 @@
       if (activeWrap) activeWrap.hidden = false;
       if (!activeWrap) return;
 
-      activeWrap.replaceChildren();
-      for (const match of matches) {
-        activeWrap.appendChild(createMatchCardElement(match));
+      const sig = matchPanelSignature(matches);
+      if (sig !== lastMatchPanelSignature || !activeWrap.children.length) {
+        lastMatchPanelSignature = sig;
+        activeWrap.replaceChildren();
+        for (const match of matches) {
+          activeWrap.appendChild(createMatchCardElement(match));
+        }
+      } else {
+        syncMatchLiveTimers({ force: false });
       }
       startMatchLiveTimer();
       stopPublicMatchesPoll();
       return;
     }
 
+    lastMatchPanelSignature = "";
     stopMatchLiveTimer();
     live.textContent = "0 live";
     activeWrap?.classList.add("hidden");
@@ -863,15 +891,15 @@
       inviteJoinActions.hidden = !showJoinChoices;
     }
     if (joinPlayerBtn) {
-      joinPlayerBtn.disabled = queueActionPending || playersFull;
+      joinPlayerBtn.disabled = lobbyRequestInFlight || playersFull;
       const joiningPlayer =
-        queueActionPending && queuePendingAction === "join" && joinRolePending === "player";
+        lobbyRequestInFlight && queuePendingAction === "join" && joinRolePending === "player";
       joinPlayerBtn.textContent = joiningPlayer ? "Joining…" : "Join as player";
     }
     if (joinAdminBtn) {
-      joinAdminBtn.disabled = queueActionPending || adminsFull;
+      joinAdminBtn.disabled = lobbyRequestInFlight || adminsFull;
       const joiningAdmin =
-        queueActionPending && queuePendingAction === "join" && joinRolePending === "admin";
+        lobbyRequestInFlight && queuePendingAction === "join" && joinRolePending === "admin";
       joinAdminBtn.textContent = joiningAdmin ? "Joining…" : "Join as admin";
     }
     if (createBtn) {
@@ -879,9 +907,9 @@
       matchLive || !signedIn || userQueued || Boolean(lobbyContext);
       createBtn.classList.toggle("hidden", hideCreate);
       createBtn.hidden = hideCreate;
-      createBtn.disabled = queueActionPending;
+      createBtn.disabled = lobbyRequestInFlight;
       const creating =
-        queueActionPending && queuePendingAction === "join" && !joinRolePending;
+        lobbyRequestInFlight && queuePendingAction === "join" && !joinRolePending;
       createBtn.textContent = creating ? "Creating…" : "Create lobby";
     }
     const showManaged = Boolean(
@@ -892,9 +920,9 @@
       inviteManaged.hidden = !showManaged;
     }
     if (leaveBtn) {
-      leaveBtn.disabled = queueActionPending;
+      leaveBtn.disabled = lobbyRequestInFlight;
       leaveBtn.textContent =
-        queueActionPending && queuePendingAction === "leave" ? "Leaving…" : "Leave lobby";
+        lobbyRequestInFlight && queuePendingAction === "leave" ? "Leaving…" : "Leave lobby";
     }
     const showStartMatch = Boolean(
       showManaged && (youAsAdmin || youAreHost) && !matchLive
@@ -903,8 +931,8 @@
       startMatchBtn.classList.toggle("hidden", !showStartMatch);
       startMatchBtn.hidden = !showStartMatch;
       startMatchBtn.setAttribute("aria-hidden", showStartMatch ? "false" : "true");
-      startMatchBtn.disabled = queueActionPending || matchLive || lobbyOccupantCount() < 2;
-      const starting = queueActionPending && queuePendingAction === "start";
+      startMatchBtn.disabled = lobbyRequestInFlight || matchLive || lobbyOccupantCount() < 2;
+      const starting = lobbyRequestInFlight && queuePendingAction === "start";
       startMatchBtn.textContent = starting ? "Starting…" : "Start match";
     }
 
@@ -1120,7 +1148,13 @@
   }
 
   async function lobbyRequest(path, action, { timeoutMs = 15e3, role = null } = {}) {
-    if (!getDiscordUser() || queueActionPending || !apiBase()) return;
+    if (!getDiscordUser()) {
+      scrimsToast("Sign in with Discord first.");
+      return;
+    }
+    if (!apiBase()) return;
+    if (lobbyRequestInFlight) return;
+    lobbyRequestInFlight = true;
     const gen = ++queueToggleGeneration;
     beginQueuePending(action, role);
     renderQueue();
@@ -1182,10 +1216,9 @@
         window.pushCafeNotification?.({ title: "Request timed out", body: "Try again if the button looks stuck." });
       }
     } finally {
-      if (gen === queueToggleGeneration) {
-        clearQueuePendingState();
-        renderQueue();
-      }
+      lobbyRequestInFlight = false;
+      clearQueuePendingState();
+      if (root) renderQueue();
     }
   }
 
@@ -1199,14 +1232,20 @@
 
   function handleJoinAsPlayer() {
     const code = lobbyCodeForJoin();
-    if (!code) return;
+    if (!code) {
+      scrimsToast("Open a lobby invite link first.");
+      return;
+    }
     activeLobbyId = code;
     void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(code)}/join`, "join", { role: "player" });
   }
 
   function handleJoinAsAdmin() {
     const code = lobbyCodeForJoin();
-    if (!code) return;
+    if (!code) {
+      scrimsToast("Open a lobby invite link first.");
+      return;
+    }
     activeLobbyId = code;
     void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(code)}/join`, "join", { role: "admin" });
   }
@@ -1218,6 +1257,10 @@
 
   function handleStartMatch() {
     if (!activeLobbyId) return;
+    if (lobbyOccupantCount() < 2 || queueCount() < 2) {
+      scrimsToast("Need at least 2 people and 2 players in the lobby to start.");
+      return;
+    }
     void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(activeLobbyId)}/start`, "start");
   }
 

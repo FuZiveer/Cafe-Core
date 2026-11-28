@@ -7416,8 +7416,39 @@ html.reduce-motion .keyboard-checker-key {
   color: inherit;
   vertical-align: middle;
 }
+#page-scrims .scrims-match-timer-seg .bl-scrim-digit-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.04em;
+}
 #page-scrims .scrims-match-timer-seg .bl-scrim-digit-slot {
+  position: relative;
+  display: inline-block;
+  height: var(--bl-scrim-digit-step);
   width: 0.58em;
+  overflow: hidden;
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+}
+#page-scrims .scrims-match-timer-seg .bl-scrim-digit-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  will-change: transform;
+}
+#page-scrims .scrims-match-timer-seg .bl-scrim-digit {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--bl-scrim-digit-step);
+  width: 100%;
+  line-height: 1;
+}
+html.reduce-motion #page-scrims .scrims-match-timer-seg .bl-scrim-digit-strip {
+  transition: none !important;
 }
 #page-scrims .scrims-match-timer-colon {
   font-size: 0.75rem;
