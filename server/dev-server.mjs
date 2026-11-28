@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { getAuthConfig, handleDiscordAuthRequest } from "./discord-auth.mjs";
 import { handleBlApiRequest } from "./bl-api.mjs";
 import { handleScrimUpgrade } from "./bl-scrim-ws.mjs";
-import { handleScrimQueueUpgrade } from "./scrim-queue-ws.mjs";
+import { handleScrimQueueUpgrade, startScrimLobbyRedisFanout } from "./scrim-queue-ws.mjs";
 import { handleScrimQueueApiRequest } from "./scrim-queue-api.mjs";
 import { purgeAllScrimsMatchStateOnBoot } from "./scrim-queue-store.mjs";
 import { broadcastScrimLobby } from "./scrim-queue-ws.mjs";
@@ -179,6 +179,7 @@ server.listen(PORT, "0.0.0.0", () => {
     );
   } else {
     console.log("[cafe] Scrim record persistence: Upstash Redis");
+    startScrimLobbyRedisFanout();
   }
   if (process.env.SCRIM_KEEP_MATCHES_ON_BOOT === "1") {
     console.log("[scrim-queue] Skipping live-match purge on boot (SCRIM_KEEP_MATCHES_ON_BOOT=1)");

@@ -306,6 +306,7 @@
     if (!payload || !Array.isArray(payload.slots)) return;
     const nextVersion = Number(payload.version) || 0;
     if (nextVersion < queueVersion) return;
+    if (queueRequestInFlight && nextVersion <= queueVersion) return;
     queueVersion = nextVersion;
     if (Number(payload.capacity) >= 2) {
       queueCapacity = Math.min(10, Math.round(Number(payload.capacity)));
@@ -902,18 +903,25 @@
     }, 3e3);
   }
 
-  function stopQueuePoll() {
+  const LOBBY_STATE_POLL_MS = 1200;
+
+  function stopLobbyStatePoll() {
     if (queuePollTimer == null) return;
     clearInterval(queuePollTimer);
     queuePollTimer = null;
   }
 
-  function startQueuePollFallback() {
+  function syncLobbyStatePoll() {
+    const lobby = activeLobbyId || getLobbyCodeFromUrl();
+    if (!root || !lobby || !apiBase()) {
+      stopLobbyStatePoll();
+      return;
+    }
     if (queuePollTimer != null) return;
     queuePollTimer = window.setInterval(() => {
       if (!root) return;
       void refreshScrimQueue();
-    }, 4e3);
+    }, LOBBY_STATE_POLL_MS);
   }
 
   function connectScrimQueueWebSocket() {
@@ -934,14 +942,14 @@
       ws = new WebSocket(`${base}/ws/scrims/lobby/${encodeURIComponent(lobby)}`);
     } catch {
       scheduleQueueWsReconnect();
-      startQueuePollFallback();
+      syncLobbyStatePoll();
       return;
     }
     queueWs = ws;
     queueWsLobbyId = lobby;
     ws.onopen = () => {
       if (queueWs !== ws) return;
-      stopQueuePoll();
+      syncLobbyStatePoll();
     };
     ws.onmessage = (event) => {
       try {
@@ -955,7 +963,7 @@
       if (queueWs === ws) queueWs = null;
       if (!queueWsManualClose && root) {
         scheduleQueueWsReconnect();
-        startQueuePollFallback();
+        syncLobbyStatePoll();
       }
     };
     ws.onerror = () => {
@@ -970,7 +978,7 @@
     queueWsManualClose = true;
     clearTimeout(queueWsReconnectTimer);
     queueWsReconnectTimer = null;
-    stopQueuePoll();
+    stopLobbyStatePoll();
     const ws = queueWs;
     queueWs = null;
     queueWsLobbyId = "";
@@ -1016,6 +1024,7 @@
         activeLobbyId = normalizeLobbyCode(data.lobbyId);
         disconnectScrimQueueWebSocket();
         connectScrimQueueWebSocket();
+        syncLobbyStatePoll();
       }
       if (data.activeMatch) {
         const teams = data.activeMatch.teams || [];
@@ -1129,6 +1138,7 @@
       disconnectScrimQueueWebSocket();
       connectScrimQueueWebSocket();
     }
+    syncLobbyStatePoll();
     void refreshScrimQueue({ force: true });
   }
 
@@ -1210,6 +1220,7 @@
     syncPublicMatchesPoll();
     void refreshScrimQueue({ force: true });
     connectScrimQueueWebSocket();
+    syncLobbyStatePoll();
     if (!getDiscordUser() && typeof window.refreshDiscordAuthUi === "function") {
       void window.refreshDiscordAuthUi();
     }

@@ -5,10 +5,21 @@ import {
   queuePayload,
   readLobby
 } from "./scrim-queue-store.mjs";
+import {
+  usesUpstashRedis,
+  upstashRedisGetJson,
+  upstashRedisSetJson
+} from "./upstash-redis.mjs";
 
 export const SCRIM_LOBBY_WS_PREFIX = "/ws/scrims/lobby/";
 
+const LOBBY_REV_PREFIX = String(
+  process.env.SCRIM_LOBBY_REV_PREFIX || "cafe:scrim-lobby:rev:"
+).trim();
+
 const clientsByLobby = new Map();
+const fanoutSeenVersion = new Map();
+let fanoutTimer = null;
 
 function lobbyClients(lobbyId) {
   const id = normalizeLobbyId(lobbyId);
@@ -23,13 +34,74 @@ function queueMessage(queue) {
   });
 }
 
-export function broadcastScrimLobby(lobbyId, queue) {
+function lobbyRevKey(lobbyId) {
+  return `${LOBBY_REV_PREFIX}${normalizeLobbyId(lobbyId)}`;
+}
+
+function localBroadcastScrimLobby(lobbyId, queue) {
   const id = normalizeLobbyId(lobbyId);
   if (!id) return;
   const payload = queueMessage(queue);
   for (const ws of lobbyClients(id)) {
     if (ws.readyState === 1) ws.send(payload);
   }
+}
+
+async function touchLobbyRevision(lobbyId, version) {
+  const id = normalizeLobbyId(lobbyId);
+  const v = Math.max(0, Math.round(Number(version) || 0));
+  if (!id || v < 1) return;
+  fanoutSeenVersion.set(id, v);
+  if (!usesUpstashRedis()) return;
+  try {
+    await upstashRedisSetJson(lobbyRevKey(id), { v, at: Date.now() });
+  } catch (err) {
+    console.warn("[scrim-queue-ws] lobby revision touch failed:", err?.message || err);
+  }
+}
+
+/** Fan out lobby state to local WS clients on every instance (Render multi-instance safe). */
+export function broadcastScrimLobby(lobbyId, queue) {
+  const id = normalizeLobbyId(lobbyId);
+  if (!id) return;
+  localBroadcastScrimLobby(id, queue);
+  void touchLobbyRevision(id, queue?.version);
+}
+
+async function fanoutScrimsLobbyTick() {
+  if (!usesUpstashRedis() || clientsByLobby.size === 0) return;
+  for (const lobbyId of clientsByLobby.keys()) {
+    const prev = fanoutSeenVersion.get(lobbyId) || 0;
+    let rev = null;
+    try {
+      rev = await upstashRedisGetJson(lobbyRevKey(lobbyId));
+    } catch {
+      continue;
+    }
+    const v = Math.max(0, Math.round(Number(rev?.v) || 0));
+    if (v <= prev) continue;
+    let queue;
+    try {
+      queue = await readLobby(lobbyId);
+    } catch {
+      continue;
+    }
+    if (!queue) continue;
+    fanoutSeenVersion.set(lobbyId, v);
+    localBroadcastScrimLobby(lobbyId, queue);
+  }
+}
+
+export function startScrimLobbyRedisFanout() {
+  if (fanoutTimer != null || !usesUpstashRedis()) return;
+  const ms = Math.max(
+    200,
+    Math.round(Number(process.env.SCRIM_LOBBY_FANOUT_MS) || 450)
+  );
+  fanoutTimer = setInterval(() => {
+    void fanoutScrimsLobbyTick();
+  }, ms);
+  if (typeof fanoutTimer.unref === "function") fanoutTimer.unref();
 }
 
 /** @deprecated use broadcastScrimLobby */
