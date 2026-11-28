@@ -67,6 +67,7 @@ function emptyQueue() {
     matchVoicePending: false,
     lastMatchVoice: null,
     matchVoiceError: null,
+    forceMatchLive: false,
     lobbyId: "",
     hostId: "",
     createdAt: 0
@@ -116,7 +117,8 @@ export function normalizeScrimQueue(raw) {
     lastMatchVoice:
       raw.lastMatchVoice && typeof raw.lastMatchVoice === "object" ? raw.lastMatchVoice : null,
     matchVoiceError:
-      raw.matchVoiceError && typeof raw.matchVoiceError === "object" ? raw.matchVoiceError : null
+      raw.matchVoiceError && typeof raw.matchVoiceError === "object" ? raw.matchVoiceError : null,
+    forceMatchLive: Boolean(raw.forceMatchLive)
   };
   return normalizeLobbyMeta(raw, core);
 }
@@ -225,9 +227,12 @@ function teamNameForUser(queue, userId) {
 }
 
 export function computeActiveMatch(queue) {
-  if (queueCount(queue) < QUEUE_CAP) return null;
+  const count = queueCount(queue);
+  const forced = queue.forceMatchLive === true;
+  if (!forced && count < QUEUE_CAP) return null;
   const players = queue.slots.filter(Boolean);
-  if (players.length < QUEUE_CAP) return null;
+  if (players.length < 2) return null;
+  if (!forced && players.length < QUEUE_CAP) return null;
 
   const matchId =
     queue.lastMatchVoice?.matchId || `scrim-v${queue.version}`;
@@ -383,6 +388,40 @@ export async function writeLobby(lobbyId, queue) {
   }
 }
 
+export async function listAllLobbies() {
+  if (!usesUpstashRedis()) {
+    return [...memoryLobbies.values()].map((q) => normalizeScrimQueue(q));
+  }
+  try {
+    const pattern = `${LOBBY_KEY_PREFIX}*`;
+    const keys = await upstashRedisCommand(["KEYS", pattern]);
+    const list = Array.isArray(keys) ? keys : keys != null && keys !== "" ? [keys] : [];
+    const queues = [];
+    for (const key of list) {
+      const keyStr = typeof key === "string" ? key : String(key);
+      const q = await upstashRedisGetJson(keyStr);
+      if (q) queues.push(normalizeScrimQueue(q));
+    }
+    return queues;
+  } catch {
+    return [...memoryLobbies.values()].map((q) => normalizeScrimQueue(q));
+  }
+}
+
+export async function listLiveActiveMatches() {
+  const queues = await listAllLobbies();
+  const matches = [];
+  for (const queue of queues) {
+    const activeMatch = computeActiveMatch(queue);
+    if (!activeMatch) continue;
+    matches.push({
+      lobbyId: queue.lobbyId || "",
+      activeMatch
+    });
+  }
+  return matches;
+}
+
 export async function deleteLobby(lobbyId) {
   const id = normalizeLobbyId(lobbyId);
   if (!id) return;
@@ -496,6 +535,35 @@ function userInLobbyRoster(q, uid) {
   return false;
 }
 
+export async function startLobbyMatch(lobbyId, userId) {
+  const id = normalizeLobbyId(lobbyId);
+  if (!id) return { ok: false, error: "invalid_lobby" };
+  const uid = String(userId || "").trim();
+  if (!uid) return { ok: false, error: "invalid_user" };
+  const current = await readLobby(id);
+  if (!current) return { ok: false, error: "lobby_not_found" };
+  if (computeActiveMatch(current)) {
+    return { ok: true, queue: current, alreadyLive: true };
+  }
+  const isAdmin = (current.adminSlots || []).some((s) => s?.id === uid);
+  const isHost = String(current.hostId) === uid;
+  if (!isAdmin && !isHost) return { ok: false, error: "not_authorized" };
+  if (queueCount(current) < 2) return { ok: false, error: "not_enough_players" };
+  const outcome = await mutateLobby(id, (q) => {
+    ensureLobbyRosterShape(q);
+    const canAdmin = q.adminSlots.some((s) => s?.id === uid);
+    const canHost = String(q.hostId) === uid;
+    if (!canAdmin && !canHost) return { error: "not_authorized" };
+    if (queueCount(q) < 2) return { error: "not_enough_players" };
+    q.forceMatchLive = true;
+    return q;
+  });
+  if (!outcome.ok) {
+    return { ok: false, error: outcome.error || "start_failed", queue: outcome.queue };
+  }
+  return { ok: true, queue: outcome.queue };
+}
+
 export async function leaveLobby(lobbyId, userId) {
   const id = normalizeLobbyId(lobbyId);
   if (!id) return { ok: false, error: "invalid_lobby" };
@@ -529,6 +597,7 @@ export async function leaveLobby(lobbyId, userId) {
         q.matchVoicePending = false;
         q.lastMatchVoice = null;
         q.matchVoiceError = null;
+        q.forceMatchLive = false;
       }
     }
     const adminIdx = q.adminSlots.findIndex((s) => s?.id === uid);

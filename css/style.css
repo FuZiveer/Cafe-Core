@@ -7141,12 +7141,21 @@ html.reduce-motion .keyboard-checker-key {
   --scrims-roster-cols: 2;
 }
 #page-scrims .scrims-roster-slot--admin.scrims-roster-slot--filled {
+  border-style: solid;
   border-color: rgb(147 51 234 / 0.45);
-  background: rgb(147 51 234 / 0.08);
+  background: linear-gradient(180deg, rgb(147 51 234 / 0.12) 0%, rgb(109 40 217 / 0.08) 100%);
+  box-shadow:
+    0 0 20px rgb(147 51 234 / 0.15),
+    inset 0 0 0 1px rgb(147 51 234 / 0.25);
+}
+#page-scrims .scrims-roster-slot--admin.scrims-roster-slot--filled .scrims-roster-slot-avatar {
+  box-shadow: 0 0 0 2px rgb(147 51 234 / 0.55);
 }
 #page-scrims .scrims-invite-join {
   margin-top: 1.25rem;
   padding: 1.1rem 1.15rem;
+  height: auto;
+  min-height: 0;
   border-radius: 0.65rem;
   border: 1px solid var(--scrims-glass-border);
   background: rgb(12 14 18 / 0.55);
@@ -7172,17 +7181,43 @@ html.reduce-motion .keyboard-checker-key {
 #page-scrims .scrims-invite-join-actions .scrims-cta {
   margin-top: 0;
 }
-#page-scrims .scrims-invite-join-leave {
+#page-scrims .scrims-invite-join-managed {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(71 85 105 / 0.35);
+}
+#page-scrims .scrims-invite-join:not(:has(.scrims-invite-join-title:not(.hidden))) .scrims-invite-join-managed {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+#page-scrims .scrims-invite-join-managed.hidden {
+  display: none !important;
+}
+#page-scrims .scrims-invite-join-managed .scrims-cta {
   width: auto;
   min-width: 11.5rem;
   max-width: 16rem;
-  margin: 1rem auto 0;
+  flex: 0 1 auto;
+  margin-top: 0;
 }
 #page-scrims .scrims-cta--admin {
-  background: linear-gradient(180deg, rgb(168 85 247) 0%, rgb(109 40 217) 100%);
+  border: 1px solid rgb(147 51 234 / 0.45);
+  background: linear-gradient(180deg, rgb(147 51 234 / 0.16) 0%, rgb(109 40 217 / 0.12) 100%);
   box-shadow:
-    0 0 22px rgb(147 51 234 / 0.35),
+    0 0 20px rgb(147 51 234 / 0.18),
+    inset 0 0 0 1px rgb(147 51 234 / 0.2),
+    0 1px 0 rgb(255 255 255 / 0.06) inset;
+}
+#page-scrims .scrims-cta--start {
+  background: linear-gradient(180deg, rgb(34 197 94) 0%, rgb(22 163 74) 100%);
+  box-shadow:
+    0 0 22px rgb(34 197 94 / 0.35),
     0 1px 0 rgb(255 255 255 / 0.08) inset;
 }
 #page-scrims .scrims-lobby-actions {
@@ -7301,6 +7336,9 @@ html.reduce-motion .keyboard-checker-key {
   color: var(--scrims-muted);
 }
 #page-scrims .scrims-matches-active {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   padding: 1.5rem 1.35rem 1.75rem;
 }
 #page-scrims .scrims-matches-active.hidden,

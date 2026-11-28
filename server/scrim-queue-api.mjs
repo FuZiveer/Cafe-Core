@@ -5,6 +5,8 @@ import {
   createLobby,
   joinLobby,
   leaveLobby,
+  listLiveActiveMatches,
+  startLobbyMatch,
   normalizeLobbyId,
   queueCount,
   queueMemberIds,
@@ -106,6 +108,13 @@ function lobbyPathId(pathname) {
 export async function handleScrimQueueApiRequest(req, res, url, cfg) {
   const pathname = url.pathname;
 
+  if (pathname === "/api/scrims/matches" && req.method === "GET") {
+    applyCors(req, res, cfg);
+    const matches = await listLiveActiveMatches();
+    sendJson(res, 200, { count: matches.length, matches });
+    return true;
+  }
+
   if (pathname === "/api/scrims/lobbies" && req.method === "POST") {
     applyCors(req, res, cfg);
     const user = getSessionUser(req);
@@ -186,6 +195,46 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
         console.error("[scrim-queue] background match voice:", err?.message || err);
       });
     }
+    sendJson(res, 200, { ok: true, ...queuePayload(queue, user.id) });
+    return true;
+  }
+
+  if (lobbyId && pathname === `/api/scrims/lobbies/${lobbyId}/start` && req.method === "POST") {
+    applyCors(req, res, cfg);
+    const user = getSessionUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "sign_in_required" });
+      return true;
+    }
+    if (await readJsonBody(req) === null) {
+      sendJson(res, 400, { error: "invalid_json" });
+      return true;
+    }
+    const outcome = await startLobbyMatch(lobbyId, user.id);
+    if (!outcome.ok) {
+      const code = outcome.error || "start_failed";
+      const status =
+        code === "not_authorized"
+          ? 403
+          : code === "lobby_not_found"
+            ? 404
+            : code === "not_enough_players"
+              ? 409
+              : 400;
+      const fallback = outcome.queue || (await readLobby(lobbyId));
+      sendJson(res, status, {
+        error: code,
+        ...(fallback ? queuePayload(fallback, user.id) : { lobbyId })
+      });
+      return true;
+    }
+    let queue = outcome.queue;
+    queue = await enrichScrimQueueTeamNames(queue);
+    await writeLobby(lobbyId, queue);
+    broadcastScrimLobby(lobbyId, queue);
+    void maybeProvisionMatchVoice(lobbyId).catch((err) => {
+      console.error("[scrim-queue] background match voice:", err?.message || err);
+    });
     sendJson(res, 200, { ok: true, ...queuePayload(queue, user.id) });
     return true;
   }

@@ -15,6 +15,7 @@
   let onJoinAsPlayerClick = null;
   let onJoinAsAdminClick = null;
   let onLeaveLobbyClick = null;
+  let onStartMatchClick = null;
   let onCopyLinkClick = null;
   let onSignInClick = null;
   let onAuthChange = null;
@@ -26,6 +27,7 @@
   let matchVoiceError = null;
   let activeLobbyId = "";
   let youAreHost = false;
+  let youAsAdmin = false;
   let queueActionPending = false;
   let queuePendingAction = null;
   let queueToggleGeneration = 0;
@@ -36,6 +38,15 @@
   let queueWsManualClose = false;
   let queuePollTimer = null;
   let lastQueueFetchAt = 0;
+  let publicActiveMatches = [];
+  let publicMatchesPollTimer = null;
+  let lastPublicMatchesFetchAt = 0;
+
+  function scrimsToast(message) {
+    const text = String(message || "").trim();
+    if (!text) return;
+    window.CafeCore?.Toast?.show?.(text);
+  }
 
   function authOriginOverride() {
     const o = window.__CAFE_AUTH_ORIGIN;
@@ -175,7 +186,8 @@
 
   function beginQueuePending(action, role = null) {
     queueActionPending = true;
-    queuePendingAction = action === "leave" ? "leave" : "join";
+    queuePendingAction =
+      action === "leave" ? "leave" : action === "start" ? "start" : "join";
     joinRolePending = role;
     if (queuePendingSafetyTimer != null) clearTimeout(queuePendingSafetyTimer);
     queuePendingSafetyTimer = window.setTimeout(() => {
@@ -191,7 +203,9 @@
     const inQueue = amInQueueFromPayload(payload);
     const matched =
       (queuePendingAction === "leave" && !inQueue) ||
-      (queuePendingAction === "join" && inQueue);
+      (queuePendingAction === "join" && inQueue) ||
+      (queuePendingAction === "start" &&
+        (payload.matchLive === true || Boolean(payload.activeMatch?.teams?.length >= 2)));
     if (!matched) return;
     clearQueuePendingState();
   }
@@ -227,6 +241,7 @@
     activeLobbyId = "";
     userQueued = false;
     youAreHost = false;
+    youAsAdmin = false;
     activeMatch = null;
     lastMatchVoice = null;
     matchVoiceError = null;
@@ -282,6 +297,7 @@
       setLobbyInUrl(activeLobbyId);
     }
     youAreHost = payload.youAreHost === true;
+    youAsAdmin = payload.youAsAdmin === true;
     settleQueuePendingFromPayload(payload);
     renderQueue();
   }
@@ -424,65 +440,79 @@
     sideEl.appendChild(grid);
   }
 
+  function activeMatchesForPanel() {
+    if (activeMatch?.teams?.length >= 2) return [activeMatch];
+    return publicActiveMatches
+      .map((entry) => entry?.activeMatch)
+      .filter((match) => match?.teams?.length >= 2);
+  }
+
+  function createMatchCardElement(match) {
+    const [left, right] = match.teams;
+    const card = document.createElement("article");
+    card.className = "scrims-match-card";
+    card.setAttribute("aria-label", `${left.name} versus ${right.name}`);
+
+    const namesRow = document.createElement("div");
+    namesRow.className = "scrims-match-team-names";
+
+    const leftName = document.createElement("p");
+    leftName.className = "scrims-match-team-name scrims-match-team-name--left";
+    leftName.textContent = left.name || "Team";
+
+    const namesVs = document.createElement("div");
+    namesVs.className = "scrims-match-team-names-gap";
+    namesVs.setAttribute("aria-hidden", "true");
+
+    const rightName = document.createElement("p");
+    rightName.className = "scrims-match-team-name scrims-match-team-name--right";
+    rightName.textContent = right.name || "Team";
+
+    namesRow.appendChild(leftName);
+    namesRow.appendChild(namesVs);
+    namesRow.appendChild(rightName);
+
+    const versus = document.createElement("div");
+    versus.className = "scrims-match-versus";
+
+    const leftSide = document.createElement("div");
+    const vs = document.createElement("div");
+    vs.className = "scrims-match-vs";
+    vs.setAttribute("aria-hidden", "true");
+    vs.textContent = "VS";
+    const rightSide = document.createElement("div");
+
+    renderMatchTeamSide(leftSide, left, "left");
+    renderMatchTeamSide(rightSide, right, "right");
+    versus.appendChild(leftSide);
+    versus.appendChild(vs);
+    versus.appendChild(rightSide);
+
+    card.appendChild(namesRow);
+    card.appendChild(versus);
+    return card;
+  }
+
   function renderMatchesPanel() {
     const live = root?.querySelector("#scrims-matches-live");
     const emptyWrap = root?.querySelector("#scrims-matches-empty");
     const activeWrap = root?.querySelector("#scrims-matches-active");
     if (!live) return;
 
-    const hasMatch = Boolean(activeMatch?.teams?.length >= 2);
+    const matches = activeMatchesForPanel();
+    const hasMatch = matches.length > 0;
     if (hasMatch) {
-      live.textContent = "1 live";
+      live.textContent = matches.length === 1 ? "1 live" : `${matches.length} live`;
       emptyWrap?.classList.add("hidden");
       if (emptyWrap) emptyWrap.hidden = true;
       activeWrap?.classList.remove("hidden");
       if (activeWrap) activeWrap.hidden = false;
       if (!activeWrap) return;
 
-      const [left, right] = activeMatch.teams;
       activeWrap.replaceChildren();
-      const card = document.createElement("article");
-      card.className = "scrims-match-card";
-      card.setAttribute("aria-label", `${left.name} versus ${right.name}`);
-
-      const namesRow = document.createElement("div");
-      namesRow.className = "scrims-match-team-names";
-
-      const leftName = document.createElement("p");
-      leftName.className = "scrims-match-team-name scrims-match-team-name--left";
-      leftName.textContent = left.name || "Team";
-
-      const namesVs = document.createElement("div");
-      namesVs.className = "scrims-match-team-names-gap";
-      namesVs.setAttribute("aria-hidden", "true");
-
-      const rightName = document.createElement("p");
-      rightName.className = "scrims-match-team-name scrims-match-team-name--right";
-      rightName.textContent = right.name || "Team";
-
-      namesRow.appendChild(leftName);
-      namesRow.appendChild(namesVs);
-      namesRow.appendChild(rightName);
-
-      const versus = document.createElement("div");
-      versus.className = "scrims-match-versus";
-
-      const leftSide = document.createElement("div");
-      const vs = document.createElement("div");
-      vs.className = "scrims-match-vs";
-      vs.setAttribute("aria-hidden", "true");
-      vs.textContent = "VS";
-      const rightSide = document.createElement("div");
-
-      renderMatchTeamSide(leftSide, left, "left");
-      renderMatchTeamSide(rightSide, right, "right");
-      versus.appendChild(leftSide);
-      versus.appendChild(vs);
-      versus.appendChild(rightSide);
-
-      card.appendChild(namesRow);
-      card.appendChild(versus);
-      activeWrap.appendChild(card);
+      for (const match of matches) {
+        activeWrap.appendChild(createMatchCardElement(match));
+      }
       return;
     }
 
@@ -515,7 +545,9 @@
     const inviteJoinActions = root.querySelector(".scrims-invite-join-actions");
     const joinPlayerBtn = root.querySelector("#scrims-join-as-player");
     const joinAdminBtn = root.querySelector("#scrims-join-as-admin");
+    const inviteManaged = root.querySelector("#scrims-invite-join-managed");
     const leaveBtn = root.querySelector("#scrims-leave-lobby");
+    const startMatchBtn = root.querySelector("#scrims-start-match");
     const adminSlotsEl = root.querySelector("#scrims-admin-slots");
     const adminCapLabel = root.querySelector("#scrims-admin-cap-label");
     const inviteWrap = root.querySelector("#scrims-lobby-invite");
@@ -620,13 +652,23 @@
       createBtn.disabled = queueActionPending;
       createBtn.textContent = queueActionPending && queuePendingAction === "join" ? "Creating…" : "Create lobby";
     }
+    const showManaged = Boolean(showLobbyPanel && userQueued);
+    if (inviteManaged) {
+      inviteManaged.classList.toggle("hidden", !showManaged);
+      inviteManaged.hidden = !showManaged;
+    }
     if (leaveBtn) {
-      const showLeave = Boolean(showLobbyPanel && userQueued);
-      leaveBtn.classList.toggle("hidden", !showLeave);
-      leaveBtn.hidden = !showLeave;
       leaveBtn.disabled = queueActionPending;
       leaveBtn.textContent =
         queueActionPending && queuePendingAction === "leave" ? "Leaving…" : "Leave lobby";
+    }
+    const canStartMatch = Boolean(showManaged && (youAsAdmin || youAreHost) && !matchLive);
+    if (startMatchBtn) {
+      startMatchBtn.classList.toggle("hidden", !canStartMatch);
+      startMatchBtn.hidden = !canStartMatch;
+      startMatchBtn.disabled = queueActionPending || matchLive || queueCount() < 2;
+      const starting = queueActionPending && queuePendingAction === "start";
+      startMatchBtn.textContent = starting ? "Starting…" : "Start match";
     }
 
     if (slotsEl && !matchLive) {
@@ -667,6 +709,35 @@
     renderMatchesPanel();
   }
 
+  async function refreshPublicMatches({ force } = {}) {
+    if (!apiBase() || !root) return;
+    const now = Date.now();
+    if (!force && now - lastPublicMatchesFetchAt < 1500) return;
+    lastPublicMatchesFetchAt = now;
+    try {
+      const data = await fetchQueueJson("/api/scrims/matches");
+      publicActiveMatches = Array.isArray(data?.matches) ? data.matches : [];
+    } catch {
+      if (force) publicActiveMatches = [];
+    }
+    if (!hasLiveMatch()) renderMatchesPanel();
+  }
+
+  function stopPublicMatchesPoll() {
+    if (publicMatchesPollTimer == null) return;
+    clearInterval(publicMatchesPollTimer);
+    publicMatchesPollTimer = null;
+  }
+
+  function startPublicMatchesPoll() {
+    if (publicMatchesPollTimer != null) return;
+    void refreshPublicMatches({ force: true });
+    publicMatchesPollTimer = window.setInterval(() => {
+      if (!root) return;
+      void refreshPublicMatches();
+    }, 4e3);
+  }
+
   async function refreshScrimQueue({ force } = {}) {
     if (!apiBase()) {
       if (root) renderQueue();
@@ -675,6 +746,7 @@
     const lobby = activeLobbyId || getLobbyCodeFromUrl();
     if (!lobby) {
       renderQueue();
+      void refreshPublicMatches({ force });
       return;
     }
     const now = Date.now();
@@ -841,8 +913,12 @@
           title: "Already in lobby",
           body: "Leave your current role before choosing another."
         });
+      } else if (code === "not_authorized") {
+        scrimsToast("Only lobby admins can start the match.");
+      } else if (code === "not_enough_players") {
+        scrimsToast("Need at least 2 players in the lobby to start.");
       } else if (code === "lobby_not_found") {
-        window.pushCafeNotification?.({ title: "Lobby not found", body: "This invite link is invalid or expired." });
+        scrimsToast("Lobby not found — This invite link is invalid or expired.");
         setLobbyInUrl("");
       } else if (err.status === 401) {
         window.pushCafeNotification?.({ title: "Sign in required", body: "Sign in with Discord first." });
@@ -884,12 +960,17 @@
     void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(activeLobbyId)}/leave`, "leave");
   }
 
+  function handleStartMatch() {
+    if (!activeLobbyId) return;
+    void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(activeLobbyId)}/start`, "start");
+  }
+
   function handleCopyLobbyLink() {
     const input = root?.querySelector("#scrims-lobby-link");
     const url = input?.value || (activeLobbyId ? buildLobbyInviteUrl(activeLobbyId) : "");
     if (!url) return;
     const done = () => {
-      window.pushCafeNotification?.({ title: "Link copied", body: "Share it so others can join your lobby." });
+      scrimsToast("Link copied");
     };
     if (navigator.clipboard?.writeText) {
       void navigator.clipboard.writeText(url).then(done).catch(() => {});
@@ -971,6 +1052,9 @@
       onLeaveLobbyClick = () => {
         void handleLeaveLobby();
       };
+      onStartMatchClick = () => {
+        void handleStartMatch();
+      };
       onCopyLinkClick = handleCopyLobbyLink;
       onSignInClick = handleSignInClick;
       onAuthChange = onDiscordAuthChange;
@@ -978,6 +1062,7 @@
       page.querySelector("#scrims-join-as-player")?.addEventListener("click", onJoinAsPlayerClick);
       page.querySelector("#scrims-join-as-admin")?.addEventListener("click", onJoinAsAdminClick);
       page.querySelector("#scrims-leave-lobby")?.addEventListener("click", onLeaveLobbyClick);
+      page.querySelector("#scrims-start-match")?.addEventListener("click", onStartMatchClick);
       page.querySelector("#scrims-copy-lobby-link")?.addEventListener("click", onCopyLinkClick);
       page.querySelector("#scrims-queue-sign-in")?.addEventListener("click", onSignInClick);
       window.addEventListener("cafe-discord-auth-change", onAuthChange);
@@ -990,6 +1075,7 @@
     const fromUrl = getLobbyCodeFromUrl();
     if (fromUrl) activeLobbyId = fromUrl;
     renderQueue();
+    startPublicMatchesPoll();
     void refreshScrimQueue({ force: true });
     connectScrimQueueWebSocket();
     if (!getDiscordUser() && typeof window.refreshDiscordAuthUi === "function") {
@@ -1002,11 +1088,14 @@
     queueToggleGeneration += 1;
     clearQueuePendingState();
     disconnectScrimQueueWebSocket();
+    stopPublicMatchesPoll();
+    publicActiveMatches = [];
     if (!root) return;
     root.querySelector("#scrims-create-lobby")?.removeEventListener("click", onCreateLobbyClick);
     root.querySelector("#scrims-join-as-player")?.removeEventListener("click", onJoinAsPlayerClick);
     root.querySelector("#scrims-join-as-admin")?.removeEventListener("click", onJoinAsAdminClick);
     root.querySelector("#scrims-leave-lobby")?.removeEventListener("click", onLeaveLobbyClick);
+    root.querySelector("#scrims-start-match")?.removeEventListener("click", onStartMatchClick);
     root.querySelector("#scrims-copy-lobby-link")?.removeEventListener("click", onCopyLinkClick);
     root.querySelector("#scrims-queue-sign-in")?.removeEventListener("click", onSignInClick);
     if (onAuthChange) window.removeEventListener("cafe-discord-auth-change", onAuthChange);
@@ -1015,6 +1104,7 @@
     onJoinAsPlayerClick = null;
     onJoinAsAdminClick = null;
     onLeaveLobbyClick = null;
+    onStartMatchClick = null;
     onCopyLinkClick = null;
     onSignInClick = null;
     onAuthChange = null;
