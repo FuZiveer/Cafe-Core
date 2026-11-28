@@ -334,7 +334,7 @@
     return adminSlots.filter(Boolean).length;
   }
 
-  function renderSlot(el, index, member, { kind = "player" } = {}) {
+  function renderSlot(el, index, member, { kind = "player", showSub = true } = {}) {
     el.className = "scrims-roster-slot";
     if (kind === "admin") el.classList.add("scrims-roster-slot--admin");
     el.replaceChildren();
@@ -378,16 +378,17 @@
     name.className = "scrims-roster-slot-name";
     name.textContent = member.you ? "You" : member.displayName;
 
-    const sub = document.createElement("span");
-    sub.className = "scrims-roster-slot-sub";
-    sub.textContent =
-      kind === "admin"
-        ? "Admin"
-        : member.teamName || (member.username ? `@${member.username}` : "Player");
-
     el.appendChild(avatar);
     el.appendChild(name);
-    el.appendChild(sub);
+    if (showSub) {
+      const sub = document.createElement("span");
+      sub.className = "scrims-roster-slot-sub";
+      sub.textContent =
+        kind === "admin"
+          ? "Admin"
+          : member.teamName || (member.username ? `@${member.username}` : "Player");
+      el.appendChild(sub);
+    }
   }
 
   function matchPlayerToMember(p) {
@@ -415,7 +416,7 @@
     const players = Array.isArray(team.players) ? team.players : [];
     for (let i = 0; i < MATCH_TEAM_SLOTS; i++) {
       const slot = document.createElement("article");
-      renderSlot(slot, i, matchPlayerToMember(players[i]), { kind: "player" });
+      renderSlot(slot, i, matchPlayerToMember(players[i]), { kind: "player", showSub: false });
       grid.appendChild(slot);
     }
 
