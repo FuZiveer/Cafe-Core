@@ -108,7 +108,6 @@ const SENS_GAMES_CATALOG = [
   { name: "Warframe", multiplier: 10.0826779593, yaw: 69426e-7, genre: "arena", decimals: 0, type: "expression", fov: { def: 65, min: 52, max: 90, type: "vertical_deg" }, fwd: "base_yaw * (base_sens + 0.4318) * base_fov_v_rad", rev: "target_dpc / (base_yaw * base_fov_v_rad) - 0.4318", sens: { min: 0, max: 100, step: 1, def: 20 } },
   { name: "Warhammer 40,000: Space Marine 2", multiplier: 83.8055376305, yaw: 835267e-9, genre: "actionRpg", decimals: 0, type: "expression", fov: { def: 1, min: 1, max: 1.45, type: "multiplier" }, fwd: "base_yaw * base_sens^2 * min(base_fov_v_rad * 2 / PI, 1.2212)", rev: "sqrt(target_dpc / (base_yaw * min(base_fov_v_rad * 2 / PI, 1.2212)))", sens: { min: 1, max: 20, step: 1, def: 10 } },
   { name: "Windrose", multiplier: 1, yaw: 0.07, genre: "arena", decimals: 2, sens: { min: 0.01, max: 10, step: 0.01, def: 1 } },
-  { name: "League of Legends", multiplier: 1, yaw: 0.06, genre: "arena", decimals: 2, sens: { min: 1, max: 100, step: 1, def: 50 }, sensIsPercent: true },
   { name: "Genshin Impact", multiplier: 1, yaw: 0.02, genre: "actionRpg", decimals: 2, sens: { min: 0.5, max: 10, step: 0.5, def: 5 } },
   { name: "Dota 2", multiplier: 1, yaw: 0.06, genre: "arena", decimals: 2, sens: { min: 1, max: 100, step: 1, def: 50 }, sensIsPercent: true },
   { name: "Rocket League", multiplier: 1, yaw: 0.1, genre: "arcade", decimals: 2, sens: { min: 1, max: 10, step: 1, def: 5 } }

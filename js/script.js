@@ -23,13 +23,16 @@ const flyoutData = coreFreeze({
       { id: "tool-keyboard", name: "Keyboard Checker", icon: "fa-keyboard" },
       { id: "tool-wifi-speed", name: "Wifi Speed Checker", icon: "fa-wifi" },
       { type: "divider" },
+      { id: "tool-videos", name: "Strategies", icon: "fa-video" },
+      { id: "tool-mouse-compare", name: "Mouse Compare", icon: "fa-arrow-right-arrow-left" },
       { id: "tool-apps", name: "Applications", icon: "fa-cubes" }
         ]
     },
     matchmaking: {
     title: "Matchmaking Menu",
         items: [
-      { id: "mm-scrims", name: "Scrims", icon: "fa-trophy" }
+      { id: "mm-scrims", name: "Scrims", icon: "fa-trophy" },
+      { id: "mm-looking-for-team", name: "Looking for team", icon: "fa-user-group" }
         ]
     },
     more: {
@@ -50,7 +53,7 @@ const topBarLabels = coreFreeze({
   home: "Home",
   apps: "Applications",
   tools: "Tools",
-  videos: "Videos",
+  videos: "Strategies",
   matchmaking: "Matchmaking",
   more: "More"
 });
@@ -167,6 +170,7 @@ function getSensGameFromPick(root) {
     const catalog = getSensGamesCatalog();
   const input = root.querySelector(".tool-picklist-input");
     const selected = root.dataset.value ? SENS_GAME_BY_ID.get(root.dataset.value) : null;
+  if (selected && !root._picklistEditing) return selected;
     return bnResolvePart(catalog, input && input.value, selected);
 }
 function picklistPartForSensGame(game) {
@@ -648,8 +652,6 @@ const mainPageInitOnce = new Set();
 window.clearMainPageInitState = function clearMainPageInitState(pageKey) {
   if (typeof closeAllToolPicklists === "function") closeAllToolPicklists();
     mainPageInitOnce.delete(pageKey);
-  if (pageKey === "sensitivity") window.__sensitivityConverterMounted = false;
-  if (pageKey === "edpi") window.__edpiCalculatorMounted = false;
   if (pageKey === "bottleneck") window.__bottleneckPicklistsMounted = false;
   if (pageKey === "black-listed" && typeof window.teardownBlackListedPage === "function") {
     window.teardownBlackListedPage();
@@ -937,14 +939,20 @@ function mainPageKeyForFlyoutItem(itemId) {
   if (itemId === "tool-mpr") return "mpr-tester";
   if (itemId === "tool-keyboard") return "keyboard-checker";
   if (itemId === "tool-wifi-speed") return "wifi-speed";
+  if (itemId === "tool-mouse-compare") return "default";
   if (itemId === "tool-apps") return "apps";
   if (itemId === "mm-scrims") return "scrims";
+  if (itemId === "mm-looking-for-team") return "default";
   if (itemId === "tool-videos" || itemId === "strat-tips" || itemId === "strat-lineups") {
     return TIPS_AND_TRICKS_PAGE_ENABLED ? "lineups" : "default";
   }
   return "default";
 }
 function flyoutNavDisabledReason(itemId) {
+  if (itemId === "mm-looking-for-team") return "soon";
+  if (itemId === "tool-mouse-compare") return "soon";
+  if (itemId === "tool-apps") return "soon";
+  if (itemId === "mm-scrims") return "soon";
   if (
     (itemId === "tool-videos" || itemId === "strat-tips" || itemId === "strat-lineups") &&
     !TIPS_AND_TRICKS_PAGE_ENABLED
@@ -958,6 +966,8 @@ function isFlyoutItemNavDisabled(itemId) {
   return flyoutNavDisabledReason(itemId) != null;
 }
 function isMainPageNavDisabled(pageKey) {
+  if (pageKey === "apps") return true;
+  if (pageKey === "scrims") return true;
   if (pageKey === "lineups" && !TIPS_AND_TRICKS_PAGE_ENABLED) return true;
   if (pageKey === "aim-trainer" && isAimTrainerMobileBlocked()) return true;
     return false;
@@ -1018,7 +1028,7 @@ const mainPageKeyToFlyoutItemId = {
   "black-listed": "more-black-listed",
   privacy: "more-privacy-policy",
   terms: "more-terms-of-service",
-  lineups: "strat-tips",
+  lineups: "tool-videos",
   scrims: "mm-scrims"
 };
 const flyoutNavExtras = {
@@ -1103,8 +1113,7 @@ function warmMainPageCache(pageKey) {
 }
 const SIDEBAR_PREFETCH_PAGES = {
   home: ["default"],
-  tools: ["sensitivity", "edpi", "aim-trainer", "reaction-time", "cps-tester", "mpr-tester", "bottleneck", "keyboard-checker", "wifi-speed", "apps"],
-  videos: ["lineups"],
+  tools: ["sensitivity", "edpi", "aim-trainer", "reaction-time", "cps-tester", "mpr-tester", "bottleneck", "keyboard-checker", "wifi-speed", "lineups", "apps"],
   more: ["branding", "fuziveer", "black-listed", "privacy", "terms"],
   matchmaking: ["scrims"]
 };
@@ -1250,16 +1259,6 @@ function syncNavUiForMainPage(pageKey, { animate = false } = {}) {
         setTopBarTitle(topBarLabels.home, {
             animate,
       iconClasses: getTopBarIconClassesFromEl(homeBtn)
-        });
-        return;
-    }
-  if (pageKey === "lineups") {
-        selectedFlyoutItem = null;
-    const videosBtn = document.getElementById("btn-videos");
-    setSidebarNavActive(videosBtn, { animate });
-    setTopBarTitle(topBarLabels.videos, {
-            animate,
-      iconClasses: getTopBarIconClassesFromEl(videosBtn)
         });
         return;
     }
@@ -3405,9 +3404,9 @@ function commitToolPicklistOption(root, parts, optionBtn, onChange) {
   root._picklistRevertId = "";
     root._picklistEditing = false;
   const input = root.querySelector(".tool-picklist-input");
-  const searchQuery = input ? input.value : "";
   setToolPicklistCommitted(root, part);
-  filterToolPicklistOptions(root, searchQuery);
+  if (input) input.value = part ? part.name : "";
+  filterToolPicklistOptions(root, "");
     clearToolPicklistActive(root);
     closeAllToolPicklists();
     if (input) input.blur();
@@ -3549,9 +3548,14 @@ function updateToolPicklistOptions(root, parts, selectedId) {
     }
     setToolPicklistValue(root, selected);
 }
-function initToolPicklist(root, parts, { onChange, emptyMessage = "Couldn't find that part" } = {}) {
+function initToolPicklist(root, parts, { onChange, emptyMessage = "Couldn't find that part", liveOnInput = false } = {}) {
     if (!root) return;
-  if (root.dataset.toolPicklistInit === "1") return;
+  if (root.dataset.toolPicklistInit === "1") {
+    root._picklistOnChange = onChange;
+    if (liveOnInput) root._picklistLiveOnInput = true;
+    if (Array.isArray(parts)) root._picklistParts = parts;
+    return;
+  }
     const menu = getToolPicklistMenu(root);
   const input = root.querySelector(".tool-picklist-input");
   const chevron = root.querySelector(".tool-picklist-chevron");
@@ -3559,6 +3563,7 @@ function initToolPicklist(root, parts, { onChange, emptyMessage = "Couldn't find
   root.dataset.toolPicklistInit = "1";
     root._picklistParts = parts;
     root._picklistOnChange = onChange;
+    root._picklistLiveOnInput = liveOnInput;
     root._picklistEmptyMessage = emptyMessage;
   root._picklistRevertId = "";
     root._picklistEditing = false;
@@ -3595,8 +3600,9 @@ function initToolPicklist(root, parts, { onChange, emptyMessage = "Couldn't find
         btn.classList.remove("is-selected");
         btn.setAttribute("aria-selected", "false");
             });
-            if (onChange) onChange();
         }
+    const liveChange = root._picklistOnChange || onChange;
+    if (root._picklistLiveOnInput && liveChange) liveChange();
     });
   input.addEventListener("keydown", (event2) => {
     if (event2.key === "Escape") {
@@ -3706,6 +3712,10 @@ function bindToolFieldLiveUpdate(input, handler) {
 }
 function bindNumericToolFieldLiveUpdate(input, handler, options = {}) {
     if (!input || !handler) return;
+    const invokeHandler = () => {
+        const activeHandler = input._toolNumericLiveHandler || handler;
+        if (activeHandler) activeHandler();
+    };
     const onInput = () => {
         const prev = input.value;
         const next = sanitizeToolNumericInput(prev, options);
@@ -3718,10 +3728,18 @@ function bindNumericToolFieldLiveUpdate(input, handler, options = {}) {
       } catch {
       }
         }
-        handler();
+        invokeHandler();
     };
+  if (input.dataset.toolNumericLiveBound === "1") {
+    input._toolNumericLiveHandler = handler;
+    return;
+  }
+  input.dataset.toolNumericLiveBound = "1";
+  input._toolNumericLiveHandler = handler;
   input.addEventListener("input", onInput);
-  input.addEventListener("keyup", handler);
+  input.addEventListener("keyup", invokeHandler);
+  input.addEventListener("change", invokeHandler);
+  input.addEventListener("paste", () => requestAnimationFrame(invokeHandler));
 }
 function sensitivityFeelLabel(cm360) {
   if (cm360 == null || !Number.isFinite(cm360)) return "\u2014";
@@ -3735,6 +3753,11 @@ function sensFmt(n, digits = 4) {
   return fixed.replace(/\.?0+$/, "");
 }
 const SENS_RESULT_PLACEHOLDER = "0.00";
+const TOOL_RESULT_EMPTY = "\u2014";
+function isCompleteToolStat(value) {
+  const text = String(value ?? "").trim();
+  return Boolean(text) && text !== TOOL_RESULT_EMPTY;
+}
 function resetSensitivityResults() {
   const resultEl = document.getElementById("sens-result-value");
   const edpiEl = document.getElementById("sens-edpi-from");
@@ -3798,26 +3821,34 @@ function updateSensitivityConversion() {
     const fromDpc = gameDpc(fromGame, fromSens);
     let cm360 = fromDpc != null ? cm360FromDpc(fromDpc, fromDpi) : null;
     if (cm360 == null) cm360 = calculateGameCm360Value(toGame, toSens, toDpi);
+    const resultText = formatConvertedSensitivity(toSens, toGame);
+    const edpiText = sensFmt(edpiFrom, 2);
+    const cmText = formatCm360Number(cm360);
     const feel = sensitivityFeelLabel(cm360);
-    resultEl.textContent = formatConvertedSensitivity(toSens, toGame);
+    if (!isCompleteToolStat(resultText) || !isCompleteToolStat(edpiText) || !isCompleteToolStat(cmText) || !isCompleteToolStat(feel)) {
+    resetSensitivityResults();
+        return;
+    }
+    resultEl.textContent = resultText;
   resultEl.dataset.sensResultReady = "1";
-    if (edpiEl) edpiEl.textContent = sensFmt(edpiFrom, 2);
-    if (cm360El) cm360El.textContent = formatCm360Number(cm360);
+    if (edpiEl) edpiEl.textContent = edpiText;
+    if (cm360El) cm360El.textContent = cmText;
     if (feelEl) feelEl.textContent = feel;
   syncToolResultCopyButton("sens-result-value", "sens-result-copy-btn");
 }
 function initSensitivityConverter() {
     initToolPicklistDismiss();
-    if (window.__sensitivityConverterMounted) return;
     const onChange = () => updateSensitivityConversion();
     const picklistGames = buildSensGamePicklistParts();
   initToolPicklist(document.getElementById("sens-from-pick"), picklistGames, {
         onChange,
-    emptyMessage: "Couldn't find that game"
+    emptyMessage: "Couldn't find that game",
+    liveOnInput: true
     });
   initToolPicklist(document.getElementById("sens-to-pick"), picklistGames, {
         onChange,
-    emptyMessage: "Couldn't find that game"
+    emptyMessage: "Couldn't find that game",
+    liveOnInput: true
   });
   const valueInput = document.getElementById("sens-from-value");
   const fromDpiInput = document.getElementById("sens-from-dpi");
@@ -3826,8 +3857,10 @@ function initSensitivityConverter() {
     bindNumericToolFieldLiveUpdate(fromDpiInput, onChange);
     bindNumericToolFieldLiveUpdate(toDpiInput, onChange);
   const swapBtn = document.getElementById("sens-swap-btn");
-  if (swapBtn) swapBtn.addEventListener("click", swapSensitivityGamesAndDpi);
-    window.__sensitivityConverterMounted = true;
+  if (swapBtn && swapBtn.dataset.sensSwapBound !== "1") {
+    swapBtn.dataset.sensSwapBound = "1";
+    swapBtn.addEventListener("click", swapSensitivityGamesAndDpi);
+  }
     updateSensitivityConversion();
 }
 const EDPI_RESULT_PLACEHOLDER = "0.00";
@@ -3860,40 +3893,42 @@ function updateEdpiCalculation() {
     const game = gamePick ? getSensGameFromPick(gamePick) : null;
     const sens = parseDecimalInput(sensInput.value);
     const dpiRaw = parseDpiValue(dpiInput.value);
-    if (dpiRaw == null) {
-    resetEdpiResults();
-        return;
-    }
-    if (!Number.isFinite(sens) || sens <= 0) {
+    if (!game || dpiRaw == null || !Number.isFinite(sens) || sens <= 0) {
     resetEdpiResults();
         return;
     }
     const dpi = dpiRaw;
     const edpi = sens * dpi;
-    const cm360 = game ? calculateGameCm360Value(game, sens, dpi) : null;
+    const cm360 = calculateGameCm360Value(game, sens, dpi);
+    const resultText = sensFmt(edpi, 2);
+    const formulaText = `${Math.round(dpi)} \xD7 ${sensFmt(sens, 5)}`;
+    const cmText = formatCm360Number(cm360);
     const feel = sensitivityFeelLabel(cm360);
-    resultEl.textContent = sensFmt(edpi, 2);
+    if (!isCompleteToolStat(resultText) || !isCompleteToolStat(formulaText) || !isCompleteToolStat(cmText) || !isCompleteToolStat(feel) || !isCompleteToolStat(game.name)) {
+    resetEdpiResults();
+        return;
+    }
+    resultEl.textContent = resultText;
   resultEl.dataset.edpiResultReady = "1";
-  if (gameLabel) gameLabel.textContent = game ? game.name : "No game selected";
-  if (formulaEl) formulaEl.textContent = `${Math.round(dpi)} \xD7 ${sensFmt(sens, 5)}`;
-    if (cm360El) cm360El.textContent = formatCm360Number(cm360);
+  if (gameLabel) gameLabel.textContent = game.name;
+  if (formulaEl) formulaEl.textContent = formulaText;
+    if (cm360El) cm360El.textContent = cmText;
     if (feelEl) feelEl.textContent = feel;
   syncToolResultCopyButton("edpi-result-value", "edpi-result-copy-btn");
     }
 function initEdpiCalculator() {
     initToolPicklistDismiss();
-    if (window.__edpiCalculatorMounted) return;
     const onChange = () => updateEdpiCalculation();
     const picklistGames = buildSensGamePicklistParts();
   initToolPicklist(document.getElementById("edpi-game-pick"), picklistGames, {
         onChange,
-    emptyMessage: "Couldn't find that game"
+    emptyMessage: "Couldn't find that game",
+    liveOnInput: true
     });
   const sensInput = document.getElementById("edpi-sens-value");
   const dpiInput = document.getElementById("edpi-dpi-value");
     bindNumericToolFieldLiveUpdate(sensInput, onChange, { allowDecimal: true });
     bindNumericToolFieldLiveUpdate(dpiInput, onChange);
-    window.__edpiCalculatorMounted = true;
     updateEdpiCalculation();
 }
 const REACTION_TIME_STORAGE_KEY = "cafe-reaction-time-scores-v1";
@@ -5625,7 +5660,6 @@ function sidebarNavTooltipLabel(btn) {
   const fromLabel = btn.querySelector(".btn-label")?.textContent?.trim();
   if (fromLabel) return fromLabel;
   if (btn.id === "btn-home") return topBarLabels.home;
-  if (btn.id === "btn-videos") return topBarLabels.videos;
   if (btn.id === "btn-more") return topBarLabels.more;
   if (btn.id === "btn-settings") return "Settings";
   if (btn.id === "btn-sidebar-collapse") return isCollapsed ? "Expand" : "Collapse";

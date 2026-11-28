@@ -4,6 +4,7 @@
   let queueCapacity = 2;
   let adminCapacity = 2;
   const MATCH_TEAM_SLOTS = 5;
+  const MATCH_LIVE_TIMER_MS = 5000;
 
   let slots = Array.from({ length: queueCapacity }, () => null);
   let adminSlots = Array.from({ length: adminCapacity }, () => null);
@@ -41,11 +42,138 @@
   let publicActiveMatches = [];
   let publicMatchesPollTimer = null;
   let lastPublicMatchesFetchAt = 0;
-  let matchLiveTimerId = null;
+  let matchLiveTimerAlignId = null;
+  let matchLiveTimerTickId = null;
+  let matchLiveTimerActive = false;
   let lastMatchPanelSignature = "";
-  const matchTimerDisplayed = new WeakMap();
   const matchTimerLastSecond = new WeakMap();
-  const SCRIMS_DIGIT_TRANSITION = "transform 150ms ease-out";
+  let matchesActiveScrollAbort = null;
+  let matchesActiveScrollbarDrag = false;
+  let matchesActiveScrollSnapOn = true;
+
+  function scrimsMatchScrollBehavior() {
+    return document.documentElement.classList.contains("reduce-motion") ? "auto" : "smooth";
+  }
+
+  function getScrimsMatchesScrollStep(listEl) {
+    const card = listEl?.querySelector(".scrims-match-card");
+    if (!card) return 0;
+    const gapPx = parseFloat(getComputedStyle(listEl).rowGap || getComputedStyle(listEl).gap) || 0;
+    return card.offsetHeight + gapPx;
+  }
+
+  function getScrimsMatchCardCount(listEl) {
+    return listEl?.querySelectorAll(".scrims-match-card").length || 0;
+  }
+
+  function matchesActiveVisibleSlots(listEl) {
+    return parseFloat(getComputedStyle(listEl).getPropertyValue("--scrims-matches-visible-count")) || 2;
+  }
+
+  function matchesActiveMaxScroll(listEl) {
+    const visibleSlots = matchesActiveVisibleSlots(listEl);
+    const count = getScrimsMatchCardCount(listEl);
+    const step = getScrimsMatchesScrollStep(listEl);
+    if (!step || count <= visibleSlots) return 0;
+    return Math.max(0, (count - visibleSlots) * step);
+  }
+
+  function matchesActiveScrollbarGutterPx(listEl) {
+    return Math.max(0, listEl.offsetWidth - listEl.clientWidth);
+  }
+
+  function matchesActivePointerOnScrollbar(listEl, clientX) {
+    const gutter = matchesActiveScrollbarGutterPx(listEl);
+    if (gutter <= 0) return false;
+    const rect = listEl.getBoundingClientRect();
+    return clientX >= rect.right - gutter - 1;
+  }
+
+  function disableMatchesActiveScrollSnap(listEl) {
+    matchesActiveScrollSnapOn = false;
+    listEl.classList.add("scrims-matches-active--no-snap");
+  }
+
+  function enableMatchesActiveScrollSnap(listEl) {
+    matchesActiveScrollSnapOn = true;
+    listEl.classList.remove("scrims-matches-active--no-snap");
+  }
+
+  function snapScrimsMatchesActiveScroll(listEl, { behavior } = {}) {
+    if (!matchesActiveScrollSnapOn) return;
+    const step = getScrimsMatchesScrollStep(listEl);
+    const maxScroll = matchesActiveMaxScroll(listEl);
+    if (!step) {
+      if (listEl.scrollTop) listEl.scrollTop = 0;
+      return;
+    }
+    let target = Math.round(listEl.scrollTop / step) * step;
+    target = Math.max(0, Math.min(maxScroll, target));
+    if (Math.abs(listEl.scrollTop - target) < 1) {
+      if (listEl.scrollTop !== target) listEl.scrollTop = target;
+      return;
+    }
+    listEl.scrollTo({ top: target, behavior: behavior ?? scrimsMatchScrollBehavior() });
+  }
+
+  function bindScrimsMatchesActiveScroll(listEl) {
+    if (!listEl) return;
+    matchesActiveScrollAbort?.abort();
+    matchesActiveScrollAbort = null;
+    matchesActiveScrollAbort = new AbortController();
+    const { signal } = matchesActiveScrollAbort;
+    let scrollSettleTimer = null;
+    const onScrollSettle = () => {
+      if (matchesActiveScrollbarDrag || !matchesActiveScrollSnapOn) return;
+      snapScrimsMatchesActiveScroll(listEl);
+    };
+    const endMatchesActiveScrollbarDrag = () => {
+      if (!matchesActiveScrollbarDrag) return;
+      matchesActiveScrollbarDrag = false;
+    };
+    listEl.addEventListener(
+      "mousedown",
+      (event) => {
+        if (event.button !== 0) return;
+        if (!matchesActivePointerOnScrollbar(listEl, event.clientX)) return;
+        matchesActiveScrollbarDrag = true;
+        disableMatchesActiveScrollSnap(listEl);
+      },
+      { signal }
+    );
+    window.addEventListener("mouseup", endMatchesActiveScrollbarDrag, { signal });
+    listEl.addEventListener(
+      "wheel",
+      (event) => {
+        const visibleSlots = matchesActiveVisibleSlots(listEl);
+        const count = getScrimsMatchCardCount(listEl);
+        if (count <= visibleSlots) return;
+        const step = getScrimsMatchesScrollStep(listEl);
+        if (!step) return;
+        enableMatchesActiveScrollSnap(listEl);
+        event.preventDefault();
+        const maxScroll = matchesActiveMaxScroll(listEl);
+        const dir = event.deltaY > 0 ? 1 : -1;
+        const next = Math.max(0, Math.min(maxScroll, listEl.scrollTop + dir * step));
+        listEl.scrollTo({ top: next, behavior: scrimsMatchScrollBehavior() });
+      },
+      { passive: false, signal }
+    );
+    listEl.addEventListener(
+      "scroll",
+      () => {
+        if (matchesActiveScrollbarDrag || !matchesActiveScrollSnapOn) return;
+        if (scrollSettleTimer) clearTimeout(scrollSettleTimer);
+        scrollSettleTimer = window.setTimeout(() => {
+          scrollSettleTimer = null;
+          onScrollSettle();
+        }, 100);
+      },
+      { passive: true, signal }
+    );
+    listEl.addEventListener("scrollend", onScrollSettle, { signal });
+    enableMatchesActiveScrollSnap(listEl);
+  }
 
   function scrimsToast(message) {
     const text = String(message || "").trim();
@@ -335,117 +463,13 @@
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
-  function scrimsDigitMotionEnabled() {
-    return !document.documentElement.classList.contains("reduce-motion");
-  }
-
-  function buildScrimsDigitStrip() {
-    const strip = document.createElement("span");
-    strip.className = "bl-scrim-digit-strip";
-    for (let d = 0; d <= 9; d += 1) {
-      const digit = document.createElement("span");
-      digit.className = "bl-scrim-digit";
-      digit.textContent = String(d);
-      strip.appendChild(digit);
-    }
-    return strip;
-  }
-
-  function ensureScrimsDigitGroup(container, paddedText) {
-    const text = String(paddedText || "00");
-    let group = container.querySelector(".bl-scrim-digit-group");
-    if (!group) {
-      group = document.createElement("span");
-      group.className = "bl-scrim-digit-group";
-      group.setAttribute("aria-hidden", "true");
-      container.replaceChildren(group);
-    }
-    while (group.children.length < text.length) {
-      const slot = document.createElement("span");
-      slot.className = "bl-scrim-digit-slot";
-      slot.appendChild(buildScrimsDigitStrip());
-      group.appendChild(slot);
-    }
-    while (group.children.length > text.length) {
-      group.lastElementChild?.remove();
-    }
-    return { group, text };
-  }
-
-  function scrimsDigitAtRight(text, posFromRight) {
-    const idx = text.length - 1 - posFromRight;
-    return idx >= 0 ? text.charAt(idx) : null;
-  }
-
-  function setScrimsDigitSlot(slot, digitChar, prevDigitChar, animate, delayMs) {
-    const strip = slot.querySelector(".bl-scrim-digit-strip");
-    if (!strip) return;
-    const d = Math.max(0, Math.min(9, Number(digitChar) || 0));
-    const hasPrev =
-      prevDigitChar !== null && prevDigitChar !== undefined && prevDigitChar !== "";
-    const fromD = hasPrev ? Math.max(0, Math.min(9, Number(prevDigitChar) || 0)) : d;
-    const shouldAnimate =
-      animate && scrimsDigitMotionEnabled() && (hasPrev ? fromD !== d : false);
-    if (!shouldAnimate) {
-      strip.style.transition = "none";
-      strip.style.transitionDelay = "0ms";
-      strip.style.transform = `translate3d(0, calc(${-d} * var(--bl-scrim-digit-step, 1em)), 0)`;
-      void strip.offsetHeight;
-      strip.style.transition = SCRIMS_DIGIT_TRANSITION;
+  function paintMatchTimerDigits(container, value, previousValue) {
+    const paint = window.CafeBlScrimDigit?.paintAnimatedNumber;
+    if (typeof paint === "function") {
+      paint(container, value, previousValue, { minimumIntegerDigits: 2 });
       return;
     }
-    const rollFrom = hasPrev ? fromD : 0;
-    const toTransform = `translate3d(0, calc(${-d} * var(--bl-scrim-digit-step, 1em)), 0)`;
-    const fromTransform = `translate3d(0, calc(${-rollFrom} * var(--bl-scrim-digit-step, 1em)), 0)`;
-    strip.style.transition = "none";
-    strip.style.transitionDelay = "0ms";
-    strip.style.transform = fromTransform;
-    void strip.offsetHeight;
-    window.requestAnimationFrame(() => {
-      if (!slot.isConnected) return;
-      const live = slot.querySelector(".bl-scrim-digit-strip");
-      if (!live) return;
-      live.style.transition = "none";
-      live.style.transitionDelay = "0ms";
-      live.style.transform = fromTransform;
-      void live.offsetHeight;
-      window.requestAnimationFrame(() => {
-        if (!live.isConnected) return;
-        live.style.transition = SCRIMS_DIGIT_TRANSITION;
-        live.style.transitionDelay = `${delayMs}ms`;
-        live.style.transform = toTransform;
-      });
-    });
-  }
-
-  function paintScrimsAnimatedNumber(container, value, previousValue) {
-    const num = Math.max(0, Math.round(Number(value) || 0));
-    const text = String(num).padStart(2, "0");
-    const motion = scrimsDigitMotionEnabled();
-    const animate = motion && previousValue !== null && previousValue !== undefined;
-    const prevNum =
-      previousValue === null || previousValue === undefined
-        ? num
-        : Math.max(0, Math.round(Number(previousValue) || 0));
-    const prevText = String(prevNum).padStart(2, "0");
-    ensureScrimsDigitGroup(container, text);
-    const slots = container.querySelectorAll(".bl-scrim-digit-slot");
-    const maxLen = Math.max(text.length, prevText.length);
-    text.split("").forEach((ch, index) => {
-      const posFromRight = text.length - 1 - index;
-      const prevCh = scrimsDigitAtRight(prevText, posFromRight);
-      const slotAnimate = animate && prevText !== text;
-      const delay = slotAnimate ? (maxLen - 1 - index) * 45 : 0;
-      const rollInNew = animate && prevCh === null;
-      setScrimsDigitSlot(
-        slots[index],
-        ch,
-        rollInNew ? "0" : prevCh,
-        slotAnimate || rollInNew,
-        delay
-      );
-    });
-    container.setAttribute("aria-label", text);
+    container.textContent = String(Math.max(0, Math.round(Number(value) || 0))).padStart(2, "0");
   }
 
   function ensureMatchTimerShell(timeEl) {
@@ -453,8 +477,8 @@
     timeEl.replaceChildren();
     const display = document.createElement("span");
     display.className = "scrims-match-timer-display";
-    const parts = ["h", "m", "s"];
-    parts.forEach((seg, index) => {
+    display.setAttribute("aria-hidden", "true");
+    ["h", "m", "s"].forEach((seg, index) => {
       if (index > 0) {
         const colon = document.createElement("span");
         colon.className = "scrims-match-timer-colon";
@@ -463,76 +487,78 @@
         display.appendChild(colon);
       }
       const segEl = document.createElement("span");
-      segEl.className = "scrims-match-timer-seg";
+      segEl.className = "bl-scrim-counter-num scrims-match-timer-digit";
       segEl.dataset.timerSeg = seg;
       display.appendChild(segEl);
     });
     timeEl.appendChild(display);
   }
 
-  function updateMatchTimerElement(timeEl, elapsedSec, { force = false } = {}) {
+  function updateMatchTimerElement(timeEl, elapsedSec) {
     ensureMatchTimerShell(timeEl);
     const sec = Math.max(0, Math.floor(Number(elapsedSec) || 0));
+    const prevSec = matchTimerLastSecond.get(timeEl);
+    if (prevSec === sec) return;
     const { h, m, s } = elapsedHmsParts(sec * 1000);
-    const displayKey = `${h}|${m}|${s}`;
-    if (!force && matchTimerDisplayed.get(timeEl) === displayKey) return;
-    const prevKey = matchTimerDisplayed.get(timeEl);
-    const prevParts = prevKey ? prevKey.split("|").map((n) => Number(n)) : null;
+    const prevHms =
+      prevSec !== null && prevSec !== undefined
+        ? elapsedHmsParts(Math.max(0, prevSec) * 1000)
+        : null;
     const display = timeEl.querySelector(".scrims-match-timer-display");
     const segH = display?.querySelector('[data-timer-seg="h"]');
     const segM = display?.querySelector('[data-timer-seg="m"]');
     const segS = display?.querySelector('[data-timer-seg="s"]');
-    if (segH) paintScrimsAnimatedNumber(segH, h, prevParts ? prevParts[0] : null);
-    if (segM) paintScrimsAnimatedNumber(segM, m, prevParts ? prevParts[1] : null);
-    if (segS) paintScrimsAnimatedNumber(segS, s, prevParts ? prevParts[2] : null);
-    timeEl.setAttribute("aria-label", formatMatchElapsedHms(sec * 1000));
-    matchTimerDisplayed.set(timeEl, displayKey);
+    if (segH) paintMatchTimerDigits(segH, h, prevHms ? prevHms.h : null);
+    if (segM) paintMatchTimerDigits(segM, m, prevHms ? prevHms.m : null);
+    if (segS) paintMatchTimerDigits(segS, s, prevHms ? prevHms.s : null);
+    const label = formatMatchElapsedHms(sec * 1000);
+    timeEl.setAttribute("aria-label", label);
     matchTimerLastSecond.set(timeEl, sec);
   }
 
-  function syncMatchLiveTimers({ force = false } = {}) {
+  function syncMatchLiveTimers() {
     if (!root) return;
     const now = Date.now();
     root.querySelectorAll(".scrims-match-timer[data-match-started-at]").forEach((el) => {
       const started = Number(el.dataset.matchStartedAt) || 0;
       if (!started) {
-        updateMatchTimerElement(el, 0, { force: true });
+        updateMatchTimerElement(el, 0);
         return;
       }
       const elapsedSec = Math.max(0, Math.floor((now - started) / 1000));
-      if (!force && matchTimerLastSecond.get(el) === elapsedSec) return;
-      updateMatchTimerElement(el, elapsedSec, { force });
+      updateMatchTimerElement(el, elapsedSec);
     });
   }
 
   function stopMatchLiveTimer() {
-    if (matchLiveTimerId == null) return;
-    clearTimeout(matchLiveTimerId);
-    matchLiveTimerId = null;
-  }
-
-  function scheduleMatchLiveTimerTick() {
-    const now = Date.now();
-    const msUntilNextSecond = 1000 - (now % 1000);
-    matchLiveTimerId = window.setTimeout(() => {
-      matchLiveTimerId = null;
-      syncMatchLiveTimers();
-      if (root?.querySelector(".scrims-match-timer[data-match-started-at]")) {
-        scheduleMatchLiveTimerTick();
-      }
-    }, msUntilNextSecond);
+    matchLiveTimerActive = false;
+    if (matchLiveTimerAlignId != null) {
+      clearTimeout(matchLiveTimerAlignId);
+      matchLiveTimerAlignId = null;
+    }
+    if (matchLiveTimerTickId != null) {
+      clearInterval(matchLiveTimerTickId);
+      matchLiveTimerTickId = null;
+    }
   }
 
   function startMatchLiveTimer() {
-    if (matchLiveTimerId != null) return;
-    syncMatchLiveTimers({ force: true });
-    scheduleMatchLiveTimerTick();
-  }
-
-  function standingByCopy(count) {
-    if (count === 0) return "0 players in lobby";
-    if (count === 1) return "1 player in lobby";
-    return `${count} players in lobby`;
+    if (matchLiveTimerActive) return;
+    if (!root?.querySelector(".scrims-match-timer[data-match-started-at]")) return;
+    matchLiveTimerActive = true;
+    syncMatchLiveTimers();
+    const alignMs = Math.max(1, MATCH_LIVE_TIMER_MS - (Date.now() % MATCH_LIVE_TIMER_MS));
+    matchLiveTimerAlignId = window.setTimeout(() => {
+      matchLiveTimerAlignId = null;
+      syncMatchLiveTimers();
+      matchLiveTimerTickId = window.setInterval(() => {
+        if (!root?.querySelector(".scrims-match-timer[data-match-started-at]")) {
+          stopMatchLiveTimer();
+          return;
+        }
+        syncMatchLiveTimers();
+      }, MATCH_LIVE_TIMER_MS);
+    }, alignMs);
   }
 
   function formatQueueElapsed(ms) {
@@ -661,9 +687,11 @@
 
   function activeMatchesForPanel() {
     if (activeMatch?.teams?.length >= 2) return [activeMatch];
-    return publicActiveMatches
+    const fromPublic = publicActiveMatches
       .map((entry) => entry?.activeMatch)
       .filter((match) => match?.teams?.length >= 2);
+    if (fromPublic.length > 0) return fromPublic;
+    return [];
   }
 
   function createMatchCardElement(match) {
@@ -699,7 +727,7 @@
     const initialSec = startedAt
       ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
       : 0;
-    updateMatchTimerElement(matchTimer, initialSec, { force: true });
+    updateMatchTimerElement(matchTimer, initialSec);
 
     rightCol.appendChild(rightName);
     rightCol.appendChild(matchTimer);
@@ -766,8 +794,7 @@
         for (const match of matches) {
           activeWrap.appendChild(createMatchCardElement(match));
         }
-      } else {
-        syncMatchLiveTimers({ force: false });
+        activeWrap.scrollTop = 0;
       }
       startMatchLiveTimer();
       stopPublicMatchesPoll();
@@ -795,9 +822,6 @@
     const queueSection = root.querySelector("#scrims-queue");
     const liveNotice = root.querySelector("#scrims-queue-live-notice");
     const lobbyBody = root.querySelector("#scrims-queue-lobby-body");
-    const countEl = root.querySelector("#scrims-queue-count");
-    const capLabel = root.querySelector("#scrims-queue-cap-label");
-    const standingEl = root.querySelector("#scrims-queue-standing");
     const badgeEl = root.querySelector("#scrims-queue-state-badge");
     const createBtn = root.querySelector("#scrims-create-lobby");
     const inviteJoin = root.querySelector("#scrims-invite-join");
@@ -816,16 +840,6 @@
     const inviteCode = root.querySelector("#scrims-lobby-code");
     const signInBtn = root.querySelector("#scrims-queue-sign-in");
     const slotsEl = root.querySelector("#scrims-queue-slots");
-    const progress = root.querySelector("#scrims-queue-progress");
-
-    if (countEl) countEl.textContent = String(count);
-    if (capLabel) capLabel.textContent = `/ ${queueCapacity} players`;
-    if (standingEl) standingEl.textContent = standingByCopy(count);
-    if (progress) {
-      progress.setAttribute("aria-valuemax", String(queueCapacity));
-      progress.setAttribute("aria-valuenow", String(count));
-      progress.setAttribute("aria-label", `${count} of ${queueCapacity} players in lobby`);
-    }
     if (queueSection) {
       queueSection.classList.toggle("scrims-glass--queue-live", matchLive);
     }
@@ -1370,6 +1384,7 @@
         applyScrimsLobbyFromUrl();
       };
       window.addEventListener("popstate", onLobbyPopState);
+      bindScrimsMatchesActiveScroll(page.querySelector("#scrims-matches-active"));
     }
 
     const fromUrl = getLobbyCodeFromUrl();
@@ -1385,6 +1400,10 @@
   };
 
   window.teardownScrimsPage = function teardownScrimsPage() {
+    matchesActiveScrollAbort?.abort();
+    matchesActiveScrollAbort = null;
+    matchesActiveScrollbarDrag = false;
+    matchesActiveScrollSnapOn = true;
     stopQueueTimer();
     queueToggleGeneration += 1;
     clearQueuePendingState();

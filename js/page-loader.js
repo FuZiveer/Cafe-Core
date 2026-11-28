@@ -116,6 +116,9 @@
     );
   }
   async function ensureBlackListedScripts() {
+    if (!window.CafeBlScrimDigit) {
+      await loadScript("js/bl-scrim-digit.js");
+    }
     await loadScript("data/black-listed-roster.js");
     await loadScript("js/black-listed.js");
   }
@@ -170,6 +173,9 @@
     }
   }
   async function ensureScrimsScripts() {
+    if (!window.CafeBlScrimDigit) {
+      await loadScript("js/bl-scrim-digit.js");
+    }
     if (typeof window.initScrimsPage !== "function") {
       await loadScript("js/scrims.js");
     }
