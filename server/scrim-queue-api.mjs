@@ -6,6 +6,7 @@ import {
   joinLobby,
   leaveLobby,
   listLiveActiveMatches,
+  purgeAllScrimsMatchStateOnBoot,
   startLobbyMatch,
   normalizeLobbyId,
   queueCount,
@@ -115,6 +116,20 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
     return true;
   }
 
+  if (pathname === "/api/scrims/matches/purge" && req.method === "POST") {
+    applyCors(req, res, cfg);
+    const cleared = await purgeAllScrimsMatchStateOnBoot();
+    for (const { lobbyId, queue } of cleared) {
+      broadcastScrimLobby(lobbyId, queue);
+    }
+    sendJson(res, 200, {
+      ok: true,
+      cleared: cleared.length,
+      lobbyIds: cleared.map((c) => c.lobbyId)
+    });
+    return true;
+  }
+
   if (pathname === "/api/scrims/lobbies" && req.method === "POST") {
     applyCors(req, res, cfg);
     const user = getSessionUser(req);
@@ -190,11 +205,6 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
     await writeLobby(lobbyId, queue);
     broadcastScrimLobby(lobbyId, queue);
     if (isMatchBotConfigured()) void startDiscordMatchBot().catch(() => {});
-    if (queueCount(queue) >= QUEUE_CAP) {
-      void maybeProvisionMatchVoice(lobbyId).catch((err) => {
-        console.error("[scrim-queue] background match voice:", err?.message || err);
-      });
-    }
     sendJson(res, 200, { ok: true, ...queuePayload(queue, user.id) });
     return true;
   }
@@ -218,7 +228,7 @@ export async function handleScrimQueueApiRequest(req, res, url, cfg) {
           ? 403
           : code === "lobby_not_found"
             ? 404
-            : code === "not_enough_players"
+            : code === "not_enough_players" || code === "not_enough_lobby_members"
               ? 409
               : 400;
       const fallback = outcome.queue || (await readLobby(lobbyId));

@@ -6792,6 +6792,8 @@ html.reduce-motion .keyboard-checker-key {
   overflow: hidden;
 }
 #page-scrims .scrims-glass--queue {
+  display: flex;
+  flex-direction: column;
   padding: 1.5rem 1.5rem 1.75rem;
 }
 @media (min-width: 640px) {
@@ -7076,6 +7078,12 @@ html.reduce-motion .keyboard-checker-key {
   line-height: 1.45;
   color: var(--scrims-muted);
 }
+#page-scrims .scrims-queue-lobby-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
 #page-scrims .scrims-queue-lobby-body.hidden,
 #page-scrims #scrims-queue-lobby-body[hidden] {
   display: none !important;
@@ -7140,6 +7148,14 @@ html.reduce-motion .keyboard-checker-key {
 #page-scrims .scrims-roster-grid--admins {
   --scrims-roster-cols: 2;
 }
+#page-scrims .scrims-roster-slot--admin {
+  border-color: rgb(147 51 234 / 0.35);
+  background: rgb(147 51 234 / 0.04);
+}
+#page-scrims .scrims-roster-slot--admin.scrims-roster-slot--empty .scrims-roster-slot-empty-icon {
+  color: rgb(168 85 247);
+  background: rgb(147 51 234 / 0.12);
+}
 #page-scrims .scrims-roster-slot--admin.scrims-roster-slot--filled {
   border-style: solid;
   border-color: rgb(147 51 234 / 0.45);
@@ -7181,25 +7197,20 @@ html.reduce-motion .keyboard-checker-key {
 #page-scrims .scrims-invite-join-actions .scrims-cta {
   margin-top: 0;
 }
-#page-scrims .scrims-invite-join-managed {
+#page-scrims .scrims-lobby-managed {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 0.65rem;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgb(71 85 105 / 0.35);
+  width: 100%;
+  margin-top: auto;
+  padding-top: 1.35rem;
 }
-#page-scrims .scrims-invite-join:not(:has(.scrims-invite-join-title:not(.hidden))) .scrims-invite-join-managed {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
-}
-#page-scrims .scrims-invite-join-managed.hidden {
+#page-scrims .scrims-lobby-managed.hidden {
   display: none !important;
 }
-#page-scrims .scrims-invite-join-managed .scrims-cta {
+#page-scrims .scrims-lobby-managed .scrims-cta {
   width: auto;
   min-width: 11.5rem;
   max-width: 16rem;
@@ -7208,11 +7219,10 @@ html.reduce-motion .keyboard-checker-key {
 }
 #page-scrims .scrims-cta--admin {
   border: 1px solid rgb(147 51 234 / 0.45);
-  background: linear-gradient(180deg, rgb(147 51 234 / 0.16) 0%, rgb(109 40 217 / 0.12) 100%);
+  background: linear-gradient(180deg, rgb(147 51 234 / 0.12) 0%, rgb(109 40 217 / 0.08) 100%);
   box-shadow:
-    0 0 20px rgb(147 51 234 / 0.18),
-    inset 0 0 0 1px rgb(147 51 234 / 0.2),
-    0 1px 0 rgb(255 255 255 / 0.06) inset;
+    0 0 20px rgb(147 51 234 / 0.15),
+    inset 0 0 0 1px rgb(147 51 234 / 0.25);
 }
 #page-scrims .scrims-cta--start {
   background: linear-gradient(180deg, rgb(34 197 94) 0%, rgb(22 163 74) 100%);
@@ -7364,6 +7374,28 @@ html.reduce-motion .keyboard-checker-key {
   align-items: end;
   gap: 1rem;
   margin: 0 0 0.5rem;
+}
+#page-scrims .scrims-match-team-names-right {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+#page-scrims .scrims-match-team-names-right .scrims-match-team-name {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+#page-scrims .scrims-match-timer {
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: rgb(148 163 184);
+  white-space: nowrap;
 }
 #page-scrims .scrims-match-team-names-gap {
   width: var(--scrims-match-lane, 2.25rem);

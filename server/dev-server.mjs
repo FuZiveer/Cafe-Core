@@ -9,6 +9,8 @@ import { handleBlApiRequest } from "./bl-api.mjs";
 import { handleScrimUpgrade } from "./bl-scrim-ws.mjs";
 import { handleScrimQueueUpgrade } from "./scrim-queue-ws.mjs";
 import { handleScrimQueueApiRequest } from "./scrim-queue-api.mjs";
+import { purgeAllScrimsMatchStateOnBoot } from "./scrim-queue-store.mjs";
+import { broadcastScrimLobby } from "./scrim-queue-ws.mjs";
 import { handleMatchVoiceApiRequest } from "./match-voice-api.mjs";
 import { isMatchBotConfigured, startDiscordMatchBot } from "./discord-match-bot.mjs";
 import { usesUpstashRedis } from "./upstash-redis.mjs";
@@ -177,5 +179,21 @@ server.listen(PORT, "0.0.0.0", () => {
     );
   } else {
     console.log("[cafe] Scrim record persistence: Upstash Redis");
+  }
+  if (process.env.SCRIM_KEEP_MATCHES_ON_BOOT === "1") {
+    console.log("[scrim-queue] Skipping live-match purge on boot (SCRIM_KEEP_MATCHES_ON_BOOT=1)");
+  } else {
+    void purgeAllScrimsMatchStateOnBoot()
+      .then((cleared) => {
+        for (const { lobbyId, queue } of cleared) {
+          broadcastScrimLobby(lobbyId, queue);
+        }
+        if (cleared.length > 0) {
+          console.log(`[scrim-queue] Purged ${cleared.length} stale live match(es) on boot`);
+        }
+      })
+      .catch((err) => {
+        console.error("[scrim-queue] Boot live-match purge failed:", err?.message || err);
+      });
   }
 });

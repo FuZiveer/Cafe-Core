@@ -68,6 +68,7 @@ function emptyQueue() {
     lastMatchVoice: null,
     matchVoiceError: null,
     forceMatchLive: false,
+    matchStartedAt: 0,
     lobbyId: "",
     hostId: "",
     createdAt: 0
@@ -118,7 +119,8 @@ export function normalizeScrimQueue(raw) {
       raw.lastMatchVoice && typeof raw.lastMatchVoice === "object" ? raw.lastMatchVoice : null,
     matchVoiceError:
       raw.matchVoiceError && typeof raw.matchVoiceError === "object" ? raw.matchVoiceError : null,
-    forceMatchLive: Boolean(raw.forceMatchLive)
+    forceMatchLive: Boolean(raw.forceMatchLive),
+    matchStartedAt: Math.max(0, Number(raw.matchStartedAt) || 0)
   };
   return normalizeLobbyMeta(raw, core);
 }
@@ -227,15 +229,13 @@ function teamNameForUser(queue, userId) {
 }
 
 export function computeActiveMatch(queue) {
-  const count = queueCount(queue);
-  const forced = queue.forceMatchLive === true;
-  if (!forced && count < QUEUE_CAP) return null;
+  if (queue.forceMatchLive !== true) return null;
   const players = queue.slots.filter(Boolean);
   if (players.length < 2) return null;
-  if (!forced && players.length < QUEUE_CAP) return null;
 
   const matchId =
     queue.lastMatchVoice?.matchId || `scrim-v${queue.version}`;
+  const startedAt = Math.max(0, Number(queue.matchStartedAt) || 0);
 
   const grouped = new Map();
   for (const p of players) {
@@ -250,6 +250,7 @@ export function computeActiveMatch(queue) {
     return {
       matchId,
       status: "live",
+      startedAt,
       teams: teamEntries.slice(0, 2).map(([name, roster], index) => ({
         side: index === 0 ? "left" : "right",
         name,
@@ -263,6 +264,7 @@ export function computeActiveMatch(queue) {
     return {
       matchId,
       status: "live",
+      startedAt,
       teams: [
         {
           side: "left",
@@ -422,6 +424,30 @@ export async function listLiveActiveMatches() {
   return matches;
 }
 
+/** Clears stale live match state (player roster + force flag). Keeps lobby + admin slots. */
+export async function purgeAllScrimsMatchStateOnBoot() {
+  const queues = await listAllLobbies();
+  const cleared = [];
+  for (const queue of queues) {
+    const id = normalizeLobbyId(queue.lobbyId);
+    if (!id) continue;
+    const staleLive = Boolean(computeActiveMatch(queue) || queue.forceMatchLive);
+    if (!staleLive) continue;
+    const outcome = await mutateLobby(id, (q) => {
+      ensureLobbyRosterShape(q);
+      q.forceMatchLive = false;
+      q.matchStartedAt = 0;
+      q.slots = Array.from({ length: QUEUE_CAP }, () => null);
+      q.matchVoicePending = false;
+      q.lastMatchVoice = null;
+      q.matchVoiceError = null;
+      return q;
+    });
+    if (outcome.ok) cleared.push({ lobbyId: id, queue: outcome.queue });
+  }
+  return cleared;
+}
+
 export async function deleteLobby(lobbyId) {
   const id = normalizeLobbyId(lobbyId);
   if (!id) return;
@@ -548,14 +574,19 @@ export async function startLobbyMatch(lobbyId, userId) {
   const isAdmin = (current.adminSlots || []).some((s) => s?.id === uid);
   const isHost = String(current.hostId) === uid;
   if (!isAdmin && !isHost) return { ok: false, error: "not_authorized" };
+  if (lobbyOccupantCount(current) <= 2) {
+    return { ok: false, error: "not_enough_lobby_members" };
+  }
   if (queueCount(current) < 2) return { ok: false, error: "not_enough_players" };
   const outcome = await mutateLobby(id, (q) => {
     ensureLobbyRosterShape(q);
     const canAdmin = q.adminSlots.some((s) => s?.id === uid);
     const canHost = String(q.hostId) === uid;
     if (!canAdmin && !canHost) return { error: "not_authorized" };
+    if (lobbyOccupantCount(q) <= 2) return { error: "not_enough_lobby_members" };
     if (queueCount(q) < 2) return { error: "not_enough_players" };
     q.forceMatchLive = true;
+    if (!q.matchStartedAt) q.matchStartedAt = Date.now();
     return q;
   });
   if (!outcome.ok) {
@@ -598,6 +629,7 @@ export async function leaveLobby(lobbyId, userId) {
         q.lastMatchVoice = null;
         q.matchVoiceError = null;
         q.forceMatchLive = false;
+        q.matchStartedAt = 0;
       }
     }
     const adminIdx = q.adminSlots.findIndex((s) => s?.id === uid);

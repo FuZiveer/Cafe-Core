@@ -41,6 +41,7 @@
   let publicActiveMatches = [];
   let publicMatchesPollTimer = null;
   let lastPublicMatchesFetchAt = 0;
+  let matchLiveTimerId = null;
 
   function scrimsToast(message) {
     const text = String(message || "").trim();
@@ -306,6 +307,46 @@
     return slots.filter(Boolean).length;
   }
 
+  function lobbyOccupantCount() {
+    return queueCount() + adminCount();
+  }
+
+  function formatMatchElapsed(ms) {
+    const totalSec = Math.max(0, Math.floor(Number(ms) / 1000));
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) {
+      return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function syncMatchLiveTimers() {
+    if (!root) return;
+    const now = Date.now();
+    root.querySelectorAll(".scrims-match-timer[data-match-started-at]").forEach((el) => {
+      const started = Number(el.dataset.matchStartedAt) || 0;
+      if (!started) {
+        el.textContent = "0:00";
+        return;
+      }
+      el.textContent = formatMatchElapsed(now - started);
+    });
+  }
+
+  function stopMatchLiveTimer() {
+    if (matchLiveTimerId == null) return;
+    clearInterval(matchLiveTimerId);
+    matchLiveTimerId = null;
+  }
+
+  function startMatchLiveTimer() {
+    if (matchLiveTimerId != null) return;
+    syncMatchLiveTimers();
+    matchLiveTimerId = window.setInterval(syncMatchLiveTimers, 1e3);
+  }
+
   function standingByCopy(count) {
     if (count === 0) return "0 players in lobby";
     if (count === 1) return "1 player in lobby";
@@ -464,13 +505,30 @@
     namesVs.className = "scrims-match-team-names-gap";
     namesVs.setAttribute("aria-hidden", "true");
 
+    const rightCol = document.createElement("div");
+    rightCol.className = "scrims-match-team-names-right";
+
     const rightName = document.createElement("p");
     rightName.className = "scrims-match-team-name scrims-match-team-name--right";
     rightName.textContent = right.name || "Team";
 
+    const matchTimer = document.createElement("time");
+    matchTimer.className = "scrims-match-timer";
+    const startedAt = Math.max(0, Number(match.startedAt) || 0);
+    matchTimer.dataset.matchStartedAt = String(startedAt);
+    matchTimer.setAttribute("datetime", startedAt ? new Date(startedAt).toISOString() : "");
+    matchTimer.textContent = startedAt ? formatMatchElapsed(Date.now() - startedAt) : "0:00";
+    matchTimer.setAttribute(
+      "title",
+      startedAt ? "Match duration" : "Match duration (waiting for start time)"
+    );
+
+    rightCol.appendChild(rightName);
+    rightCol.appendChild(matchTimer);
+
     namesRow.appendChild(leftName);
     namesRow.appendChild(namesVs);
-    namesRow.appendChild(rightName);
+    namesRow.appendChild(rightCol);
 
     const versus = document.createElement("div");
     versus.className = "scrims-match-versus";
@@ -513,10 +571,12 @@
       for (const match of matches) {
         activeWrap.appendChild(createMatchCardElement(match));
       }
+      startMatchLiveTimer();
       stopPublicMatchesPoll();
       return;
     }
 
+    stopMatchLiveTimer();
     live.textContent = "0 live";
     activeWrap?.classList.add("hidden");
     if (activeWrap) {
@@ -601,9 +661,6 @@
     const showJoinChoices = Boolean(
       signedIn && lobbyContext && !userQueued && !matchLive
     );
-    const showLobbyPanel = Boolean(
-      signedIn && (showJoinChoices || (userQueued && Boolean(activeLobbyId)))
-    );
 
     if (signInBtn) {
       signInBtn.classList.toggle("hidden", signedIn);
@@ -619,8 +676,8 @@
       }
     }
     if (inviteJoin) {
-      inviteJoin.classList.toggle("hidden", !showLobbyPanel);
-      inviteJoin.hidden = !showLobbyPanel;
+      inviteJoin.classList.toggle("hidden", !showJoinChoices);
+      inviteJoin.hidden = !showJoinChoices;
     }
     if (inviteJoinTitle) {
       inviteJoinTitle.classList.toggle("hidden", !showJoinChoices);
@@ -654,7 +711,9 @@
       createBtn.disabled = queueActionPending;
       createBtn.textContent = queueActionPending && queuePendingAction === "join" ? "Creating…" : "Create lobby";
     }
-    const showManaged = Boolean(showLobbyPanel && userQueued);
+    const showManaged = Boolean(
+      signedIn && userQueued && Boolean(activeLobbyId) && !matchLive
+    );
     if (inviteManaged) {
       inviteManaged.classList.toggle("hidden", !showManaged);
       inviteManaged.hidden = !showManaged;
@@ -665,10 +724,11 @@
         queueActionPending && queuePendingAction === "leave" ? "Leaving…" : "Leave lobby";
     }
     const canStartMatch = Boolean(showManaged && (youAsAdmin || youAreHost) && !matchLive);
+    const lobbyReadyToStart = lobbyOccupantCount() > 2 && queueCount() >= 2;
     if (startMatchBtn) {
       startMatchBtn.classList.toggle("hidden", !canStartMatch);
       startMatchBtn.hidden = !canStartMatch;
-      startMatchBtn.disabled = queueActionPending || matchLive || queueCount() < 2;
+      startMatchBtn.disabled = queueActionPending || matchLive || !lobbyReadyToStart;
       const starting = queueActionPending && queuePendingAction === "start";
       startMatchBtn.textContent = starting ? "Starting…" : "Start match";
     }
@@ -938,6 +998,8 @@
         scrimsToast("Only lobby admins can start the match.");
       } else if (code === "not_enough_players") {
         scrimsToast("Need at least 2 players in the lobby to start.");
+      } else if (code === "not_enough_lobby_members") {
+        scrimsToast("Need more than 2 people in the lobby (players + admins) to start.");
       } else if (code === "lobby_not_found") {
         scrimsToast("Lobby not found — This invite link is invalid or expired.");
         setLobbyInUrl("");
@@ -1110,6 +1172,7 @@
     clearQueuePendingState();
     disconnectScrimQueueWebSocket();
     stopPublicMatchesPoll();
+    stopMatchLiveTimer();
     publicActiveMatches = [];
     if (!root) return;
     root.querySelector("#scrims-create-lobby")?.removeEventListener("click", onCreateLobbyClick);
