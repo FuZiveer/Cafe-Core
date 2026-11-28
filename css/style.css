@@ -7514,34 +7514,17 @@ html.reduce-motion .keyboard-checker-key {
 #page-scrims .scrims-roster-slot--admin.scrims-roster-slot--filled .scrims-roster-slot-avatar {
   box-shadow: 0 0 0 2px rgb(147 51 234 / 0.55);
 }
-#page-scrims .scrims-invite-join {
-  margin-top: 1.25rem;
-  padding: 1.1rem 1.15rem;
-  height: auto;
-  min-height: 0;
-  border-radius: 0.65rem;
-  border: 1px solid var(--scrims-glass-border);
-  background: rgb(12 14 18 / 0.55);
-}
-#page-scrims .scrims-invite-join-title {
-  margin: 0;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #fff;
-}
-#page-scrims .scrims-invite-join-desc {
-  margin: 0.4rem 0 0.85rem;
-  font-size: 0.6875rem;
-  color: var(--scrims-muted);
-}
-#page-scrims .scrims-invite-join-actions {
+#page-scrims .scrims-join-choices {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem;
+  margin-top: 0;
 }
-#page-scrims .scrims-invite-join-actions .scrims-cta {
+#page-scrims .scrims-join-choices.hidden {
+  display: none !important;
+}
+#page-scrims .scrims-join-choices .scrims-cta {
   margin-top: 0;
 }
 #page-scrims .scrims-lobby-managed {
@@ -7569,6 +7552,9 @@ html.reduce-motion .keyboard-checker-key {
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: 0.65rem;
   margin-top: 1.35rem;
+}
+#page-scrims .scrims-lobby-actions.hidden {
+  display: none !important;
 }
 #page-scrims .scrims-lobby-actions .scrims-cta {
   margin-top: 0;

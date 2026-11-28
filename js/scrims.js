@@ -1194,11 +1194,9 @@
     const vetoPanel = getVetoPanelEl();
     const lobbyBody = root.querySelector("#scrims-queue-lobby-body");
     const badgeEl = root.querySelector("#scrims-queue-state-badge");
+    const lobbyActions = root.querySelector(".scrims-lobby-actions");
     const createBtn = root.querySelector("#scrims-create-lobby");
-    const inviteJoin = root.querySelector("#scrims-invite-join");
-    const inviteJoinTitle = root.querySelector("#scrims-invite-join-title");
-    const inviteJoinDesc = root.querySelector(".scrims-invite-join-desc");
-    const inviteJoinActions = root.querySelector(".scrims-invite-join-actions");
+    const joinChoices = root.querySelector("#scrims-join-choices");
     const joinPlayerBtn = root.querySelector("#scrims-join-as-player");
     const joinAdminBtn = root.querySelector("#scrims-join-as-admin");
     const inviteManaged = root.querySelector("#scrims-invite-join-managed");
@@ -1247,10 +1245,19 @@
     const showJoinChoices = Boolean(
       signedIn && lobbyContext && !userQueued && !matchLive
     );
+    const showCreate = Boolean(
+      signedIn && !matchLive && !userQueued && !lobbyContext
+    );
+    const showSignIn = Boolean(!signedIn && !matchLive);
 
     if (signInBtn) {
-      signInBtn.classList.toggle("hidden", signedIn);
-      signInBtn.hidden = signedIn;
+      signInBtn.classList.toggle("hidden", !showSignIn);
+      signInBtn.hidden = !showSignIn;
+    }
+    if (lobbyActions) {
+      const showActions = showSignIn || showCreate || showJoinChoices;
+      lobbyActions.classList.toggle("hidden", !showActions);
+      lobbyActions.hidden = !showActions;
     }
     if (inviteWrap && inviteInput && inviteCode) {
       const showInvite = Boolean(!matchLive && activeLobbyId && userQueued);
@@ -1261,21 +1268,9 @@
         inviteCode.textContent = `Lobby code: ${activeLobbyId}`;
       }
     }
-    if (inviteJoin) {
-      inviteJoin.classList.toggle("hidden", !showJoinChoices);
-      inviteJoin.hidden = !showJoinChoices;
-    }
-    if (inviteJoinTitle) {
-      inviteJoinTitle.classList.toggle("hidden", !showJoinChoices);
-      inviteJoinTitle.hidden = !showJoinChoices;
-    }
-    if (inviteJoinDesc) {
-      inviteJoinDesc.classList.toggle("hidden", !showJoinChoices);
-      inviteJoinDesc.hidden = !showJoinChoices;
-    }
-    if (inviteJoinActions) {
-      inviteJoinActions.classList.toggle("hidden", !showJoinChoices);
-      inviteJoinActions.hidden = !showJoinChoices;
+    if (joinChoices) {
+      joinChoices.classList.toggle("hidden", !showJoinChoices);
+      joinChoices.hidden = !showJoinChoices;
     }
     if (joinPlayerBtn) {
       joinPlayerBtn.disabled = lobbyRequestInFlight || playersFull;
@@ -1290,10 +1285,8 @@
       joinAdminBtn.textContent = joiningAdmin ? "Joining…" : "Join as admin";
     }
     if (createBtn) {
-      const hideCreate =
-      matchLive || !signedIn || userQueued || Boolean(lobbyContext);
-      createBtn.classList.toggle("hidden", hideCreate);
-      createBtn.hidden = hideCreate;
+      createBtn.classList.toggle("hidden", !showCreate);
+      createBtn.hidden = !showCreate;
       createBtn.disabled = lobbyRequestInFlight;
       const creating =
         lobbyRequestInFlight && queuePendingAction === "join" && !joinRolePending;
@@ -1659,7 +1652,15 @@
     }
   }
 
+  function requireDiscordSignIn() {
+    if (getDiscordUser()) return true;
+    scrimsToast("Sign in with Discord first.");
+    handleSignInClick();
+    return false;
+  }
+
   function handleCreateLobby() {
+    if (!requireDiscordSignIn()) return;
     void lobbyRequest("/api/scrims/lobbies", "join");
   }
 
@@ -1668,6 +1669,7 @@
   }
 
   function handleJoinAsPlayer() {
+    if (!requireDiscordSignIn()) return;
     const code = lobbyCodeForJoin();
     if (!code) {
       scrimsToast("Open a lobby invite link first.");
@@ -1678,6 +1680,7 @@
   }
 
   function handleJoinAsAdmin() {
+    if (!requireDiscordSignIn()) return;
     const code = lobbyCodeForJoin();
     if (!code) {
       scrimsToast("Open a lobby invite link first.");

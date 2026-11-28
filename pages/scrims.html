@@ -64,9 +64,33 @@
                         </div>
 
                         <div class="scrims-lobby-actions">
-                            <button type="button" id="scrims-create-lobby" class="scrims-cta scrims-cta--join ui-interactive">
+                            <button
+                                type="button"
+                                id="scrims-queue-sign-in"
+                                class="scrims-cta scrims-cta--discord ui-interactive"
+                            >
+                                <i class="fa-brands fa-discord" aria-hidden="true"></i>
+                                Sign in with Discord
+                            </button>
+                            <button type="button" id="scrims-create-lobby" class="scrims-cta scrims-cta--join ui-interactive hidden" hidden>
                                 Create lobby
                             </button>
+                            <div id="scrims-join-choices" class="scrims-join-choices hidden" hidden>
+                                <button
+                                    type="button"
+                                    id="scrims-join-as-player"
+                                    class="scrims-cta scrims-cta--join ui-interactive"
+                                >
+                                    Join as player
+                                </button>
+                                <button
+                                    type="button"
+                                    id="scrims-join-as-admin"
+                                    class="scrims-cta scrims-cta--admin ui-interactive"
+                                >
+                                    Join as admin
+                                </button>
+                            </div>
                         </div>
 
                         <div id="scrims-invite-join-managed" class="scrims-lobby-managed hidden" hidden>
@@ -86,41 +110,6 @@
                             </button>
                         </div>
                         </div>
-
-                        <div
-                            id="scrims-invite-join"
-                            class="scrims-invite-join hidden"
-                            hidden
-                            aria-labelledby="scrims-invite-join-title"
-                        >
-                            <p id="scrims-invite-join-title" class="scrims-invite-join-title">Join this lobby</p>
-                            <p class="scrims-invite-join-desc">Choose how you want to participate.</p>
-                            <div class="scrims-invite-join-actions">
-                                <button
-                                    type="button"
-                                    id="scrims-join-as-player"
-                                    class="scrims-cta scrims-cta--join ui-interactive"
-                                >
-                                    Join as player
-                                </button>
-                                <button
-                                    type="button"
-                                    id="scrims-join-as-admin"
-                                    class="scrims-cta scrims-cta--admin ui-interactive"
-                                >
-                                    Join as admin
-                                </button>
-                            </div>
-                        </div>
-
-                        <button
-                            type="button"
-                            id="scrims-queue-sign-in"
-                            class="scrims-cta scrims-cta--discord ui-interactive hidden"
-                        >
-                            <i class="fa-brands fa-discord" aria-hidden="true"></i>
-                            Sign in with Discord
-                        </button>
                     </section>
 
                     <section
