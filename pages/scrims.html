@@ -19,15 +19,6 @@
                                     <i class="fa-regular fa-clock" aria-hidden="true"></i>
                                     <span id="scrims-queue-timer">00:00</span>
                                 </div>
-                                <div id="scrims-live-actions" class="scrims-live-actions hidden" hidden>
-                                    <button
-                                        type="button"
-                                        id="scrims-end-match"
-                                        class="scrims-cta scrims-cta--end"
-                                    >
-                                        End match
-                                    </button>
-                                </div>
                             </div>
                         </header>
 
@@ -57,6 +48,14 @@
                             <div id="scrims-join-choices" class="scrims-join-choices hidden" hidden>
                                 <button
                                     type="button"
+                                    id="scrims-cancel-lobby"
+                                    class="scrims-cta scrims-cta--copy ui-interactive hidden"
+                                    hidden
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
                                     id="scrims-join-as-player"
                                     class="scrims-cta scrims-cta--join ui-interactive"
                                 >
@@ -79,6 +78,14 @@
                                 class="scrims-cta scrims-cta--copy ui-interactive"
                             >
                                 Copy link
+                            </button>
+                            <button
+                                type="button"
+                                id="scrims-end-match"
+                                class="scrims-cta scrims-cta--end hidden"
+                                hidden
+                            >
+                                End match
                             </button>
                             <button
                                 type="button"

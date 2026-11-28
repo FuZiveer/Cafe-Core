@@ -15,6 +15,7 @@
   let onCreateLobbyClick = null;
   let onJoinAsPlayerClick = null;
   let onJoinAsAdminClick = null;
+  let onCancelLobbyClick = null;
   let onLeaveLobbyClick = null;
   let onStartMatchClick = null;
   let onEndMatchClick = null;
@@ -301,6 +302,13 @@
     return Boolean(activeMatch?.teams?.length >= 2);
   }
 
+  function viewerMayEndMatch() {
+    if (!hasLiveMatch()) return false;
+    if (youCanEndMatch) return true;
+    if (adminCount() > 0) return youAsAdmin;
+    return youAreHost;
+  }
+
   function amInQueueFromPayload(payload) {
     if (payload?.youInQueue === true) return true;
     if (amInActiveMatchFromPayload(payload)) return true;
@@ -412,17 +420,11 @@
       adminCapacity = Math.min(4, Math.round(Number(payload.adminCapacity)));
     }
     activeMatch = payload.activeMatch || null;
-    const matchLive = hasLiveMatch() || payload.matchLive === true;
-    if (matchLive) {
-      slots = Array.from({ length: queueCapacity }, () => null);
-      adminSlots = Array.from({ length: adminCapacity }, () => null);
-    } else {
-      slots = Array.from({ length: queueCapacity }, (_, i) =>
-        mapSlotFromServer(payload.slots[i], i)
-      );
-      const srcAdmin = Array.isArray(payload.adminSlots) ? payload.adminSlots : [];
-      adminSlots = Array.from({ length: adminCapacity }, (_, i) => mapSlotFromServer(srcAdmin[i], i));
-    }
+    slots = Array.from({ length: queueCapacity }, (_, i) =>
+      mapSlotFromServer(payload.slots[i], i)
+    );
+    const srcAdmin = Array.isArray(payload.adminSlots) ? payload.adminSlots : [];
+    adminSlots = Array.from({ length: adminCapacity }, (_, i) => mapSlotFromServer(srcAdmin[i], i));
     userQueued =
       payload.youInQueue === true ||
       slots.some((m) => m?.you) ||
@@ -684,7 +686,7 @@
     grid.style.setProperty("--scrims-roster-cols", String(MATCH_TEAM_SLOTS));
     grid.setAttribute("aria-label", `${team.name || "Team"} slots (${MATCH_TEAM_SLOTS})`);
 
-    const players = rosterPlayersForSide(team, side);
+    const players = rosterPlayersForSide(team);
     for (let i = 0; i < MATCH_TEAM_SLOTS; i++) {
       const slot = document.createElement("article");
       renderSlot(slot, i, matchPlayerToMember(players[i]), { kind: "player", showSub: false });
@@ -833,13 +835,8 @@
     return Boolean(match && activeMatch && match.matchId === activeMatch.matchId);
   }
 
-  function rosterPlayersForSide(team, side) {
-    const players = Array.isArray(team?.players) ? team.players : [];
-    if (!shouldParkCaptains(activeMatch)) return players;
-    const veto = activeMatch.veto;
-    const captainId = side === "right" ? veto.rightCaptainId : veto.leftCaptainId;
-    if (!captainId) return players;
-    return players.filter((player) => String(player?.id || "") !== String(captainId));
+  function rosterPlayersForSide(team) {
+    return Array.isArray(team?.players) ? team.players : [];
   }
 
   function vetoCaptain(side) {
@@ -1185,10 +1182,32 @@
     }
   }
 
+  function setCtaPending(button, pending, idleLabel) {
+    if (!button) return;
+    const showingLoader = button.classList.contains("is-pending");
+    if (pending) {
+      button.dataset.ctaLabel = idleLabel;
+      if (showingLoader) return;
+      button.classList.add("is-pending");
+      button.setAttribute("aria-busy", "true");
+      button.setAttribute("aria-label", idleLabel);
+      const spinner = document.createElement("span");
+      spinner.className = "scrims-cta-loader";
+      spinner.setAttribute("aria-hidden", "true");
+      button.replaceChildren(spinner);
+      return;
+    }
+    if (!showingLoader && button.textContent.trim() === idleLabel) return;
+    button.classList.remove("is-pending");
+    button.removeAttribute("aria-busy");
+    button.removeAttribute("aria-label");
+    button.textContent = idleLabel;
+  }
+
   function renderQueue() {
     if (!root) return;
     const matchLive = hasLiveMatch();
-    const count = matchLive ? 0 : queueCount();
+    const count = queueCount();
     const discord = getDiscordUser();
     const queueSection = root.querySelector("#scrims-queue");
     const vetoPanel = getVetoPanelEl();
@@ -1197,6 +1216,7 @@
     const lobbyActions = root.querySelector(".scrims-lobby-actions");
     const createBtn = root.querySelector("#scrims-create-lobby");
     const joinChoices = root.querySelector("#scrims-join-choices");
+    const cancelLobbyBtn = root.querySelector("#scrims-cancel-lobby");
     const joinPlayerBtn = root.querySelector("#scrims-join-as-player");
     const joinAdminBtn = root.querySelector("#scrims-join-as-admin");
     const inviteManaged = root.querySelector("#scrims-invite-join-managed");
@@ -1216,8 +1236,8 @@
       renderVetoBoard();
     }
     if (lobbyBody) {
-      lobbyBody.classList.toggle("hidden", matchLive);
-      lobbyBody.hidden = matchLive;
+      lobbyBody.classList.remove("hidden");
+      lobbyBody.hidden = false;
     }
     if (badgeEl) {
       if (matchLive) {
@@ -1233,8 +1253,8 @@
       }
     }
 
-    const playersFull = !matchLive && count >= queueCapacity;
-    const adminsFull = !matchLive && adminCount() >= adminCapacity;
+    const playersFull = count >= queueCapacity;
+    const adminsFull = adminCount() >= adminCapacity;
     const signedIn = Boolean(discord);
     const urlLobby = getLobbyCodeFromUrl();
     const viewingInviteLobby = Boolean(urlLobby && !userQueued);
@@ -1242,6 +1262,7 @@
     const showJoinChoices = Boolean(
       signedIn && lobbyContext && !userQueued && !matchLive
     );
+    const showCancelLobby = Boolean(showJoinChoices && youAreHost);
     const showCreate = Boolean(
       signedIn && !matchLive && !userQueued && !lobbyContext
     );
@@ -1259,18 +1280,29 @@
     if (joinChoices) {
       joinChoices.classList.toggle("hidden", !showJoinChoices);
       joinChoices.hidden = !showJoinChoices;
+      joinChoices.classList.toggle("is-host", showCancelLobby);
+    }
+    if (cancelLobbyBtn) {
+      cancelLobbyBtn.classList.toggle("hidden", !showCancelLobby);
+      cancelLobbyBtn.hidden = !showCancelLobby;
+      cancelLobbyBtn.disabled = lobbyRequestInFlight;
+      setCtaPending(
+        cancelLobbyBtn,
+        showCancelLobby && lobbyRequestInFlight && queuePendingAction === "leave",
+        "Cancel"
+      );
     }
     if (joinPlayerBtn) {
       joinPlayerBtn.disabled = lobbyRequestInFlight || playersFull;
       const joiningPlayer =
         lobbyRequestInFlight && queuePendingAction === "join" && joinRolePending === "player";
-      joinPlayerBtn.textContent = joiningPlayer ? "Joining…" : "Join as player";
+      setCtaPending(joinPlayerBtn, joiningPlayer, "Join as player");
     }
     if (joinAdminBtn) {
       joinAdminBtn.disabled = lobbyRequestInFlight || adminsFull;
       const joiningAdmin =
         lobbyRequestInFlight && queuePendingAction === "join" && joinRolePending === "admin";
-      joinAdminBtn.textContent = joiningAdmin ? "Joining…" : "Join as admin";
+      setCtaPending(joinAdminBtn, joiningAdmin, "Join as admin");
     }
     if (createBtn) {
       createBtn.classList.toggle("hidden", !showCreate);
@@ -1278,49 +1310,45 @@
       createBtn.disabled = lobbyRequestInFlight;
       const creating =
         lobbyRequestInFlight && queuePendingAction === "join" && !joinRolePending;
-      createBtn.textContent = creating ? "Creating…" : "Create lobby";
+      setCtaPending(createBtn, creating, "Create lobby");
     }
-    const showManaged = Boolean(
-      signedIn && userQueued && Boolean(activeLobbyId) && !matchLive
-    );
+    const showManaged = Boolean(signedIn && userQueued && Boolean(activeLobbyId));
     if (inviteManaged) {
       inviteManaged.classList.toggle("hidden", !showManaged);
       inviteManaged.hidden = !showManaged;
     }
     if (leaveBtn) {
       leaveBtn.disabled = lobbyRequestInFlight;
-      leaveBtn.textContent =
-        lobbyRequestInFlight && queuePendingAction === "leave" ? "Leaving…" : "Leave lobby";
+      setCtaPending(
+        leaveBtn,
+        lobbyRequestInFlight && queuePendingAction === "leave",
+        "Leave lobby"
+      );
     }
-    const showStartMatch = Boolean(
-      showManaged && (youAsAdmin || youAreHost) && !matchLive
-    );
+    const showStartMatch = Boolean(showManaged && (youAsAdmin || youAreHost) && !matchLive);
     if (startMatchBtn) {
       startMatchBtn.classList.toggle("hidden", !showStartMatch);
       startMatchBtn.hidden = !showStartMatch;
       startMatchBtn.setAttribute("aria-hidden", showStartMatch ? "false" : "true");
       startMatchBtn.disabled = lobbyRequestInFlight || matchLive || lobbyOccupantCount() < 2;
-      const starting = lobbyRequestInFlight && queuePendingAction === "start";
-      startMatchBtn.textContent = starting ? "Starting…" : "Start match";
+      setCtaPending(startMatchBtn, lobbyRequestInFlight && queuePendingAction === "start", "Start match");
     }
     if (liveActions) {
-      liveActions.classList.toggle("hidden", !matchLive);
-      liveActions.hidden = !matchLive;
+      liveActions.classList.add("hidden");
+      liveActions.hidden = true;
     }
     if (endMatchBtn) {
-      const canEnd = youCanEndMatch && !lobbyRequestInFlight;
-      endMatchBtn.disabled = !canEnd;
-      endMatchBtn.setAttribute("aria-disabled", canEnd ? "false" : "true");
-      if (youCanEndMatch) {
-        endMatchBtn.removeAttribute("title");
-      } else {
-        endMatchBtn.title = "Only match admins (or the lobby host if none) can end the match";
-      }
+      const allowedToEnd = viewerMayEndMatch();
+      const showEnd = Boolean(matchLive && showManaged && allowedToEnd);
       const ending = lobbyRequestInFlight && queuePendingAction === "end";
-      endMatchBtn.textContent = ending ? "Ending…" : "End match";
+      endMatchBtn.classList.toggle("hidden", !showEnd);
+      endMatchBtn.hidden = !showEnd;
+      endMatchBtn.disabled = !showEnd || ending;
+      endMatchBtn.removeAttribute("title");
+      setCtaPending(endMatchBtn, ending, "End match");
     }
 
-    if (slotsEl && !matchLive) {
+    if (slotsEl) {
       slotsEl.style.setProperty("--scrims-roster-cols", String(queueCapacity));
       slotsEl.setAttribute("aria-label", `Player slots (${queueCapacity})`);
       slotsEl.replaceChildren();
@@ -1329,12 +1357,9 @@
         renderSlot(slot, i, slots[i], { kind: "player" });
         slotsEl.appendChild(slot);
       }
-    } else if (slotsEl && matchLive) {
-      slotsEl.replaceChildren();
     }
-    const adminsInLobby = matchLive ? 0 : adminCount();
-    if (adminCapLabel) adminCapLabel.textContent = `(${adminsInLobby} / ${adminCapacity})`;
-    if (adminSlotsEl && !matchLive) {
+    if (adminCapLabel) adminCapLabel.textContent = `(${adminCount()} / ${adminCapacity})`;
+    if (adminSlotsEl) {
       adminSlotsEl.style.setProperty("--scrims-roster-cols", String(adminCapacity));
       adminSlotsEl.setAttribute("aria-label", `Admin slots (${adminCapacity})`);
       adminSlotsEl.replaceChildren();
@@ -1343,18 +1368,9 @@
         renderSlot(slot, i, adminSlots[i], { kind: "admin" });
         adminSlotsEl.appendChild(slot);
       }
-    } else if (adminSlotsEl && matchLive) {
-      adminSlotsEl.replaceChildren();
     }
 
-    if (matchLive) {
-      stopQueueTimer();
-      const timerWrap = root.querySelector("#scrims-queue-timer-wrap");
-      timerWrap?.classList.add("hidden");
-      if (timerWrap) timerWrap.hidden = true;
-    } else {
-      syncQueueTimer();
-    }
+    syncQueueTimer();
     renderMatchesPanel();
   }
 
@@ -1678,6 +1694,11 @@
     void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(code)}/join`, "join", { role: "admin" });
   }
 
+  function handleCancelLobby() {
+    if (!activeLobbyId || !youAreHost) return;
+    void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(activeLobbyId)}/leave`, "leave");
+  }
+
   function handleLeaveLobby() {
     if (!activeLobbyId) return;
     void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(activeLobbyId)}/leave`, "leave");
@@ -1693,7 +1714,7 @@
   }
 
   function handleEndMatch() {
-    if (!activeLobbyId || !youCanEndMatch) return;
+    if (!activeLobbyId || !viewerMayEndMatch()) return;
     void lobbyRequest(`/api/scrims/lobbies/${encodeURIComponent(activeLobbyId)}/end`, "end");
   }
 
@@ -1769,6 +1790,9 @@
       onJoinAsAdminClick = () => {
         handleJoinAsAdmin();
       };
+      onCancelLobbyClick = () => {
+        handleCancelLobby();
+      };
       onLeaveLobbyClick = () => {
         void handleLeaveLobby();
       };
@@ -1784,6 +1808,7 @@
       page.querySelector("#scrims-create-lobby")?.addEventListener("click", onCreateLobbyClick);
       page.querySelector("#scrims-join-as-player")?.addEventListener("click", onJoinAsPlayerClick);
       page.querySelector("#scrims-join-as-admin")?.addEventListener("click", onJoinAsAdminClick);
+      page.querySelector("#scrims-cancel-lobby")?.addEventListener("click", onCancelLobbyClick);
       page.querySelector("#scrims-leave-lobby")?.addEventListener("click", onLeaveLobbyClick);
       page.querySelector("#scrims-start-match")?.addEventListener("click", onStartMatchClick);
       page.querySelector("#scrims-end-match")?.addEventListener("click", onEndMatchClick);
@@ -1833,6 +1858,7 @@
     root.querySelector("#scrims-create-lobby")?.removeEventListener("click", onCreateLobbyClick);
     root.querySelector("#scrims-join-as-player")?.removeEventListener("click", onJoinAsPlayerClick);
     root.querySelector("#scrims-join-as-admin")?.removeEventListener("click", onJoinAsAdminClick);
+    root.querySelector("#scrims-cancel-lobby")?.removeEventListener("click", onCancelLobbyClick);
     root.querySelector("#scrims-leave-lobby")?.removeEventListener("click", onLeaveLobbyClick);
     root.querySelector("#scrims-start-match")?.removeEventListener("click", onStartMatchClick);
     root.querySelector("#scrims-end-match")?.removeEventListener("click", onEndMatchClick);
@@ -1851,6 +1877,7 @@
     onCreateLobbyClick = null;
     onJoinAsPlayerClick = null;
     onJoinAsAdminClick = null;
+    onCancelLobbyClick = null;
     onLeaveLobbyClick = null;
     onStartMatchClick = null;
     onEndMatchClick = null;

@@ -496,17 +496,12 @@ export function queuePayload(queue, viewerId) {
     version: queue.version,
     capacity: QUEUE_CAP,
     adminCapacity: ADMIN_CAP,
-    count: matchLive ? 0 : queueCount(queue),
-    adminCount: matchLive ? 0 : adminCount(queue),
-    slots: (matchLive
-      ? Array.from({ length: QUEUE_CAP }, () => null)
-      : queue.slots
-    ).map(mapPublicSlot),
-    adminSlots: (matchLive ? Array.from({ length: ADMIN_CAP }, () => null) : adminSource).map(
-      mapPublicSlot
-    ),
-    youInQueue: matchLive ? youInMatch : youInLobby,
-    youAsPlayer: matchLive ? youInMatch : youAsPlayer,
+    count: queueCount(queue),
+    adminCount: adminCount(queue),
+    slots: queue.slots.map(mapPublicSlot),
+    adminSlots: adminSource.map(mapPublicSlot),
+    youInQueue: youInLobby || youInMatch,
+    youAsPlayer,
     youAsAdmin,
     yourJoinedAt:
       youIdx !== -1
