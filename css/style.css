@@ -7393,9 +7393,37 @@ html.reduce-motion .keyboard-checker-key {
   font-size: 0.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: rgb(148 163 184);
   white-space: nowrap;
+}
+#page-scrims .scrims-match-timer-display {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.06em;
+}
+#page-scrims .scrims-match-timer-seg {
+  --bl-scrim-digit-step: 1em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 0;
+  color: inherit;
+  vertical-align: middle;
+}
+#page-scrims .scrims-match-timer-seg .bl-scrim-digit-slot {
+  width: 0.58em;
+}
+#page-scrims .scrims-match-timer-colon {
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgb(148 163 184);
+  user-select: none;
 }
 #page-scrims .scrims-match-team-names-gap {
   width: var(--scrims-match-lane, 2.25rem);
