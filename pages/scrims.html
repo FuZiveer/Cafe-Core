@@ -19,25 +19,17 @@
                                     <i class="fa-regular fa-clock" aria-hidden="true"></i>
                                     <span id="scrims-queue-timer">00:00</span>
                                 </div>
+                                <div id="scrims-live-actions" class="scrims-live-actions hidden" hidden>
+                                    <button
+                                        type="button"
+                                        id="scrims-end-match"
+                                        class="scrims-cta scrims-cta--end"
+                                    >
+                                        End match
+                                    </button>
+                                </div>
                             </div>
                         </header>
-
-                        <div
-                            id="scrims-veto-panel"
-                            class="scrims-veto-panel hidden"
-                            hidden
-                            role="region"
-                            aria-label="Map ban"
-                        ></div>
-                        <div id="scrims-live-actions" class="scrims-live-actions hidden" hidden>
-                            <button
-                                type="button"
-                                id="scrims-end-match"
-                                class="scrims-cta scrims-cta--end ui-interactive"
-                            >
-                                End match
-                            </button>
-                        </div>
 
                         <div id="scrims-queue-lobby-body" class="scrims-queue-lobby-body">
                         <div
@@ -132,6 +124,20 @@
                     </section>
 
                     <section
+                        id="scrims-veto"
+                        class="scrims-glass scrims-glass--veto hidden"
+                        hidden
+                        aria-labelledby="scrims-veto-kicker"
+                    >
+                        <div
+                            id="scrims-veto-panel"
+                            class="scrims-veto-panel"
+                            role="region"
+                            aria-label="Map ban"
+                        ></div>
+                    </section>
+
+                    <section
                         id="scrims-matches"
                         class="scrims-glass scrims-glass--matches"
                         aria-labelledby="scrims-matches-title"
@@ -139,7 +145,7 @@
                         <header class="scrims-matches-head">
                             <div class="scrims-matches-title-row">
                                 <span class="scrims-live-icon" aria-hidden="true">
-                                    <i class="ri-plug-3-fill"></i>
+                                    <span class="scrims-live-dot"></span>
                                 </span>
                                 <h3 id="scrims-matches-title" class="scrims-matches-title">LIVE MATCHES</h3>
                             </div>

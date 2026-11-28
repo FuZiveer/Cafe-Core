@@ -51,11 +51,7 @@
   let onVetoClick = null;
   let vetoPaintKey = "";
   let vetoMatchId = "";
-  let vetoFlipPlayed = false;
-  let vetoArrowTimer = null;
   let vetoSubmitLock = false;
-  const VETO_COUNTDOWN_MS = 5000;
-  const VETO_FLIP_ANIM_MS = 2200;
   const SCRIM_MAP_THUMB_BASE = "https://static.stats.cc/siege/maps";
   let lastMatchPanelSignature = "";
   const matchTimerLastSecond = new WeakMap();
@@ -571,7 +567,6 @@
         return;
       }
       syncMatchLiveTimers();
-      tickVetoClock();
     }, 250);
   }
 
@@ -794,6 +789,7 @@
 
     const matches = activeMatchesForPanel();
     const hasMatch = matches.length > 0;
+    root.querySelector(".scrims-matches-title-row")?.classList.toggle("is-live", hasMatch);
     if (hasMatch) {
       live.textContent = matches.length === 1 ? "1 live" : `${matches.length} live`;
       emptyWrap?.classList.add("hidden");
@@ -874,46 +870,37 @@
     return root?.querySelector("#scrims-veto-panel");
   }
 
+  function getVetoSectionEl() {
+    return root?.querySelector("#scrims-veto");
+  }
+
   function syncVetoPanelVisibility() {
     const panel = getVetoPanelEl();
-    if (!panel) return;
+    const section = getVetoSectionEl();
     const show = hasLiveMatch() && isMapVetoInProgress();
-    panel.classList.toggle("hidden", !show);
-    panel.hidden = !show;
-    if (!show) {
+    for (const el of [panel, section]) {
+      if (!el) continue;
+      el.classList.toggle("hidden", !show);
+      el.hidden = !show;
+    }
+    if (!show && panel) {
       panel.replaceChildren();
       vetoPaintKey = "";
     }
   }
 
   function vetoPhase() {
-    const match = activeMatch;
-    const veto = match?.veto;
-    const started = Number(match?.startedAt) || 0;
-    const flipAt = started + VETO_COUNTDOWN_MS;
+    const veto = activeMatch?.veto;
     if (!veto) return { name: "pending", key: "pending" };
     if (veto.complete || veto.startingSide) {
       return { name: "done", key: `done:${veto.startingSide}:${(veto.actions || []).map((action) => action.mapId).join(",")}` };
     }
-    if (started && Date.now() < flipAt) {
-      return { name: "countdown", key: "countdown", seconds: Math.max(1, Math.ceil((flipAt - Date.now()) / 1000)) };
-    }
     const step = (veto.actions || []).length;
-    const sinceFlip = Date.now() - flipAt;
-    const playFlip = step === 0 && !vetoFlipPlayed && sinceFlip >= 0 && sinceFlip < VETO_FLIP_ANIM_MS;
     return {
       name: step >= 8 ? "side" : "veto",
       key: `step:${step}:${(veto.actions || []).map((action) => action.mapId).join(",")}:${vetoSubmitLock ? "1" : "0"}`,
-      step,
-      playFlip,
-      winner: veto.firstSide
+      step
     };
-  }
-
-  function clearVetoArrowTimer() {
-    if (vetoArrowTimer == null) return;
-    clearTimeout(vetoArrowTimer);
-    vetoArrowTimer = null;
   }
 
   function appendCaptain(parent, side, turnSide) {
@@ -952,132 +939,164 @@
     return `${SCRIM_MAP_THUMB_BASE}/${encodeURIComponent(slug)}_thumbnail.webp`;
   }
 
-  function teamCoinTag(side) {
-    return vetoCaptain(side).team.slice(0, 3).toUpperCase();
+  function currentVetoTurnSide(phase) {
+    const veto = activeMatch?.veto;
+    if (!veto || !phase) return "";
+    if (phase.name === "side") return veto.sideSelector;
+    if (phase.name === "veto") return veto.steps?.[phase.step]?.side || "";
+    return "";
+  }
+
+  function vetoStepFromPaintKey(key) {
+    if (!key || !key.startsWith("step:")) return null;
+    const step = Number(key.split(":")[1]);
+    return Number.isFinite(step) ? step : null;
+  }
+
+  function setVetoArrowPoint(point) {
+    const arrow = root?.querySelector("[data-veto-arrow]");
+    if (!arrow) return;
+    const next = point === "right" ? "right" : point === "left" ? "left" : "up";
+    if (arrow.dataset.point === next) return;
+    arrow.classList.add("is-aiming");
+    void arrow.offsetWidth;
+    arrow.dataset.point = next;
+  }
+
+  function patchVetoAfterTurn(phase) {
+    const veto = activeMatch?.veto;
+    if (!veto) return;
+    const turnSide = currentVetoTurnSide(phase);
+    if (turnSide === "left" || turnSide === "right") setVetoArrowPoint(turnSide);
+    root?.querySelectorAll(".scrims-veto-captain").forEach((el) => {
+      const side = el.classList.contains("scrims-veto-captain--right") ? "right" : "left";
+      el.classList.toggle("is-turn", side === turnSide);
+    });
+    const status = root?.querySelector(".scrims-veto-status");
+    if (status) status.textContent = vetoStatusText(phase);
+    const mapsEl = root?.querySelector(".scrims-veto-maps");
+    if (!mapsEl || phase.name !== "veto") return;
+    const used = new Map((veto.actions || []).map((action) => [action.mapId, action.kind]));
+    const actorId = turnSide === "right" ? veto.rightCaptainId : veto.leftCaptainId;
+    const mine = myDiscordId();
+    const myTurn = Boolean(mine && actorId && String(mine) === String(actorId));
+    const stepKind = veto.steps?.[phase.step]?.kind || "ban";
+    mapsEl.querySelectorAll("[data-veto-map]").forEach((btn) => {
+      const mapId = btn.dataset.vetoMap;
+      const kind = used.get(mapId);
+      btn.classList.toggle("is-banned", kind === "ban");
+      btn.classList.toggle("is-picked", kind === "pick");
+      btn.classList.toggle("is-pick-phase", !kind && stepKind === "pick");
+      btn.disabled = !myTurn || vetoSubmitLock || Boolean(kind);
+    });
+  }
+
+  function vetoPrompt(phase) {
+    const veto = activeMatch?.veto;
+    if (!veto) return "Preparing the map ban.";
+    const side =
+      phase.name === "side" ? veto.sideSelector : veto.steps?.[phase.step]?.side || veto.firstSide;
+    const actor = vetoCaptain(side);
+    const who = myDiscordId() && String(actor.id) === myDiscordId() ? "You" : actor.team;
+    if (phase.name === "side") return `${who} — Pick starting side`;
+    const kind = veto.steps?.[phase.step]?.kind === "pick" ? "Pick the map" : "Ban a map";
+    return `${who} — ${kind}`;
+  }
+
+  function vetoProgressLabel(phase) {
+    const total = (activeMatch?.veto?.maps || []).length || 9;
+    const done = (activeMatch?.veto?.actions || []).length;
+    const current = phase.name === "side" ? total : Math.min(done + 1, total);
+    return `${current} / ${total}`;
   }
 
   function buildVetoElement(phase) {
     const veto = activeMatch?.veto;
     const wrap = document.createElement("div");
-    wrap.className = "scrims-veto";
+    wrap.className = "scrims-veto-board";
 
-    const turnSide =
-      phase.name === "side"
-        ? veto.sideSelector
-        : phase.name === "veto"
-          ? veto.steps?.[phase.step]?.side || ""
-          : "";
-    appendCaptain(wrap, "left", turnSide);
-    const stage = document.createElement("div");
-    stage.className = "scrims-veto-stage";
-    const flip = document.createElement("div");
-    flip.className = "scrims-veto-flip";
-    const arrow = document.createElement("i");
-    arrow.className = "fa-solid fa-arrow-up scrims-veto-arrow";
-    arrow.dataset.vetoArrow = "1";
-    arrow.dataset.point = phase.name === "countdown" || phase.playFlip ? "up" : veto.firstSide;
-    if (phase.name !== "countdown" && !phase.playFlip) arrow.classList.add("is-aiming");
-    arrow.setAttribute("aria-hidden", "true");
-    const coin = document.createElement("div");
-    const winnerSide = veto.firstSide;
-    const leftTag = teamCoinTag("left");
-    const rightTag = teamCoinTag("right");
-    coin.className = `scrims-veto-coin${phase.playFlip ? " is-flipping" : ""}${
-      phase.name !== "countdown" && !phase.playFlip ? " is-revealed" : ""
-    }`;
-    coin.dataset.winner = winnerSide;
-    const faceA = document.createElement("span");
-    faceA.className = "scrims-veto-coin-face scrims-veto-coin-face--a";
-    faceA.textContent = leftTag;
-    const faceB = document.createElement("span");
-    faceB.className = "scrims-veto-coin-face scrims-veto-coin-face--b";
-    faceB.textContent = rightTag;
-    coin.append(faceA, faceB);
-    flip.append(arrow, coin);
-    stage.appendChild(flip);
+    const head = document.createElement("div");
+    head.className = "scrims-veto-head";
+    const copy = document.createElement("div");
+    copy.className = "scrims-veto-head-copy";
+    const kicker = document.createElement("p");
+    kicker.id = "scrims-veto-kicker";
+    kicker.className = "scrims-veto-kicker";
+    kicker.textContent = "Map veto & side selection";
+    const prompt = document.createElement("h3");
+    prompt.className = "scrims-veto-prompt";
+    prompt.textContent = vetoPrompt(phase);
+    copy.append(kicker, prompt);
+    const progress = document.createElement("span");
+    progress.className = "scrims-veto-progress";
+    progress.textContent = vetoProgressLabel(phase);
+    head.append(copy, progress);
+    wrap.appendChild(head);
 
-    if (phase.name === "countdown") {
-      const countWrap = document.createElement("div");
-      countWrap.className = "scrims-veto-countdown";
-      const count = document.createElement("p");
-      count.className = "scrims-veto-count";
-      count.dataset.vetoCount = "1";
-      count.textContent = String(phase.seconds);
-      const hint = document.createElement("p");
-      hint.className = "scrims-veto-countdown-hint";
-      hint.textContent = "Captain coin flip";
-      countWrap.append(count, hint);
-      stage.appendChild(countWrap);
-    }
-
-    const status = document.createElement("p");
-    status.className = "scrims-veto-status";
-    status.textContent = vetoStatusText(phase);
-    stage.appendChild(status);
-
-    if (phase.name === "veto" || phase.name === "side") {
-      const used = new Map((veto.actions || []).map((action) => [action.mapId, action.kind]));
-      const mine = myDiscordId();
-      const actorId = turnSide === "right" ? veto.rightCaptainId : veto.leftCaptainId;
-      const myTurn = Boolean(mine && actorId && String(mine) === String(actorId));
-      if (phase.name === "veto") {
-        const maps = document.createElement("div");
-        maps.className = "scrims-veto-maps";
-        const stepKind = veto.steps?.[phase.step]?.kind || "ban";
-        for (const map of veto.maps || []) {
-          const kind = used.get(map.id);
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = `scrims-veto-map ui-interactive${kind === "ban" ? " is-banned" : ""}${kind === "pick" ? " is-picked" : ""}${
-            !kind && stepKind === "pick" ? " is-pick-phase" : ""
-          }`;
-          button.dataset.vetoMap = map.id;
-          button.setAttribute("aria-label", map.name);
-          const img = document.createElement("img");
-          img.className = "scrims-veto-map-img";
-          img.alt = "";
-          img.loading = "lazy";
-          img.decoding = "async";
-          const src = mapImageUrl(map);
-          if (src) img.src = src;
-          else img.hidden = true;
-          const label = document.createElement("span");
-          label.className = "scrims-veto-map-label";
-          label.textContent = map.name;
-          button.append(img, label);
-          button.disabled = !myTurn || vetoSubmitLock || Boolean(kind);
-          maps.appendChild(button);
-        }
-        stage.appendChild(maps);
+    const used = new Map((veto.actions || []).map((action) => [action.mapId, action.kind]));
+    const turnSide = currentVetoTurnSide(phase);
+    const actorId = turnSide === "right" ? veto.rightCaptainId : veto.leftCaptainId;
+    const myTurn = Boolean(myDiscordId() && actorId && String(myDiscordId()) === String(actorId));
+    const stepKind = veto.steps?.[phase.step]?.kind || "ban";
+    const maps = document.createElement("div");
+    maps.className = "scrims-veto-maps";
+    for (const map of veto.maps || []) {
+      const kind = used.get(map.id);
+      const action = (veto.actions || []).find((entry) => entry.mapId === map.id);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.vetoMap = map.id;
+      button.setAttribute("aria-label", map.name);
+      const name = document.createElement("span");
+      name.className = "scrims-veto-map-name";
+      name.textContent = map.name;
+      const meta = document.createElement("span");
+      meta.className = "scrims-veto-map-meta";
+      if (kind === "ban") {
+        button.className = "scrims-veto-map is-banned";
+        button.disabled = true;
+        meta.textContent = `Banned (${vetoCaptain(action?.side || "left").team})`;
+      } else if (kind === "pick" || phase.name === "side") {
+        button.className = "scrims-veto-map is-decider";
+        button.disabled = true;
+        meta.textContent = "Decider";
       } else {
-        const sides = document.createElement("div");
-        sides.className = "scrims-veto-sides";
-        for (const sideName of ["attack", "defense"]) {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "scrims-veto-side ui-interactive";
-          button.dataset.vetoSide = sideName;
-          button.textContent = sideName === "attack" ? "Attack" : "Defense";
-          button.disabled = !myTurn || vetoSubmitLock;
-          sides.appendChild(button);
-        }
-        stage.appendChild(sides);
+        button.className = "scrims-veto-map ui-interactive";
+        meta.textContent = stepKind === "pick" ? "Click to pick" : "Click to ban";
+        button.disabled = !myTurn || vetoSubmitLock;
       }
+      button.append(name, meta);
+      maps.appendChild(button);
     }
-    wrap.appendChild(stage);
-    appendCaptain(wrap, "right", turnSide);
+    wrap.appendChild(maps);
+
+    if (phase.name === "side") {
+      const picker = document.createElement("div");
+      picker.className = "scrims-veto-side-picker";
+      const picked = (veto.actions || []).find((action) => action.kind === "pick");
+      const note = document.createElement("p");
+      note.className = "scrims-veto-side-note";
+      note.textContent = `Decider locked: ${picked ? mapName(picked.mapId) : "map"} — choose starting side`;
+      const sides = document.createElement("div");
+      sides.className = "scrims-veto-sides";
+      for (const sideName of ["attack", "defense"]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `scrims-veto-side scrims-veto-side--${sideName} ui-interactive`;
+        button.dataset.vetoSide = sideName;
+        button.textContent = sideName === "attack" ? "Attackers" : "Defenders";
+        button.disabled = !myTurn || vetoSubmitLock;
+        sides.appendChild(button);
+      }
+      picker.append(note, sides);
+      wrap.appendChild(picker);
+    }
     return wrap;
   }
 
   function vetoStatusText(phase) {
     const veto = activeMatch?.veto;
     if (!veto || phase.name === "pending") return "Preparing the map ban.";
-    if (phase.name === "countdown") {
-      return phase.seconds > 1
-        ? `Flipping in ${phase.seconds} seconds…`
-        : "Flipping now…";
-    }
-    if (phase.playFlip) return "Flipping for first ban…";
     const actor = vetoCaptain(
       phase.name === "side" ? veto.sideSelector : veto.steps?.[phase.step]?.side || veto.firstSide
     );
@@ -1091,32 +1110,6 @@
     return mine ? `Your turn — ${kind}.` : `${actor.team} ${kind}.`;
   }
 
-  function armVetoArrow(winner) {
-    clearVetoArrowTimer();
-    vetoFlipPlayed = true;
-    const reduce = document.documentElement.classList.contains("reduce-motion");
-    const point = () => {
-      const arrow = root?.querySelector("[data-veto-arrow]");
-      if (!arrow) return;
-      arrow.classList.add("is-aiming");
-      arrow.dataset.point = winner === "right" ? "right" : "left";
-      const coin = root?.querySelector(".scrims-veto-coin");
-      if (coin) {
-        coin.classList.remove("is-flipping");
-        coin.classList.add("is-revealed");
-        coin.dataset.winner = winner;
-      }
-    };
-    if (reduce) {
-      point();
-      return;
-    }
-    vetoArrowTimer = window.setTimeout(() => {
-      vetoArrowTimer = null;
-      point();
-    }, VETO_FLIP_ANIM_MS - 120);
-  }
-
   function renderVetoBoard() {
     syncVetoPanelVisibility();
     const panel = getVetoPanelEl();
@@ -1128,8 +1121,6 @@
     if (matchId !== vetoMatchId) {
       vetoMatchId = matchId;
       vetoPaintKey = "";
-      vetoFlipPlayed = false;
-      clearVetoArrowTimer();
     }
     const phase = vetoPhase();
     if (phase.name === "done") {
@@ -1137,30 +1128,21 @@
       vetoPaintKey = phase.key;
       return;
     }
+    const prevStep = vetoStepFromPaintKey(vetoPaintKey);
+    const canPatchTurn =
+      phase.name === "veto" &&
+      vetoPaintKey.startsWith("step:") &&
+      prevStep != null &&
+      phase.step === prevStep + 1 &&
+      panel.querySelector("[data-veto-arrow]");
+    if (canPatchTurn) {
+      patchVetoAfterTurn(phase);
+      vetoPaintKey = phase.key;
+      return;
+    }
     if (phase.key === vetoPaintKey && panel.childElementCount) return;
-    const playFlip = phase.playFlip;
     vetoPaintKey = phase.key;
     panel.replaceChildren(buildVetoElement(phase));
-    if (playFlip) armVetoArrow(phase.winner);
-  }
-
-  function tickVetoClock() {
-    if (!root || !hasLiveMatch()) return;
-    const phase = vetoPhase();
-    if (phase.name !== "countdown" && !phase.playFlip) {
-      if (vetoPaintKey === "countdown" || vetoPaintKey.startsWith("step:0:")) renderVetoBoard();
-      return;
-    }
-    if (phase.name === "countdown") {
-      const countEl = root.querySelector("[data-veto-count]");
-      if (!countEl) return;
-      const next = String(phase.seconds);
-      if (countEl.textContent !== next) countEl.textContent = next;
-      const statusEl = root.querySelector(".scrims-veto-status");
-      if (statusEl) statusEl.textContent = vetoStatusText(phase);
-      return;
-    }
-    if (phase.playFlip && !root.querySelector(".scrims-veto-coin.is-flipping")) renderVetoBoard();
   }
 
   async function submitVeto(body) {
@@ -1168,7 +1150,6 @@
     const lobby = activeLobbyId || getLobbyCodeFromUrl();
     if (!lobby) return;
     vetoSubmitLock = true;
-    vetoPaintKey = "";
     renderVetoBoard();
     try {
       const data = await fetchQueueJson(`/api/scrims/lobbies/${encodeURIComponent(lobby)}/veto`, {
@@ -1176,7 +1157,6 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
       });
-      vetoPaintKey = "";
       applyServerQueuePayload(data);
     } catch (err) {
       const code = err.body?.error;
@@ -1185,12 +1165,10 @@
       else if (code === "veto_closed") scrimsToast("Map ban is already finished.");
       else scrimsToast("Couldn't update the map ban.");
       if (err.body?.activeMatch) {
-        vetoPaintKey = "";
         applyServerQueuePayload(err.body);
       }
     } finally {
       vetoSubmitLock = false;
-      vetoPaintKey = "";
       renderVetoBoard();
     }
   }
@@ -1344,13 +1322,19 @@
       const starting = lobbyRequestInFlight && queuePendingAction === "start";
       startMatchBtn.textContent = starting ? "Starting…" : "Start match";
     }
-    const showEndMatch = Boolean(matchLive && youCanEndMatch);
     if (liveActions) {
-      liveActions.classList.toggle("hidden", !showEndMatch);
-      liveActions.hidden = !showEndMatch;
+      liveActions.classList.toggle("hidden", !matchLive);
+      liveActions.hidden = !matchLive;
     }
     if (endMatchBtn) {
-      endMatchBtn.disabled = lobbyRequestInFlight;
+      const canEnd = youCanEndMatch && !lobbyRequestInFlight;
+      endMatchBtn.disabled = !canEnd;
+      endMatchBtn.setAttribute("aria-disabled", canEnd ? "false" : "true");
+      if (youCanEndMatch) {
+        endMatchBtn.removeAttribute("title");
+      } else {
+        endMatchBtn.title = "Only match admins (or the lobby host if none) can end the match";
+      }
       const ending = lobbyRequestInFlight && queuePendingAction === "end";
       endMatchBtn.textContent = ending ? "Ending…" : "End match";
     }
@@ -1863,10 +1847,8 @@
     stopPublicMatchesPoll();
     stopMatchReconcile();
     stopMatchLiveTimer();
-    clearVetoArrowTimer();
     vetoPaintKey = "";
     vetoMatchId = "";
-    vetoFlipPlayed = false;
     vetoSubmitLock = false;
     publicActiveMatches = [];
     if (!root) return;
