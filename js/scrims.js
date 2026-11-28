@@ -280,6 +280,7 @@
     userQueued =
       payload.youInQueue === true ||
       slots.some((m) => m?.you) ||
+      adminSlots.some((m) => m?.you) ||
       amInActiveMatchFromPayload(payload);
     if (payload.yourJoinedAt) {
       queueJoinedAt = Number(payload.yourJoinedAt) || queueJoinedAt;
@@ -297,8 +298,11 @@
       activeLobbyId = lobbyCode;
       setLobbyInUrl(activeLobbyId);
     }
-    youAreHost = payload.youAreHost === true;
-    youAsAdmin = payload.youAsAdmin === true;
+    const myId = myDiscordId();
+    youAreHost =
+      payload.youAreHost === true ||
+      Boolean(myId && payload.hostId && String(payload.hostId) === myId);
+    youAsAdmin = payload.youAsAdmin === true || adminSlots.some((m) => m?.you);
     settleQueuePendingFromPayload(payload);
     renderQueue();
   }
@@ -410,12 +414,8 @@
       const title = document.createElement("span");
       title.className = "scrims-roster-slot-empty-title";
       title.textContent = "Open";
-      const sub = document.createElement("span");
-      sub.className = "scrims-roster-slot-empty-sub";
-      sub.textContent = kind === "admin" ? `Admin #${index + 1}` : `Player #${index + 1}`;
       el.appendChild(icon);
       el.appendChild(title);
-      el.appendChild(sub);
       return;
     }
 
@@ -728,6 +728,7 @@
     if (startMatchBtn) {
       startMatchBtn.classList.toggle("hidden", !canStartMatch);
       startMatchBtn.hidden = !canStartMatch;
+      startMatchBtn.setAttribute("aria-hidden", canStartMatch ? "false" : "true");
       startMatchBtn.disabled = queueActionPending || matchLive || !lobbyReadyToStart;
       const starting = queueActionPending && queuePendingAction === "start";
       startMatchBtn.textContent = starting ? "Starting…" : "Start match";
